@@ -1,0 +1,10 @@
+defaults:
+  - hydra: default
+  - logger: mlflow
+  - _self_
+
+metadata:
+  experiment_name: Lymph Nodes
+  run_name: ???
+  description: ???
+  hyperparams: {}
