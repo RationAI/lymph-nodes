@@ -1,0 +1,82 @@
+# @package _global_
+defaults:
+  - /datamodule: wsi
+  - /datamodule/data_sources:
+    - train_dataset
+  # Train dataset
+  - /datamodule/datasets@datamodule.datasets.train: base_classification
+  - /datamodule/datasets/sampler@datamodule.datasets.train.sampler: random_tree
+  - /datamodule/datasets/augmentations@datamodule.datasets.train.augmentations: train_transforms
+  # Valid dataset
+  - /datamodule/datasets@datamodule.datasets.valid: base_classification
+  - /datamodule/datasets/sampler@datamodule.datasets.valid.sampler: random_tree
+  - /datamodule/datasets/augmentations@datamodule.datasets.valid.augmentations: normalize
+  - /ml: lymph_nodes
+  - /ml/optimizer: adam
+  - /ml/output_activation: sigmoid
+  - /ml/loss: bce
+  - /ml/metrics:
+    - binary_sensitivity
+    - binary_specificity
+    - binary_precision
+    - binary_f1_score
+  - /ml/lr_scheduler: reduce_lr_on_plateau
+  - /trainer/callbacks:
+    - lr_monitor
+  - _self_
+
+datamodule:
+  datasets:
+    train:
+      sampler:
+        epoch_size: 1000
+        index_levels:
+          - is_metastasis
+          - slide_name
+
+    valid:
+      sampler:
+        epoch_size: 100
+        index_levels:
+          - is_metastasis
+          - slide_name
+  
+  dataloaders_kwargs:
+    train:
+      num_workers: 8
+      batch_size: 32
+    valid:
+      num_workers: 8
+      batch_size: 32
+
+ml:
+  net:
+    features:
+      weights: IMAGENET1K_V1
+  optimizer:
+    lr: 5e-5
+    weight_decay: 5e-05
+  lr_scheduler:
+    monitor: valid/loss
+    scheduler:
+      mode: min
+      factor: 0.5
+      patience: 3
+
+trainer:
+  max_epochs: 100
+  log_every_n_steps: 100
+  logger:
+    log_model: all
+
+metadata:
+  experiment_name: Lymph nodes
+  description: |
+    Lymph nodes metastases binary classification.
+  hyperparameters:
+    max_epochs: ${trainer.max_epochs}
+    train_epoch_size: ${datamodule.datasets.train.sampler.epoch_size}
+    valid_epoch_size: ${datamodule.datasets.valid.sampler.epoch_size}
+    lr: ${ml.optimizer.lr}
+    weight_decay: ${ml.optimizer.weight_decay}
+    batch_size: ${datamodule.dataloaders_kwargs.train.batch_size}

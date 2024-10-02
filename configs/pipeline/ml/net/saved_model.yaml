@@ -1,0 +1,2 @@
+_target_: lymph_nodes.ml.nets.SavedModel
+model_uri: ???

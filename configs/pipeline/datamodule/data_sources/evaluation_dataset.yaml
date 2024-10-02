@@ -1,0 +1,6 @@
+lymph_nodes_test:
+  _target_: lymph_nodes.datamodule.WSIDataSource
+  seed: ${seed}
+  data_uris: ???
+  splits:
+    test: 1.0

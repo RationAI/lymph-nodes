@@ -1,0 +1,36 @@
+# @package _global_
+defaults:
+  - /datamodule: wsi
+  - /datamodule/data_sources: positive_dataset
+  - /datamodule/datasets@datamodule.datasets.test: base_classification
+  - /datamodule/datasets/sampler@datamodule.datasets.test.sampler: sequential_tree
+  - /datamodule/datasets/augmentations@datamodule.datasets.test.augmentations: normalize
+  - /ml: lymph_nodes
+  - /ml/net: saved_model
+  - /ml/output_activation: sigmoid
+  - /trainer/callbacks:
+    - heatmap_visualizer
+  - _self_
+
+datamodule:
+  datasets:
+    test:
+      sampler:
+        index_levels:
+          - slide_name
+  dataloaders_kwargs:
+    test:
+      num_workers: 8
+      batch_size: 32
+
+trainer:
+  callbacks:
+    heatmap_visualizer:
+      save_dir: test_heatmaps
+
+metadata:
+  experiment_name: Lymph nodes
+  description: |
+    Generating heatmaps on the testing dataset.
+  hyperparameters:
+    batch_size: ${datamodule.dataloaders_kwargs.test.batch_size}

@@ -1,0 +1,11 @@
+# @package _global_
+defaults:
+  - /experiments/slider_filters/base.yaml
+
+preprocessing:
+  tiles_uri: ???
+  slides: ???
+  
+metadata:
+  run_name: Filtering invalid TMAs from TNBC_4.
+  description: "Removing inappropriate TMAs."

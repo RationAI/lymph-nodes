@@ -1,0 +1,11 @@
+# @package _global_
+defaults:
+  - posit
+  - _self_
+
+ml:
+  net:
+    model_uri: ???
+
+metadata:
+  run_name: Generating heatmap masks on the testing dataset for the ResNet50 model.

@@ -1,0 +1,6 @@
+features:
+  _target_: lymph_nodes.ml.nets.AlexNetFeatures
+global_max_pooling:
+  _target_: lymph_nodes.ml.nets.GMaxPool
+classifier:
+  _target_: lymph_nodes.ml.nets.AlexBinaryClassifier

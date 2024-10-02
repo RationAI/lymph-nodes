@@ -1,0 +1,11 @@
+# @package _global_
+defaults:
+  - /experiments/base.yaml
+
+metrics:
+  tiles_uri: ???
+  mask_uri: ???
+
+metadata:
+  run_name: Calculating metrics for ResNet50 5 on the evaluation dataset.
+  description: "Calculating metrics."

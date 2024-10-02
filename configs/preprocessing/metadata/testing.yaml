@@ -1,0 +1,4 @@
+experiment_name : Testing
+run_name : imreg test
+description: image registration test
+user: test_user

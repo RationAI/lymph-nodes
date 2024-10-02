@@ -1,0 +1,6 @@
+defaults:
+  - _self_
+
+_target_: preprocessing.SlideFiler
+tiles_uri: ???
+slides: ???

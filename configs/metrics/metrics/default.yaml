@@ -1,0 +1,6 @@
+defaults:
+  - _self_
+
+_target_: metrics.Metrics
+tiles_uri: ???
+mask_uri: ???

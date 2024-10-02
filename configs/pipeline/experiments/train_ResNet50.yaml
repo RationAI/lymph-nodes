@@ -1,0 +1,8 @@
+# @package _global_
+defaults:
+  - train
+  - /ml/net: resnet50
+
+metadata:
+  run_name: "ResNet50 training."
+  hyperparameters:

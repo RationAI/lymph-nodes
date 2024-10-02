@@ -1,0 +1,10 @@
+heatmap_visualizer:
+  _target_: lymph_nodes.trainer.callbacks.HeatmapVisualizer
+  save_dir: ???
+  image_builder:
+    _target_: lymph_nodes.trainer.callbacks.image_builders.DiskMappedPatchAssembler
+    _partial_: true
+    vis_mode:
+      _target_: lymph_nodes.trainer.callbacks.vis_mode.IdentityMode #TileMode
+    interpolation: nearest
+    

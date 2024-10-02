@@ -1,0 +1,12 @@
+# @package _global_
+defaults:
+  - /experiments/positive/base.yaml
+
+preprocessing:
+  positive: true
+  mask_uri: ???
+  tiles_uri: ???
+
+metadata:
+  run_name: Filtering positive tiles from Another breast cancer TMA train. 
+  description: "Removing negative and inappropriate tiles by a threshold value."

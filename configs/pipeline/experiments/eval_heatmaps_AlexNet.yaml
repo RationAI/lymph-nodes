@@ -1,0 +1,11 @@
+# @package _global_
+defaults:
+  - eval
+  - _self_
+
+ml:
+  net:
+    model_uri: ???
+
+metadata:
+  run_name: Generating heatmap masks on the evaluation dataset for the AlexNet model.
