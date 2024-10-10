@@ -1,9 +1,0 @@
-lymph_nodes:
-  _target_: lymph_nodes.datamodule.WSIDataSource
-  seed: ${seed}
-  data_uris: ???
-  stratified_keys:
-    - is_metastasis
-  splits:
-    train: 0.8
-    valid: 0.1

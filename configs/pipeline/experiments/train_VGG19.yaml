@@ -1,8 +1,0 @@
-# @package _global_
-defaults:
-  - train
-  - /ml/net: vgg19
-
-metadata:
-  run_name: "VGG19 training"
-  hyperparameters:

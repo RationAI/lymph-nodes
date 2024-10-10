@@ -1,8 +1,0 @@
-# @package _global_
-defaults:
-  - train
-  - /ml/net: alexnet
-  
-metadata:
-  run_name: "AlexNet training."
-  hyperparameters:

@@ -1,2 +1,0 @@
-binary_jaccard:
-  _target_: torchmetrics.classification.BinaryF1Score

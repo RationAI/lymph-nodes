@@ -1,3 +1,0 @@
-_target_: lymph_nodes.datamodule.samplers.SequentialTreeSampler
-index_levels: ???
-advance_to_next: true

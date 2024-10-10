@@ -1,4 +1,0 @@
-_target_: lymph_nodes.datamodule.WSIDataModule
-data_sources: ???
-datasets: ???
-dataloaders_kwargs: ???

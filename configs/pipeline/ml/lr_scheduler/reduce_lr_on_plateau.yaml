@@ -1,7 +1,0 @@
-scheduler:
-  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
-  _partial_: true
-  mode: ???
-  factor: ???
-  patience: ???
-monitor: ???

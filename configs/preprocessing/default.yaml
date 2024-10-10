@@ -1,8 +1,0 @@
-defaults:
-  - _self_
-  - mlflow: kubas_cluster
-  - metadata: base
-  - hydra: default
-  - preprocessing: default
-
-user: ???

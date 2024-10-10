@@ -1,4 +1,0 @@
-experiment_name : ??? #name of experiment in mlflow
-run_name : ???
-description: ???
-user: ???  #your personal identification (any string)

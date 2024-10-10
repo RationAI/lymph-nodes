@@ -1,4 +1,0 @@
-_target_: lymph_nodes.datamodule.samplers.RandomTreeSampler
-seed: ${seed}
-epoch_size: ???
-index_levels: ???

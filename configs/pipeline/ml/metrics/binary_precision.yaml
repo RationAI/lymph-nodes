@@ -1,2 +1,0 @@
-binary_auroc:
-  _target_: torchmetrics.classification.BinaryPrecision
