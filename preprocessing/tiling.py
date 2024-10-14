@@ -86,7 +86,7 @@ def main() -> None:
     slides_df = negative_slides_df + positive_slides_df
     tiles_df = negative_tiles_df + positive_tiles_df
 
-    mlflow.set_experiment(experiment_name="DAB Metastazis Detection")
+    mlflow.set_experiment(experiment_name="Lymph Nodes")
     with mlflow.start_run(run_name="DAB training data with epytelium") as _:
         save_mlflow_dataset(
             slides=slides_df,

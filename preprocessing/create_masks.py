@@ -9,7 +9,8 @@ def create_masks() -> None:
     get_tissue_masks(training_wsis())
     get_metastazis_masks(positive_training_wsis())
 
-    with mlflow.start_run():
+    mlflow.set_experiment(experiment_name="Lymph Nodes")
+    with mlflow.start_run(run_name="DAB training data with epytelium - masks") as _:
         mlflow.log_artifacts("data/tissue_masks")
         mlflow.log_artifacts("data/annotation_masks")
 
