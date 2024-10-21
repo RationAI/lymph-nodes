@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import pyvips
 import ray
 from openslide import OpenSlide
 from rationai.masks import (
@@ -9,14 +8,15 @@ from rationai.masks import (
     write_big_tiff,
 )
 
-from preprocessing.utils import get_level_by_mpp, get_mpp, mpp_to_ppmm
+from preprocessing.utils import get_level_by_mpp, get_mpp, mpp_to_ppmm, vips_read
 
 
 def slide_tissue_mask(slide_path: Path, tissue_mask_mpp: float, dest_dir: Path) -> None:
     with OpenSlide(slide_path) as slide:
         level = get_level_by_mpp(slide, mpp=tissue_mask_mpp)
-        xres, yres = mpp_to_ppmm(get_mpp(slide, level))
-    slide = pyvips.Image.new_from_file(slide_path, page=level)
+        mpp = get_mpp(slide, level)
+        xres, yres = mpp_to_ppmm(mpp)
+    slide = vips_read(slide_path, level)
 
     mask = tissue_mask(slide)
 

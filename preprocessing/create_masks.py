@@ -11,8 +11,7 @@ def create_masks() -> None:
 
     mlflow.set_experiment(experiment_name="Lymph Nodes")
     with mlflow.start_run(run_name="DAB training data with epytelium - masks") as _:
-        mlflow.log_artifacts("data/tissue_masks")
-        mlflow.log_artifacts("data/annotation_masks")
+        mlflow.log_artifacts("data")
 
 
 if __name__ == "__main__":

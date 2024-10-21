@@ -2,6 +2,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import mlflow
+import pandas as pd
 import ray
 from rationai.tiling import tiling
 from rationai.tiling.modules.masks import PyvipsMask
@@ -14,6 +15,7 @@ from preprocessing.data import negative_training_wsis, positive_training_wsis
 
 TISSUE_MASKS_PATH = Path("data/tissue_masks")
 ANNOTATION_MASKS_PATH = Path("data/annotation_masks")
+RUN_WITH_MASKS = "fb3cc1a7f79249bf9403ea02031fe0a3"
 
 
 @dataclass
@@ -25,7 +27,7 @@ class TissueMask(PyvipsMask[TileMetadata]):
     def forward_tile(
         self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
     ) -> TileMetadata | None:
-        if class_overlaps.get(0, 0) > 0.5:
+        if class_overlaps.get(0, 0) > 99.999:
             return None
         return tile_labels
 
@@ -50,10 +52,27 @@ metastazis_mask = MetastazisMask(
 
 @ray.remote
 def positive_slide_handler(slide_path: Path) -> TiledSlideMetadata:
+    mlflow.artifacts.download_artifacts(run_id="", dst_path="./artifacts")
+
     slide, tiles = source(slide_path)
 
-    tissue_mask_path = Path(TISSUE_MASKS_PATH, slide_path.name)
-    cancer_mask_path = Path(ANNOTATION_MASKS_PATH, slide_path.name)
+    tissue_mask_path = Path(
+        TISSUE_MASKS_PATH, slide_path.parent, f"{slide_path.stem}.tiff"
+    )
+
+    if not tissue_mask_path.exists():
+        with open("missing_tissue_masks.txt", "a") as f:
+            f.write(f"{slide_path}\n")
+        return None
+
+    cancer_mask_path = Path(
+        ANNOTATION_MASKS_PATH, slide_path.parent, f"{slide_path.stem}.tiff"
+    )
+
+    if not cancer_mask_path.exists():
+        with open("missing_cancer_masks.txt", "a") as f:
+            f.write(f"{slide_path}\n")
+        return None
 
     tiles = tissue_mask(tissue_mask_path, slide.extent, tiles)
     tiles = metastazis_mask(cancer_mask_path, slide.extent, tiles)
@@ -65,14 +84,24 @@ def positive_slide_handler(slide_path: Path) -> TiledSlideMetadata:
 def negative_slide_handler(slide_path: Path) -> TiledSlideMetadata:
     slide, tiles = source(slide_path)
 
-    tissue_mask_path = Path(TISSUE_MASKS_PATH, slide_path.name)
+    tissue_mask_path = Path(
+        TISSUE_MASKS_PATH, slide_path.parent, f"{slide_path.stem}.tiff"
+    )
+
+    if not tissue_mask_path.exists():
+        with open("missing_tissue_masks.txt", "a") as f:
+            f.write(f"{slide_path}\n")
+        return None
 
     tiles = tissue_mask(tissue_mask_path, slide.extent, tiles)
 
     return slide, tiles
 
 
-def main() -> None:
+def tiler() -> None:
+    # Downlaod artifacts
+    mlflow.artifacts.download_artifacts(run_id=RUN_WITH_MASKS, dst_path="./data")
+
     positive_slides = positive_training_wsis()
     negative_slides = negative_training_wsis()
 
@@ -83,8 +112,10 @@ def main() -> None:
         slides=positive_slides, handler=positive_slide_handler
     )
 
-    slides_df = negative_slides_df + positive_slides_df
-    tiles_df = negative_tiles_df + positive_tiles_df
+    negative_tiles_df["metastazis_percentage"] = 0.0
+
+    slides_df = pd.concat([negative_slides_df, positive_slides_df], ignore_index=True)
+    tiles_df = pd.concat([negative_tiles_df, positive_tiles_df], ignore_index=True)
 
     mlflow.set_experiment(experiment_name="Lymph Nodes")
     with mlflow.start_run(run_name="DAB training data with epytelium") as _:
@@ -93,7 +124,3 @@ def main() -> None:
             tiles=tiles_df,
             dataset_name="DAB Lymph Nodes with Epytelium - train",
         )
-
-
-if __name__ == "__main__":
-    main()

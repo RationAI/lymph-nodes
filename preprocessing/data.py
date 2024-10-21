@@ -1,7 +1,7 @@
 from pathlib import Path
 
 
-PATH_PREFIX = Path("rationai/Projects/Lymph_nodes/MMCI/Immunohistochemistry")
+PATH_PREFIX = Path("/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry")
 
 
 def positive_training_wsis() -> list[Path]:

@@ -1,4 +1,7 @@
+from pathlib import Path
+
 import numpy as np
+import pyvips
 from openslide import PROPERTY_NAME_MPP_X, PROPERTY_NAME_MPP_Y, OpenSlide
 
 
@@ -26,3 +29,15 @@ def get_level_by_mpp(slide: OpenSlide, mpp: float | tuple[float, float]) -> int:
     scale_factor = np.average(mpp / slide_mpp)
 
     return np.abs(np.asarray(slide.level_downsamples) - scale_factor).argmin().item()
+
+
+def vips_read(path: Path, level: int):
+    extenstion = path.suffix
+    kwargs = {}
+
+    if extenstion == ".mrxs":
+        kwargs = {"level": level}
+    elif extenstion == ".tiff":
+        kwargs = {"page": level}
+
+    return pyvips.Image.new_from_file(str(path), **kwargs)

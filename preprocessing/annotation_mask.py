@@ -1,3 +1,4 @@
+import os
 from collections.abc import Iterable
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -36,6 +37,11 @@ class MetastazisMask(XMLPolygonMask):
 def metastazis_mask(slide_path: Path, tissue_mask_mpp: float, dest_dir: Path) -> None:
     annotation_file = Path(slide_path.parent, f"{slide_path.stem}.xml")
 
+    if not os.path.exists(annotation_file):
+        with open("data/missing_annotations.txt", "a") as f:
+            f.write(f"{slide_path}\n")
+        return
+
     with OpenSlide(slide_path) as slide:
         level = get_level_by_mpp(slide, mpp=tissue_mask_mpp)
         mask_mpp_x, mask_mpp_y = get_mpp(slide, level=level)
@@ -64,7 +70,9 @@ def get_metastazis_masks(slide_paths: list[Path]) -> None:
 
     @ray.remote
     def process_slide(slide_path: Path) -> None:
-        dest_dir = Path("data/tissue_masks", slide_path.parent.stem)  # keep last level
+        dest_dir = Path(
+            "data/annotation_masks", slide_path.parent.stem
+        )  # keep last level
         metastazis_mask(slide_path, metastazis_mask_mpp, dest_dir)
 
     process_items(slide_paths, process_item=process_slide)
