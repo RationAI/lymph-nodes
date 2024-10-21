@@ -52,8 +52,6 @@ metastazis_mask = MetastazisMask(
 
 @ray.remote
 def positive_slide_handler(slide_path: Path) -> TiledSlideMetadata:
-    mlflow.artifacts.download_artifacts(run_id="", dst_path="./artifacts")
-
     slide, tiles = source(slide_path)
 
     tissue_mask_path = Path(
