@@ -14,6 +14,24 @@ from preprocessing.utils import get_level_by_mpp, get_mpp, mpp_to_ppmm
 
 
 class MetastazisMask(XMLPolygonMask):
+    def __init__(
+        self,
+        annotation_mpp: tuple[float, float],
+        path: str | Path,
+        mask_size: tuple[int, int],
+        mask_mpp_x: float,
+        mask_mpp_y: float,
+        mode: str = "P",
+    ) -> None:
+        self.annotation_mpp = annotation_mpp
+        super().__init__(
+            path=path,
+            mask_size=mask_size,
+            mask_mpp_x=mask_mpp_x,
+            mask_mpp_y=mask_mpp_y,
+            mode=mode,
+        )
+
     @property
     def regions(self) -> Iterable[tuple[ET.Element, _Ink]]:
         regions = self.root.findall("Annotations/Annotation")
@@ -27,11 +45,11 @@ class MetastazisMask(XMLPolygonMask):
 
     @property
     def annotation_mpp_x(self) -> float:
-        return self.mask_mpp_x  # mppx for annotation is not provided
+        return self.annotation_mpp[0]
 
     @property
     def annotation_mpp_y(self) -> float:
-        return self.mask_mpp_y  # mppx for annotation is not provided
+        return self.annotation_mpp[1]
 
 
 def metastazis_mask(slide_path: Path, tissue_mask_mpp: float, dest_dir: Path) -> None:
@@ -44,8 +62,10 @@ def metastazis_mask(slide_path: Path, tissue_mask_mpp: float, dest_dir: Path) ->
 
     with OpenSlide(slide_path) as slide:
         level = get_level_by_mpp(slide, mpp=tissue_mask_mpp)
+        annotation_mpp = get_mpp(slide, level=0)  # mppx for annotation is not provided
         mask_mpp_x, mask_mpp_y = get_mpp(slide, level=level)
         annotator = MetastazisMask(
+            annotation_mpp=annotation_mpp,
             path=annotation_file,
             mask_size=slide.level_dimensions[level],
             mask_mpp_x=mask_mpp_x,

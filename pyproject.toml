@@ -23,10 +23,10 @@ dependencies = [
 dev = ["mypy", "pre-commit", "ruff"]
 
 [tool.pdm.scripts]
-fit = "python -m breast_cancer mode=fit"
-validate = "python -m breast_cancer mode=validate"
-test = "python -m breast_cancer mode=test"
-predict = "python -m breast_cancer mode=predict"
+fit = "python -m lymph_nodes mode=fit"
+validate = "python -m lymph_nodes mode=validate"
+test = "python -m lymph_nodes mode=test"
+predict = "python -m lymph_nodes mode=predict"
 l = { composite = ["lint", "format", "mypy"] }
 lint = "ruff check --fix"
 format = "ruff format"
