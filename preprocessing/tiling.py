@@ -15,7 +15,7 @@ from preprocessing.data import negative_training_wsis, positive_training_wsis
 
 TISSUE_MASKS_PATH = Path("data/tissue_masks")
 ANNOTATION_MASKS_PATH = Path("data/annotation_masks")
-RUN_WITH_MASKS = "fb3cc1a7f79249bf9403ea02031fe0a3"
+RUN_WITH_MASKS = "7d7c92fa6f754c0195ca9dd06d30ab1d"
 
 
 @dataclass
