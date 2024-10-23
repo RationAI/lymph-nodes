@@ -4,10 +4,10 @@ import ray
 from openslide import OpenSlide
 from rationai.masks import (
     process_items,
-    tissue_mask,
     write_big_tiff,
 )
 
+from preprocessing.tissue_mask_new import tissue_mask_new
 from preprocessing.utils import get_level_by_mpp, get_mpp, mpp_to_ppmm, vips_read
 
 
@@ -18,7 +18,7 @@ def slide_tissue_mask(slide_path: Path, tissue_mask_mpp: float, dest_dir: Path) 
         xres, yres = mpp_to_ppmm(mpp)
     slide = vips_read(slide_path, level)
 
-    mask = tissue_mask(slide, disk_size=int(10 // mpp[0]))
+    mask = tissue_mask_new(slide, disk_size=int(10 // mpp[0]))
 
     mask_path = Path(dest_dir, f"{Path(slide_path).stem}.tiff")
     mask_path.parent.mkdir(exist_ok=True, parents=True)
