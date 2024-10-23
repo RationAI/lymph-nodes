@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from pathlib import Path
 
 import ray
@@ -26,7 +27,7 @@ def slide_tissue_mask(slide_path: Path, tissue_mask_mpp: float, dest_dir: Path) 
     write_big_tiff(mask, path=mask_path, xres=xres, yres=yres)
 
 
-def get_tissue_masks(slide_paths: list[Path]) -> None:
+def get_tissue_masks(slide_paths: Iterable[Path]) -> None:
     tissue_mask_mpp = 2
 
     @ray.remote
@@ -34,4 +35,4 @@ def get_tissue_masks(slide_paths: list[Path]) -> None:
         dest_dir = Path("data/tissue_masks", slide_path.parent.stem)  # keep last level
         slide_tissue_mask(slide_path, tissue_mask_mpp, dest_dir)
 
-    process_items(slide_paths, process_item=process_slide)
+    process_items(list(slide_paths), process_item=process_slide)

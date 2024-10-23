@@ -85,7 +85,7 @@ def metastazis_mask(slide_path: Path, tissue_mask_mpp: float, dest_dir: Path) ->
     )
 
 
-def get_metastazis_masks(slide_paths: list[Path]) -> None:
+def get_metastazis_masks(slide_paths: Iterable[Path]) -> None:
     metastazis_mask_mpp = 2
 
     @ray.remote
@@ -95,4 +95,4 @@ def get_metastazis_masks(slide_paths: list[Path]) -> None:
         )  # keep last level
         metastazis_mask(slide_path, metastazis_mask_mpp, dest_dir)
 
-    process_items(slide_paths, process_item=process_slide)
+    process_items(list(slide_paths), process_item=process_slide)

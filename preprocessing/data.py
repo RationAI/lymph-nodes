@@ -1,21 +1,33 @@
+import itertools
+import re
+from collections.abc import Iterable
 from pathlib import Path
 
 
 PATH_PREFIX = Path("/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry")
 
 
-def positive_training_wsis() -> list[Path]:
-    return [
-        *Path(PATH_PREFIX, "Cytokeratin_mask_colorectal_TMAs").rglob("*.mrxs"),
-        *Path(PATH_PREFIX, "Cytokeratin_mask_new_breast_TNBC-TMAS").rglob("*.mrxs"),
-    ]
+def filter_he_slides(slides: Iterable[Path]) -> Iterable[Path]:
+    pattern = r"(?:^|\b|[_-])HE(?:[_-]|\b|$)"
+    return filter(lambda slide: not re.search(pattern, slide.stem), slides)
 
 
-def negative_training_wsis() -> list[Path]:
-    return [
-        *Path(PATH_PREFIX, "dataset1-2023").rglob("*-0.tiff"),
-    ]
+def get_relative_dir_path(path: Path) -> Path:
+    return path.relative_to(PATH_PREFIX).parent
 
 
-def training_wsis() -> list[Path]:
-    return positive_training_wsis() + negative_training_wsis()
+def positive_training_wsis() -> Iterable[Path]:
+    return filter_he_slides(
+        itertools.chain(
+            Path(PATH_PREFIX, "Cytokeratin_mask_colorectal_TMAs").rglob("*.mrxs"),
+            Path(PATH_PREFIX, "Cytokeratin_mask_new_breast_TNBC-TMAS").rglob("*.mrxs"),
+        )
+    )
+
+
+def negative_training_wsis() -> Iterable[Path]:
+    return filter_he_slides(Path(PATH_PREFIX, "dataset1-2023").rglob("*-0.tiff"))
+
+
+def training_wsis() -> Iterable[Path]:
+    return itertools.chain(positive_training_wsis(), negative_training_wsis())

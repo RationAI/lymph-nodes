@@ -27,7 +27,7 @@ class TissueMask(PyvipsMask[TileMetadata]):
     def forward_tile(
         self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
     ) -> TileMetadata | None:
-        if class_overlaps.get(0, 0) > 99.999:
+        if class_overlaps.get(0, 0) > 85:
             return None
         return tile_labels
 
@@ -104,13 +104,15 @@ def tiler() -> None:
     negative_slides = negative_training_wsis()
 
     negative_slides_df, negative_tiles_df = tiling(
-        slides=negative_slides, handler=negative_slide_handler
+        slides=list(negative_slides), handler=negative_slide_handler
     )
     positive_slides_df, positive_tiles_df = tiling(
-        slides=positive_slides, handler=positive_slide_handler
+        slides=list(positive_slides), handler=positive_slide_handler
     )
 
     negative_tiles_df["metastazis_percentage"] = 0.0
+    negative_slides_df["kind"] = "lymp_nodes"
+    positive_slides_df["kind"] = "colorectal"
 
     slides_df = pd.concat([negative_slides_df, positive_slides_df], ignore_index=True)
     tiles_df = pd.concat([negative_tiles_df, positive_tiles_df], ignore_index=True)
