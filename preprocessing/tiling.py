@@ -31,7 +31,7 @@ class TissueMask(PyvipsMask[TileMetadata]):
     def forward_tile(
         self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
     ) -> TileMetadata | None:
-        if class_overlaps.get(0, 0) > 0.85:
+        if class_overlaps.get(0, 0) > 0.95:
             return None
         return tile_labels
 
