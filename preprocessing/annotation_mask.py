@@ -10,6 +10,7 @@ from PIL.ImageDraw import _Ink
 from rationai.masks import process_items, write_big_tiff
 from rationai.masks.annotations import XMLPolygonMask
 
+from preprocessing.data import get_relative_dir_path
 from preprocessing.utils import get_level_by_mpp, get_mpp, mpp_to_ppmm
 
 
@@ -91,7 +92,7 @@ def get_metastazis_masks(slide_paths: Iterable[Path]) -> None:
     @ray.remote
     def process_slide(slide_path: Path) -> None:
         dest_dir = Path(
-            "data/annotation_masks", slide_path.parent.stem
+            "data/annotation_masks", get_relative_dir_path(slide_path)
         )  # keep last level
         metastazis_mask(slide_path, metastazis_mask_mpp, dest_dir)
 

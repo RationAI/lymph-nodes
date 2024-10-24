@@ -8,6 +8,7 @@ from rationai.masks import (
     write_big_tiff,
 )
 
+from preprocessing.data import get_relative_dir_path
 from preprocessing.tissue_mask_new import tissue_mask_new
 from preprocessing.utils import get_level_by_mpp, get_mpp, mpp_to_ppmm, vips_read
 
@@ -32,7 +33,9 @@ def get_tissue_masks(slide_paths: Iterable[Path]) -> None:
 
     @ray.remote
     def process_slide(slide_path: Path) -> None:
-        dest_dir = Path("data/tissue_masks", slide_path.parent.stem)  # keep last level
+        dest_dir = Path(
+            "data/tissue_masks", get_relative_dir_path(slide_path)
+        )  # keep last level
         slide_tissue_mask(slide_path, tissue_mask_mpp, dest_dir)
 
     process_items(list(slide_paths), process_item=process_slide)
