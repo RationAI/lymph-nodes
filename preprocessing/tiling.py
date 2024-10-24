@@ -10,7 +10,11 @@ from rationai.tiling.modules.tile_sources import OpenSlideTileSource
 from rationai.tiling.typing import TiledSlideMetadata, TileMetadata
 from rationai.tiling.writers import save_mlflow_dataset
 
-from preprocessing.data import negative_training_wsis, positive_training_wsis
+from preprocessing.data import (
+    get_relative_dir_path,
+    negative_training_wsis,
+    positive_training_wsis,
+)
 
 
 TISSUE_MASKS_PATH = Path("data/tissue_masks")
@@ -52,26 +56,27 @@ metastazis_mask = MetastazisMask(
 
 @ray.remote
 def positive_slide_handler(slide_path: Path) -> TiledSlideMetadata:
-    slide, tiles = source(slide_path)
-
     tissue_mask_path = Path(
-        TISSUE_MASKS_PATH, slide_path.parent, f"{slide_path.stem}.tiff"
+        TISSUE_MASKS_PATH, get_relative_dir_path(slide_path), f"{slide_path.stem}.tiff"
     )
 
     if not tissue_mask_path.exists():
-        with open("missing_tissue_masks.txt", "a") as f:
+        with open("tiler_missing_tissue_masks.txt", "a") as f:
             f.write(f"{slide_path}\n")
         return None
 
     cancer_mask_path = Path(
-        ANNOTATION_MASKS_PATH, slide_path.parent, f"{slide_path.stem}.tiff"
+        ANNOTATION_MASKS_PATH,
+        get_relative_dir_path(slide_path),
+        f"{slide_path.stem}.tiff",
     )
 
     if not cancer_mask_path.exists():
-        with open("missing_cancer_masks.txt", "a") as f:
+        with open("tiler_missing_cancer_masks.txt", "a") as f:
             f.write(f"{slide_path}\n")
         return None
 
+    slide, tiles = source(slide_path)
     tiles = tissue_mask(tissue_mask_path, slide.extent, tiles)
     tiles = metastazis_mask(cancer_mask_path, slide.extent, tiles)
 
@@ -80,17 +85,16 @@ def positive_slide_handler(slide_path: Path) -> TiledSlideMetadata:
 
 @ray.remote
 def negative_slide_handler(slide_path: Path) -> TiledSlideMetadata:
-    slide, tiles = source(slide_path)
-
     tissue_mask_path = Path(
-        TISSUE_MASKS_PATH, slide_path.parent, f"{slide_path.stem}.tiff"
+        TISSUE_MASKS_PATH, get_relative_dir_path(slide_path), f"{slide_path.stem}.tiff"
     )
 
     if not tissue_mask_path.exists():
-        with open("missing_tissue_masks.txt", "a") as f:
+        with open("tiler_missing_tissue_masks.txt", "a") as f:
             f.write(f"{slide_path}\n")
         return None
 
+    slide, tiles = source(slide_path)
     tiles = tissue_mask(tissue_mask_path, slide.extent, tiles)
 
     return slide, tiles
