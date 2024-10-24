@@ -19,7 +19,7 @@ from preprocessing.data import (
 
 TISSUE_MASKS_PATH = Path("data/tissue_masks")
 ANNOTATION_MASKS_PATH = Path("data/annotation_masks")
-RUN_WITH_MASKS = "7d7c92fa6f754c0195ca9dd06d30ab1d"
+RUN_WITH_MASKS = "e207076963d54cf58fd54df2b825019c"
 
 
 @dataclass
