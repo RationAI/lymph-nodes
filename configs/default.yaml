@@ -23,7 +23,7 @@ trainer:
 
 data:
   batch_size: 256
-  epoch_size: 10000
+  epoch_size: 2000
   num_workers: 8
 
 metadata:

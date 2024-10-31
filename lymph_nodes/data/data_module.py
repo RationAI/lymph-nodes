@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 
+import numpy as np
 from hydra.utils import instantiate
 from lightning import LightningDataModule
 from omegaconf import DictConfig
@@ -26,7 +27,7 @@ class DataModule(LightningDataModule):
 
     def setup(self, stage: str) -> None:
         match stage:
-            case "fit", "validate":
+            case "fit" | "validate":
                 self.train_val_dataset = instantiate(self.datasets["train"])
                 self.train_indices, self.val_indices = train_test_split(
                     self.train_val_dataset.tiles.index,
@@ -44,9 +45,9 @@ class DataModule(LightningDataModule):
             batch_sampler=PDMulticlassBatchSampler(
                 self.train_val_dataset.tiles.loc[self.train_indices],
                 stratify_by="metastazis",
-                distribution=[0.9, 0.1],
+                distribution=np.array([0.9, 0.1]),
                 batch_size=self.batch_size,
-                iterations_per_epoch=self.epoch_size,
+                epoch_size=self.epoch_size,
             ),
             num_workers=self.num_workers,
             persistent_workers=self.num_workers > 0,
@@ -58,11 +59,10 @@ class DataModule(LightningDataModule):
             batch_sampler=PDMulticlassBatchSampler(
                 self.train_val_dataset.tiles.loc[self.val_indices],
                 stratify_by="metastazis",
-                distribution=[0.9, 0.1],
+                distribution=np.array([0.9, 0.1]),
                 batch_size=self.batch_size,
-                iterations_per_epoch=self.epoch_size // 100,
+                epoch_size=self.epoch_size // 100,
             ),
-            batch_size=self.batch_size,
             num_workers=self.num_workers,
             persistent_workers=self.num_workers > 0,
         )
