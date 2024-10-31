@@ -1,0 +1,2 @@
+_target_: lymph_nodes.modeling.backbone.vgg16
+weights: null

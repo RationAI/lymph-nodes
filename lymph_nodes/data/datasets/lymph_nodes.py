@@ -1,8 +1,8 @@
 from collections.abc import Iterable
+from typing import Any
 
 import pandas as pd
 import torch
-from albumentations import TransformType
 from albumentations.pytorch import ToTensorV2
 from rationai.mlkit.data.datasets import MetaTiledSlides, OpenSlideTilesDataset
 from torch.utils.data import Dataset
@@ -15,7 +15,7 @@ class LymphNodes(MetaTiledSlides[Sample]):
         self,
         uris: Iterable[str],
         metastazis_threshold: float,
-        transforms: TransformType | None = None,
+        transforms: Any | None = None,
     ) -> None:
         self.transforms = transforms
         self.metastazis_threshold = metastazis_threshold
@@ -23,7 +23,7 @@ class LymphNodes(MetaTiledSlides[Sample]):
 
     def generate_datasets(self) -> Iterable[Dataset[Sample]]:
         self.tiles["metastazis"] = (
-            self.tiles["metastazisr_percentage"] > self.metastazis_threshold
+            self.tiles["metastazis_percentage"] > self.metastazis_threshold
         )
 
         return (
@@ -41,7 +41,7 @@ class LymphNodesPredict(MetaTiledSlides[PredictSample]):
     def __init__(
         self,
         uris: Iterable[str],
-        transforms: TransformType | None = None,
+        transforms: Any | None = None,
     ) -> None:
         self.transforms = transforms
         super().__init__(uris=uris)
@@ -64,7 +64,7 @@ class _LymphNodesSlideTiles(Dataset[Sample | PredictSample]):
         slide_metadata: pd.Series,
         tiles: pd.DataFrame,
         include_label: bool,
-        transforms: TransformType | None = None,
+        transforms: Any | None = None,
     ) -> None:
         super().__init__()
         self.slide_tiles = OpenSlideTilesDataset(
