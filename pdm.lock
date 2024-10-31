@@ -2082,7 +2082,7 @@ version = "0.2.0"
 requires_python = ">=3.11"
 git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/mlkit.git"
 ref = "feature/batch-sampler-new"
-revision = "82ac7f34850fe5922e220392241be58682461cf5"
+revision = "646d765ea487ed2dc0ea4fdc68eafd99d59d6b80"
 summary = ""
 groups = ["default"]
 dependencies = [
