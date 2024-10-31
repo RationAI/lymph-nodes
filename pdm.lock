@@ -4,11 +4,8 @@
 [metadata]
 groups = ["default", "dev"]
 strategy = ["inherit_metadata"]
-lock_version = "4.5.0"
-content_hash = "sha256:d0c2a22c2ed0071e99769b2d6cb98df3930bf6f1adca6a1b7f884c754a562fce"
-
-[[metadata.targets]]
-requires_python = ">=3.11"
+lock_version = "4.4.1"
+content_hash = "sha256:6e06dc997d5f6bb38882db41d4d10c06e9173d135368098658292aa8c9c3a607"
 
 [[package]]
 name = "aiohappyeyeballs"
@@ -30,7 +27,6 @@ groups = ["default"]
 dependencies = [
     "aiohappyeyeballs>=2.3.0",
     "aiosignal>=1.1.2",
-    "async-timeout<5.0,>=4.0; python_version < \"3.11\"",
     "attrs>=17.3.0",
     "frozenlist>=1.1.1",
     "multidict<7.0,>=4.5",
@@ -109,7 +105,6 @@ dependencies = [
     "numpy>=1.24.4",
     "opencv-python-headless>=4.9.0.80",
     "stringzilla>=3.10.4",
-    "typing-extensions>=4.9.0; python_version < \"3.10\"",
 ]
 files = [
     {file = "albucore-0.0.19-py3-none-any.whl", hash = "sha256:9bbf733bb80f99f306135c5bcf2418b693d853ce7545970a19d2fec24952376a"},
@@ -130,7 +125,6 @@ dependencies = [
     "opencv-python-headless>=4.9.0.80",
     "pydantic>=2.7.0",
     "scipy>=1.10.0",
-    "typing-extensions>=4.9.0; python_version < \"3.10\"",
 ]
 files = [
     {file = "albumentations-1.4.20-py3-none-any.whl", hash = "sha256:663eaa0635dfc9740f09dd1e57ef8e0eb8fb52535be78d222179b335f2a1377d"},
@@ -146,8 +140,6 @@ groups = ["default"]
 dependencies = [
     "Mako",
     "SQLAlchemy>=1.3.0",
-    "importlib-metadata; python_version < \"3.9\"",
-    "importlib-resources; python_version < \"3.9\"",
     "typing-extensions>=4",
 ]
 files = [
@@ -161,9 +153,6 @@ version = "0.7.0"
 requires_python = ">=3.8"
 summary = "Reusable constraint types to use with typing.Annotated"
 groups = ["default"]
-dependencies = [
-    "typing-extensions>=4.0.0; python_version < \"3.9\"",
-]
 files = [
     {file = "annotated_types-0.7.0-py3-none-any.whl", hash = "sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53"},
     {file = "annotated_types-0.7.0.tar.gz", hash = "sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89"},
@@ -174,9 +163,6 @@ name = "antlr4-python3-runtime"
 version = "4.9.3"
 summary = "ANTLR 4.9.3 runtime for Python 3.7"
 groups = ["default"]
-dependencies = [
-    "typing; python_version < \"3.5\"",
-]
 files = [
     {file = "antlr4-python3-runtime-4.9.3.tar.gz", hash = "sha256:f224469b4168294902bb1efa80a8bf7855f24c99aef99cbefc1bcd3cce77881b"},
 ]
@@ -187,9 +173,6 @@ version = "24.2.0"
 requires_python = ">=3.7"
 summary = "Classes Without Boilerplate"
 groups = ["default"]
-dependencies = [
-    "importlib-metadata; python_version < \"3.8\"",
-]
 files = [
     {file = "attrs-24.2.0-py3-none-any.whl", hash = "sha256:81921eb96de3191c8258c199618104dd27ac608d9366f5e35d011eae1867ede2"},
     {file = "attrs-24.2.0.tar.gz", hash = "sha256:5cfb1b9148b5b086569baec03f20d7b6bf3bcacc9a42bebf87ffaaca362f6346"},
@@ -348,10 +331,6 @@ version = "8.1.7"
 requires_python = ">=3.7"
 summary = "Composable command line interface toolkit"
 groups = ["default"]
-dependencies = [
-    "colorama; platform_system == \"Windows\"",
-    "importlib-metadata; python_version < \"3.8\"",
-]
 files = [
     {file = "click-8.1.7-py3-none-any.whl", hash = "sha256:ae74fb96c20a0277a1d615f1e4d73c8414f5a98db8b799a7931d1582f3390c28"},
     {file = "click-8.1.7.tar.gz", hash = "sha256:ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de"},
@@ -366,18 +345,6 @@ groups = ["default"]
 files = [
     {file = "cloudpickle-3.1.0-py3-none-any.whl", hash = "sha256:fe11acda67f61aaaec473e3afe030feb131d78a43461b718185363384f1ba12e"},
     {file = "cloudpickle-3.1.0.tar.gz", hash = "sha256:81a929b6e3c7335c863c771d673d105f02efdb89dfaba0c90495d1c64796601b"},
-]
-
-[[package]]
-name = "colorama"
-version = "0.4.6"
-requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
-summary = "Cross-platform colored terminal text."
-groups = ["default"]
-marker = "platform_system == \"Windows\""
-files = [
-    {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
-    {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
 
 [[package]]
@@ -488,7 +455,6 @@ requires_python = ">=3.8"
 summary = "A Python library for the Docker Engine API."
 groups = ["default"]
 dependencies = [
-    "pywin32>=304; sys_platform == \"win32\"",
     "requests>=2.26.0",
     "urllib3>=1.26.0",
 ]
@@ -530,7 +496,6 @@ dependencies = [
     "Werkzeug>=3.0.0",
     "blinker>=1.6.2",
     "click>=8.1.3",
-    "importlib-metadata>=3.6.0; python_version < \"3.10\"",
     "itsdangerous>=2.1.2",
 ]
 files = [
@@ -676,7 +641,6 @@ summary = "GitPython is a Python library used to interact with Git repositories"
 groups = ["default"]
 dependencies = [
     "gitdb<5,>=4.0.1",
-    "typing-extensions>=3.7.4.3; python_version < \"3.8\"",
 ]
 files = [
     {file = "GitPython-3.1.43-py3-none-any.whl", hash = "sha256:eec7ec56b92aad751f9912a73404bc02ba212a23adb2c7098ee668417051a1ff"},
@@ -721,9 +685,6 @@ version = "3.2.5"
 requires_python = "<4,>=3.6"
 summary = "GraphQL implementation for Python, a port of GraphQL.js, the JavaScript reference implementation for GraphQL."
 groups = ["default"]
-dependencies = [
-    "typing-extensions<5,>=4; python_version < \"3.10\"",
-]
 files = [
     {file = "graphql_core-3.2.5-py3-none-any.whl", hash = "sha256:2f150d5096448aa4f8ab26268567bbfeef823769893b39c1a2e1409590939c8a"},
     {file = "graphql_core-3.2.5.tar.gz", hash = "sha256:e671b90ed653c808715645e3998b7ab67d382d55467b7e2978549111bbabf8d5"},
@@ -737,7 +698,6 @@ summary = "Relay library for graphql-core"
 groups = ["default"]
 dependencies = [
     "graphql-core<3.3,>=3.2",
-    "typing-extensions<5,>=4.1; python_version < \"3.8\"",
 ]
 files = [
     {file = "graphql-relay-3.2.0.tar.gz", hash = "sha256:1ff1c51298356e481a0be009ccdff249832ce53f30559c1338f22a0e0d17250c"},
@@ -797,7 +757,6 @@ summary = "WSGI HTTP Server for UNIX"
 groups = ["default"]
 marker = "platform_system != \"Windows\""
 dependencies = [
-    "importlib-metadata; python_version < \"3.8\"",
     "packaging",
 ]
 files = [
@@ -812,7 +771,6 @@ summary = "A framework for elegantly configuring complex applications"
 groups = ["default"]
 dependencies = [
     "antlr4-python3-runtime==4.9.*",
-    "importlib-resources; python_version < \"3.9\"",
     "omegaconf<2.4,>=2.2",
     "packaging",
 ]
@@ -850,7 +808,6 @@ requires_python = ">=3.8"
 summary = "Read metadata from Python packages"
 groups = ["default"]
 dependencies = [
-    "typing-extensions>=3.6.4; python_version < \"3.8\"",
     "zipp>=0.5",
 ]
 files = [
@@ -902,9 +859,7 @@ summary = "An implementation of JSON Schema validation for Python"
 groups = ["default"]
 dependencies = [
     "attrs>=22.2.0",
-    "importlib-resources>=1.4.0; python_version < \"3.9\"",
     "jsonschema-specifications>=2023.03.6",
-    "pkgutil-resolve-name>=1.3.10; python_version < \"3.9\"",
     "referencing>=0.28.4",
     "rpds-py>=0.7.1",
 ]
@@ -1014,7 +969,6 @@ requires_python = ">=3.8"
 summary = "Lightning toolbox for across the our ecosystem."
 groups = ["default"]
 dependencies = [
-    "importlib-metadata>=4.0.0; python_version < \"3.8\"",
     "packaging>=17.1",
     "setuptools",
     "typing-extensions",
@@ -1044,9 +998,6 @@ version = "3.7"
 requires_python = ">=3.8"
 summary = "Python implementation of John Gruber's Markdown."
 groups = ["default"]
-dependencies = [
-    "importlib-metadata>=4.4; python_version < \"3.10\"",
-]
 files = [
     {file = "Markdown-3.7-py3-none-any.whl", hash = "sha256:7eb6df5690b81a1d7942992c97fad2938e956e79df20cbc6186e9c3a77b1c803"},
     {file = "markdown-3.7.tar.gz", hash = "sha256:2ae2471477cfd02dbbf038d5d9bc226d40def84b4fe2986e49b59b6b472bbed2"},
@@ -1112,7 +1063,6 @@ dependencies = [
     "contourpy>=1.0.1",
     "cycler>=0.10",
     "fonttools>=4.22.0",
-    "importlib-resources>=3.2.0; python_version < \"3.10\"",
     "kiwisolver>=1.3.1",
     "numpy>=1.23",
     "packaging>=20.0",
@@ -1156,7 +1106,6 @@ groups = ["default"]
 dependencies = [
     "Flask<4",
     "Jinja2<4,>=2.11; platform_system != \"Windows\"",
-    "Jinja2<4,>=3.0; platform_system == \"Windows\"",
     "alembic!=1.10.0,<2",
     "docker<8,>=4.0.0",
     "graphene<4",
@@ -1170,7 +1119,6 @@ dependencies = [
     "scikit-learn<2",
     "scipy<2",
     "sqlalchemy<3,>=1.4.0",
-    "waitress<4; platform_system == \"Windows\"",
 ]
 files = [
     {file = "mlflow-2.17.1-py3-none-any.whl", hash = "sha256:e614d0732cf95712891bfdfd92461dcf6a85d9e1899591be8399eb107eec6919"},
@@ -1262,9 +1210,6 @@ version = "6.1.0"
 requires_python = ">=3.8"
 summary = "multidict implementation"
 groups = ["default"]
-dependencies = [
-    "typing-extensions>=4.1.0; python_version < \"3.11\"",
-]
 files = [
     {file = "multidict-6.1.0-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:3efe2c2cb5763f2f1b275ad2bf7a287d3f7ebbef35648a9726e3b69284a4f3d6"},
     {file = "multidict-6.1.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:c7053d3b0353a8b9de430a4f4b4268ac9a4fb3481af37dfe49825bf45ca24156"},
@@ -1323,7 +1268,6 @@ summary = "Optional static typing for Python"
 groups = ["dev"]
 dependencies = [
     "mypy-extensions>=1.0.0",
-    "tomli>=1.1.0; python_version < \"3.11\"",
     "typing-extensions>=4.6.0",
 ]
 files = [
@@ -1568,7 +1512,6 @@ groups = ["default"]
 dependencies = [
     "PyYAML>=5.1.0",
     "antlr4-python3-runtime==4.9.*",
-    "dataclasses; python_version == \"3.6\"",
 ]
 files = [
     {file = "omegaconf-2.3.0-py3-none-any.whl", hash = "sha256:7b4df175cdb08ba400f45cae3bdcae7ba8365db4d165fc65fd04b050ab63b46b"},
@@ -1582,16 +1525,11 @@ requires_python = ">=3.6"
 summary = "Wrapper package for OpenCV python bindings."
 groups = ["default"]
 dependencies = [
-    "numpy>=1.13.3; python_version < \"3.7\"",
     "numpy>=1.17.0; python_version >= \"3.7\"",
     "numpy>=1.17.3; python_version >= \"3.8\"",
-    "numpy>=1.19.3; python_version >= \"3.6\" and platform_system == \"Linux\" and platform_machine == \"aarch64\"",
     "numpy>=1.19.3; python_version >= \"3.9\"",
-    "numpy>=1.21.0; python_version <= \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\"",
     "numpy>=1.21.2; python_version >= \"3.10\"",
-    "numpy>=1.21.4; python_version >= \"3.10\" and platform_system == \"Darwin\"",
     "numpy>=1.23.5; python_version >= \"3.11\"",
-    "numpy>=1.26.0; python_version >= \"3.12\"",
 ]
 files = [
     {file = "opencv-python-headless-4.10.0.84.tar.gz", hash = "sha256:f2017c6101d7c2ef8d7bc3b414c37ff7f54d64413a1847d89970b6b7069b4e1a"},
@@ -1684,9 +1622,7 @@ requires_python = ">=3.9"
 summary = "Powerful data structures for data analysis, time series, and statistics"
 groups = ["default"]
 dependencies = [
-    "numpy>=1.22.4; python_version < \"3.11\"",
     "numpy>=1.23.2; python_version == \"3.11\"",
-    "numpy>=1.26.0; python_version >= \"3.12\"",
     "python-dateutil>=2.8.2",
     "pytz>=2020.1",
     "tzdata>=2022.7",
@@ -1960,7 +1896,6 @@ groups = ["default"]
 dependencies = [
     "annotated-types>=0.6.0",
     "pydantic-core==2.23.4",
-    "typing-extensions>=4.12.2; python_version >= \"3.13\"",
     "typing-extensions>=4.6.1; python_version < \"3.13\"",
 ]
 files = [
@@ -2084,24 +2019,6 @@ dependencies = [
 ]
 files = [
     {file = "pyvips-2.2.3.tar.gz", hash = "sha256:43bceced0db492654c93008246a58a508e0373ae1621116b87b322f2ac72212f"},
-]
-
-[[package]]
-name = "pywin32"
-version = "308"
-summary = "Python for Window Extensions"
-groups = ["default"]
-marker = "sys_platform == \"win32\""
-files = [
-    {file = "pywin32-308-cp311-cp311-win32.whl", hash = "sha256:5d8c8015b24a7d6855b1550d8e660d8daa09983c80e5daf89a273e5c6fb5095a"},
-    {file = "pywin32-308-cp311-cp311-win_amd64.whl", hash = "sha256:575621b90f0dc2695fec346b2d6302faebd4f0f45c05ea29404cefe35d89442b"},
-    {file = "pywin32-308-cp311-cp311-win_arm64.whl", hash = "sha256:100a5442b7332070983c4cd03f2e906a5648a5104b8a7f50175f7906efd16bb6"},
-    {file = "pywin32-308-cp312-cp312-win32.whl", hash = "sha256:587f3e19696f4bf96fde9d8a57cec74a57021ad5f204c9e627e15c33ff568897"},
-    {file = "pywin32-308-cp312-cp312-win_amd64.whl", hash = "sha256:00b3e11ef09ede56c6a43c71f2d31857cf7c54b0ab6e78ac659497abd2834f47"},
-    {file = "pywin32-308-cp312-cp312-win_arm64.whl", hash = "sha256:9b4de86c8d909aed15b7011182c8cab38c8850de36e6afb1f0db22b8959e3091"},
-    {file = "pywin32-308-cp313-cp313-win32.whl", hash = "sha256:1c44539a37a5b7b21d02ab34e6a4d314e0788f1690d65b48e9b0b89f31abbbed"},
-    {file = "pywin32-308-cp313-cp313-win_amd64.whl", hash = "sha256:fd380990e792eaf6827fcb7e187b2b4b1cede0585e3d0c9e84201ec27b9905e4"},
-    {file = "pywin32-308-cp313-cp313-win_arm64.whl", hash = "sha256:ef313c46d4c18dfb82a2431e3051ac8f112ccee1a34f29c263c583c568db63cd"},
 ]
 
 [[package]]
@@ -2457,7 +2374,6 @@ summary = "Database Abstraction Library"
 groups = ["default"]
 dependencies = [
     "greenlet!=0.4.17; (platform_machine == \"win32\" or platform_machine == \"WIN32\" or platform_machine == \"AMD64\" or platform_machine == \"amd64\" or platform_machine == \"x86_64\" or platform_machine == \"ppc64le\" or platform_machine == \"aarch64\") and python_version < \"3.13\"",
-    "importlib-metadata; python_version < \"3.8\"",
     "typing-extensions>=4.6.0",
 ]
 files = [
@@ -2618,7 +2534,6 @@ dependencies = [
     "numpy<2.0,>1.20.0",
     "packaging>17.1",
     "torch>=1.10.0",
-    "typing-extensions; python_version < \"3.9\"",
 ]
 files = [
     {file = "torchmetrics-1.5.1-py3-none-any.whl", hash = "sha256:1f297aa40958b3d276dddd7494f07e6417cad3efa1366b458b902d6d2ab76def"},
@@ -2655,9 +2570,6 @@ version = "4.66.6"
 requires_python = ">=3.7"
 summary = "Fast, Extensible Progress Meter"
 groups = ["default"]
-dependencies = [
-    "colorama; platform_system == \"Windows\"",
-]
 files = [
     {file = "tqdm-4.66.6-py3-none-any.whl", hash = "sha256:223e8b5359c2efc4b30555531f09e9f2f3589bcd7fdd389271191031b49b7a63"},
     {file = "tqdm-4.66.6.tar.gz", hash = "sha256:4bdd694238bef1485ce839d67967ab50af8f9272aab687c0d7702a01da0be090"},
@@ -2719,24 +2631,11 @@ groups = ["dev"]
 dependencies = [
     "distlib<1,>=0.3.7",
     "filelock<4,>=3.12.2",
-    "importlib-metadata>=6.6; python_version < \"3.8\"",
     "platformdirs<5,>=3.9.1",
 ]
 files = [
     {file = "virtualenv-20.27.1-py3-none-any.whl", hash = "sha256:f11f1b8a29525562925f745563bfd48b189450f61fb34c4f9cc79dd5aa32a1f4"},
     {file = "virtualenv-20.27.1.tar.gz", hash = "sha256:142c6be10212543b32c6c45d3d3893dff89112cc588b7d0879ae5a1ec03a47ba"},
-]
-
-[[package]]
-name = "waitress"
-version = "3.0.1"
-requires_python = ">=3.9.0"
-summary = "Waitress WSGI server"
-groups = ["default"]
-marker = "platform_system == \"Windows\""
-files = [
-    {file = "waitress-3.0.1-py3-none-any.whl", hash = "sha256:26cdbc593093a15119351690752c99adc13cbc6786d75f7b6341d1234a3730ac"},
-    {file = "waitress-3.0.1.tar.gz", hash = "sha256:ef0c1f020d9f12a515c4ec65c07920a702613afcad1dbfdc3bcec256b6c072b3"},
 ]
 
 [[package]]

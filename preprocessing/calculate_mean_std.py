@@ -1,18 +1,19 @@
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, RandomSampler
 from tqdm import tqdm
 
 from lymph_nodes.data.datasets import LymphNodesPredict
 
 
 URIS = [
-    "mlflow-artifacts:/68/b817e33dfc6e4f16a68590a42f6d9e6f/artifacts/DAB Lymph Nodes with Epytelium - train"
+    "mlflow-artifacts:/68/e6e0d31541004d0fa972f3e04e387f68/artifacts/DAB Lymph Nodes with Epytelium - train"
 ]
 
 
-def main() -> None:
+def calculate_mean_std() -> None:
     dataset = LymphNodesPredict(URIS)
-    dataloader = DataLoader(dataset, batch_size=1, num_workers=8)
+    sampler = RandomSampler(dataset, num_samples=10000)
+    dataloader = DataLoader(dataset, batch_size=1, sampler=sampler)
 
     means = []
     stds = []
@@ -27,7 +28,3 @@ def main() -> None:
 
     print(f"Mean: {mean}")
     print(f"Std: {std}")
-
-
-if __name__ == "__main__":
-    main()
