@@ -31,3 +31,17 @@ def negative_training_wsis() -> Iterable[Path]:
 
 def training_wsis() -> Iterable[Path]:
     return itertools.chain(positive_training_wsis(), negative_training_wsis())
+
+
+def test_wsis_lymph_nodes() -> Iterable[Path]:
+    return filter_he_slides(Path(PATH_PREFIX, "Annotated_IHC_for_test").rglob("*.mrxs"))
+
+
+def test_wsis_colorectal() -> Iterable[Path]:
+    return filter_he_slides(
+        Path(PATH_PREFIX, "Cytokeratin_mask_final_scans").rglob("*.mrxs")
+    )
+
+
+def test_wsis() -> Iterable[Path]:
+    return itertools.chain(test_wsis_lymph_nodes(), test_wsis_colorectal())
