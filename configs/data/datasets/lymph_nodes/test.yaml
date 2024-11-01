@@ -1,0 +1,6 @@
+defaults:
+  - /data/transforms@transforms: test
+
+_target_: lymph_nodes.data.datasets.LymphNodes
+uris: ["mlflow-artifacts:/68/69b32550c0ba468db8b588bd2d95499b/artifacts/DAB Lymph Nodes with Epytelium - test"]
+metastazis_threshold: 0.1
