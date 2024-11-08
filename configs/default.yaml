@@ -23,7 +23,7 @@ trainer:
       mode: min
 
 data:
-  batch_size: 256
+  batch_size: 128
   epoch_size: 1000
   num_workers: 8
 
