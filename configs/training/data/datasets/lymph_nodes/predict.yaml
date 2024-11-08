@@ -1,0 +1,5 @@
+defaults:
+  - /data/transforms@transforms: test
+
+_target_: lymph_nodes.data.datasets.BreastCancerPredict
+uris: ["mlflow-artifacts:/61/e498e04c29334148b02ca27716d83e96/artifacts/Breast Cancer - test"]
