@@ -35,6 +35,7 @@ class DataModule(LightningDataModule):
             #     )
             case "fit":
                 self.train = instantiate(self.datasets["train"])
+                self.val = instantiate(self.datasets["val"])
             case "validate":
                 self.val = instantiate(self.datasets["val"])
             case "test":
