@@ -86,10 +86,8 @@ class LymphNodesModel(LightningModule):
             self.logger.log_table({"slide": key, **table}, "test_metrics.json")
         self.test_metrics.reset()
 
-        pd.DataFrame(self.predictions).to_parquet(
-            "./data/predictions.parquet", index=False
-        )
-        self.logger.log_artifact("./data/predictions.parquet")
+        pd.DataFrame(self.predictions).to_parquet("./predictions.parquet", index=False)
+        self.logger.log_artifact("./predictions.parquet")
 
     def predict_step(
         self, batch: Tensor, batch_idx: int, dataloader_idx: int = 0
