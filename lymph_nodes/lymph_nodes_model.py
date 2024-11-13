@@ -74,8 +74,8 @@ class LymphNodesModel(LightningModule):
             self.predictions.append(
                 Prediction(
                     slide_id=slide_id,
-                    x=x,
-                    y=y,
+                    x=x.item(),
+                    y=y.item(),
                     probability=output.item(),
                 )
             )
