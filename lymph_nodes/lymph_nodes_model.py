@@ -1,3 +1,4 @@
+import pandas as pd
 from lightning import LightningModule
 from rationai.mlkit.metrics import LazyMetricDict
 from torch import Tensor, nn
@@ -6,7 +7,7 @@ from torch.optim.optimizer import Optimizer
 from torchmetrics import AUROC, Accuracy, MetricCollection, Precision, Recall
 
 from lymph_nodes.modeling.binary_classifier import BinaryClassifier
-from lymph_nodes.typing import Input, Outputs
+from lymph_nodes.typing import Input, Outputs, Prediction, Predictions
 
 
 class LymphNodesModel(LightningModule):
@@ -26,6 +27,7 @@ class LymphNodesModel(LightningModule):
         )
         self.test_metrics = LazyMetricDict(self.val_metrics.clone())
         self.val_metrics.prefix = "validation/"
+        self.predictions: Predictions = []
 
     def forward(self, x: Tensor) -> Outputs:
         features = self.backbone(x)
@@ -66,11 +68,28 @@ class LymphNodesModel(LightningModule):
         ):
             self.test_metrics.update(output, target, key=slide)
 
+        for output, slide_id, x, y in zip(
+            outputs, metadata["slide_id"], metadata["x"], metadata["y"], strict=False
+        ):
+            self.predictions.append(
+                Prediction(
+                    slide_id=slide_id,
+                    x=x,
+                    y=y,
+                    probability=output.item(),
+                )
+            )
+
     def on_test_epoch_end(self) -> None:
         for key, metrics in self.test_metrics.compute().items():
             table = {k: v.item() for k, v in metrics.items()}
             self.logger.log_table({"slide": key, **table}, "test_metrics.json")
         self.test_metrics.reset()
+
+        pd.DataFrame(self.predictions).to_parquet(
+            "./data/predictions.parquet", index=False
+        )
+        self.logger.log_artifact("./data/predictions.parquet")
 
     def predict_step(
         self, batch: Tensor, batch_idx: int, dataloader_idx: int = 0

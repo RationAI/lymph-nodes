@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 from rationai.mlkit.data.samplers import PDMulticlassBatchSampler
 from torch.utils.data import DataLoader
 
-from lymph_nodes.typing import Input
+from lymph_nodes.typing import Sample
 
 
 class DataModule(LightningDataModule):
@@ -43,7 +43,7 @@ class DataModule(LightningDataModule):
             case "predict":
                 self.predict = instantiate(self.datasets["predict"])
 
-    def train_dataloader(self) -> Iterable[Input]:
+    def train_dataloader(self) -> Iterable[Sample]:
         # return DataLoader(
         #     self.train_val_dataset,
         #     batch_sampler=PDMulticlassBatchSampler(
@@ -69,7 +69,7 @@ class DataModule(LightningDataModule):
             persistent_workers=self.num_workers > 0,
         )
 
-    def val_dataloader(self) -> Iterable[Input]:
+    def val_dataloader(self) -> Iterable[Sample]:
         # return DataLoader(
         #     self.train_val_dataset,
         #     batch_sampler=PDMulticlassBatchSampler(
@@ -89,14 +89,14 @@ class DataModule(LightningDataModule):
             persistent_workers=self.num_workers > 0,
         )
 
-    def test_dataloader(self) -> Iterable[Input]:
+    def test_dataloader(self) -> Iterable[Sample]:
         return DataLoader(
             self.test,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
         )
 
-    def predict_dataloader(self) -> list[Iterable[Input]]:
+    def predict_dataloader(self) -> list[Iterable[Sample]]:
         return [
             DataLoader(
                 dataset, batch_size=self.batch_size, num_workers=self.num_workers

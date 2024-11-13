@@ -84,6 +84,7 @@ class _LymphNodesSlideTiles(Dataset[Sample | PredictSample]):
     def __getitem__(self, idx: int) -> Sample | PredictSample:
         image = self.slide_tiles[idx]
         metadata = Metadata(
+            slide_id=self.slide_tiles.tiles.iloc[idx]["slide_id"],
             slide=self.slide_tiles.slide_path.stem,
             x=self.slide_tiles.tiles.iloc[idx]["x"],
             y=self.slide_tiles.tiles.iloc[idx]["y"],
