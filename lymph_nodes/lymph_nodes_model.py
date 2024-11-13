@@ -87,7 +87,7 @@ class LymphNodesModel(LightningModule):
         self.test_metrics.reset()
 
         pd.DataFrame(self.predictions).to_parquet("./predictions.parquet", index=False)
-        self.logger.log_artifact("./predictions.parquet")
+        self.logger.experiment.log_artifact("./predictions.parquet")
 
     def predict_step(
         self, batch: Tensor, batch_idx: int, dataloader_idx: int = 0
