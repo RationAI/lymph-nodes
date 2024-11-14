@@ -61,7 +61,7 @@ class DataModule(LightningDataModule):
             batch_sampler=PDMulticlassBatchSampler(
                 self.train.tiles,
                 stratify_by="metastazis",
-                distribution=np.array([0.9, 0.1]),
+                distribution=np.array([0.95, 0.05]),
                 batch_size=self.batch_size,
                 epoch_size=self.epoch_size,
             ),
