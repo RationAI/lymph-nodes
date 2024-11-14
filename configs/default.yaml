@@ -29,6 +29,6 @@ data:
 
 metadata:
   experiment_name: Lymph Nodes
-  run_name: Lymph Nodes DAB testing
-  description: Testing a model on the Lymph Nodes DAB dataset
+  run_name: Lymph Nodes DAB training
+  description: Training a model on the Lymph Nodes DAB dataset
   hyperparams: {}
