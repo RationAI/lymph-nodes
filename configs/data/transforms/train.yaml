@@ -6,10 +6,10 @@ transforms:
     p: 0.75
   - _target_: albumentations.RandomGamma
     p: 0.5
-  # - _target_: albumentations.RandomBrightnessContrast
-  #   p: 0.5
-  # - _target_: albumentations.HueSaturationValue
-  #   p: 0.5
+  - _target_: albumentations.RandomBrightnessContrast
+    p: 0.5
+  - _target_: albumentations.HueSaturationValue
+    p: 0.5
   - _target_: albumentations.Normalize
     mean: [215.6701, 225.0577, 237.1580]
     std: [32.2908, 24.3962, 14.4058]

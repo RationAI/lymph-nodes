@@ -14,7 +14,7 @@ checkpoint: null
 
 trainer:
   enable_checkpointing: True
-  max_epochs: 10
+  max_epochs: 20
   log_every_n_steps: 5
   callbacks:
     - _target_: lightning.pytorch.callbacks.ModelCheckpoint
@@ -29,6 +29,6 @@ data:
 
 metadata:
   experiment_name: Lymph Nodes
-  run_name: Lymph Nodes DAB training
+  run_name: Lymph Nodes DAB training [0.5 0.5]
   description: Training a model on the Lymph Nodes DAB dataset
   hyperparams: {}
