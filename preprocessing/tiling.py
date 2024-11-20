@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -12,36 +13,43 @@ from rationai.tiling.writers import save_mlflow_dataset
 
 from preprocessing.data import (
     get_relative_dir_path,
+    negative_test_wsis,
     negative_train_wsis,
+    negative_val_wsis,
     positive_train_wsis,
+    positive_val_wsis,
+    test_wsis_colorectal,
+    test_wsis_lymph_nodes,
 )
 
 
 TISSUE_MASKS_PATH = Path("data/tissue_masks")
 ANNOTATION_MASKS_PATH = Path("data/annotation_masks")
-RUN_WITH_MASKS = "e207076963d54cf58fd54df2b825019c"
 
 
 @dataclass
 class MetastazisTileMetadata(TileMetadata):
-    metastazis_percentage: float
+    metastazis: float
 
 
-class TissueMask(PyvipsMask[TileMetadata]):
+class TissueMask(PyvipsMask[MetastazisTileMetadata]):
     def forward_tile(
         self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
-    ) -> TileMetadata | None:
+    ) -> MetastazisTileMetadata | None:
         if class_overlaps.get(0, 0) > 0.95:
             return None
-        return tile_labels
+
+        # Set default metastazis to 0.0
+        return MetastazisTileMetadata(**asdict(tile_labels), metastazis=0.0)
 
 
 class MetastazisMask(PyvipsMask[MetastazisTileMetadata]):
     def forward_tile(
         self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
     ) -> MetastazisTileMetadata:
+        # Rewrite default metastazis to 0.0
         return MetastazisTileMetadata(
-            **asdict(tile_labels), metastazis_percentage=class_overlaps.get(255, 0)
+            **asdict(tile_labels), metastazis=class_overlaps.get(255, 0)
         )
 
 
@@ -100,31 +108,67 @@ def negative_slide_handler(slide_path: Path) -> TiledSlideMetadata:
     return slide, tiles
 
 
-def tiler() -> None:
-    # Downlaod artifacts
-    mlflow.artifacts.download_artifacts(run_id=RUN_WITH_MASKS, dst_path="./data")
-
-    positive_slides = positive_train_wsis()
-    negative_slides = negative_train_wsis()
-
-    negative_slides_df, negative_tiles_df = tiling(
-        slides=list(negative_slides), handler=negative_slide_handler
-    )
+def tile_dataset(
+    positive_slides: Iterable[Path], negative_slides: Iterable[Path], kind: str
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     positive_slides_df, positive_tiles_df = tiling(
         slides=list(positive_slides), handler=positive_slide_handler
     )
 
-    negative_tiles_df["metastazis_percentage"] = 0.0
-    negative_slides_df["kind"] = "lymp_nodes"
-    positive_slides_df["kind"] = "colorectal"
+    negative_slides_df, negative_tiles_df = tiling(
+        slides=list(negative_slides), handler=negative_slide_handler
+    )
+
+    negative_slides_df["kind"] = "lymph_nodes"
+    positive_slides_df["kind"] = kind
+
+    negative_slides_df["metastazis"] = False
+    positive_slides_df["metastazis"] = True
 
     slides_df = pd.concat([negative_slides_df, positive_slides_df], ignore_index=True)
     tiles_df = pd.concat([negative_tiles_df, positive_tiles_df], ignore_index=True)
 
+    return slides_df, tiles_df
+
+
+def tiler(run_with_masks_id: str) -> None:
+    # Downlaod artifacts
+    mlflow.artifacts.download_artifacts(run_id=run_with_masks_id, dst_path="./data")
+
+    train_slides, train_tiles = tile_dataset(
+        positive_train_wsis(), negative_train_wsis(), "colorectal"
+    )
+
+    val_slides, val_tiles = tile_dataset(
+        positive_val_wsis(), negative_val_wsis(), "colorectal"
+    )
+
+    # Testing data
+    test_slides, test_tiles = tile_dataset(
+        negative_test_wsis(), test_wsis_lymph_nodes(), "lymph_nodes"
+    )
+
+    test_slides_colorectal, test_tiles_colrectal = tile_dataset(
+        [], test_wsis_colorectal(), "colorectal"
+    )
+
+    test_slides = pd.concat([test_slides, test_slides_colorectal], ignore_index=True)
+    test_tiles = pd.concat([test_tiles, test_tiles_colrectal], ignore_index=True)
+
     mlflow.set_experiment(experiment_name="Lymph Nodes")
-    with mlflow.start_run(run_name="DAB training data with epytelium") as _:
+    with mlflow.start_run(run_name="DAB datasets with epitelium") as _:
         save_mlflow_dataset(
-            slides=slides_df,
-            tiles=tiles_df,
-            dataset_name="DAB Lymph Nodes with Epytelium - train",
+            slides=train_slides,
+            tiles=train_tiles,
+            dataset_name="DAB Lymph Nodes with Epitelium - train",
+        )
+        save_mlflow_dataset(
+            slides=val_slides,
+            tiles=val_tiles,
+            dataset_name="DAB Lymph Nodes with Epitelium - val",
+        )
+        save_mlflow_dataset(
+            slides=test_slides,
+            tiles=test_tiles,
+            dataset_name="DAB Lymph Nodes with Epitelium - test",
         )
