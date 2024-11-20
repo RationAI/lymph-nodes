@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 PATH_PREFIX = Path("/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry")
+VAL_CASES_IDS = [3, 34, 52, 80, 114]
 
 
 def filter_he_slides(slides: Iterable[Path]) -> Iterable[Path]:
@@ -16,31 +17,66 @@ def get_relative_dir_path(path: Path) -> Path:
     return path.relative_to(PATH_PREFIX).parent
 
 
-def positive_training_wsis() -> Iterable[Path]:
+def positive_train_wsis() -> Iterable[Path]:
+    val_slides = list(val_wsis())
+    return filter(
+        lambda slide: slide not in val_slides,
+        filter_he_slides(
+            itertools.chain(
+                Path(PATH_PREFIX, "Cytokeratin_mask_colorectal_TMAs").glob("*.mrxs"),
+                Path(PATH_PREFIX, "Cytokeratin_mask_new_breast_TNBC-TMAS/ckae").rglob(
+                    "*.mrxs"
+                ),
+            )
+        ),
+    )
+
+
+def negative_train_wsis() -> Iterable[Path]:
+    val_slides = list(val_wsis())
+    return filter(
+        lambda slide: slide not in val_slides,
+        filter_he_slides(Path(PATH_PREFIX, "dataset1-2023").glob("*-0.tiff")),
+    )
+
+
+def negative_val_wsis() -> Iterable[Path]:
     return filter_he_slides(
         itertools.chain(
-            Path(PATH_PREFIX, "Cytokeratin_mask_colorectal_TMAs").rglob("*.mrxs"),
-            Path(PATH_PREFIX, "Cytokeratin_mask_new_breast_TNBC-TMAS").rglob("*.mrxs"),
+            *[
+                Path(PATH_PREFIX, "dataset1-2023").glob(
+                    f"*_{case_id}_SLIDE_[0-9]*-0.tiff"
+                )
+                for case_id in VAL_CASES_IDS
+            ]
         )
     )
 
 
-def negative_training_wsis() -> Iterable[Path]:
-    return filter_he_slides(Path(PATH_PREFIX, "dataset1-2023").rglob("*-0.tiff"))
-
-
-def training_wsis() -> Iterable[Path]:
-    return itertools.chain(positive_training_wsis(), negative_training_wsis())
+def positive_val_wsis() -> Iterable[Path]:
+    return [
+        Path(
+            PATH_PREFIX, "Cytokeratin_mask_new_breast_TNBC-TMAS/ckae/TNBC-BF-4-PNG.mrxs"
+        )
+    ]
 
 
 def test_wsis_lymph_nodes() -> Iterable[Path]:
-    return filter_he_slides(Path(PATH_PREFIX, "Annotated_IHC_for_test").rglob("*.mrxs"))
+    return filter_he_slides(Path(PATH_PREFIX, "Annotated_IHC_for_test").glob("*.mrxs"))
 
 
 def test_wsis_colorectal() -> Iterable[Path]:
     return filter_he_slides(
-        Path(PATH_PREFIX, "Cytokeratin_mask_final_scans").rglob("*.mrxs")
+        Path(PATH_PREFIX, "Cytokeratin_mask_final_scans").glob("*.mrxs")
     )
+
+
+def train_wsis() -> Iterable[Path]:
+    return itertools.chain(positive_train_wsis(), negative_train_wsis())
+
+
+def val_wsis() -> Iterable[Path]:
+    return itertools.chain(positive_val_wsis(), negative_val_wsis())
 
 
 def test_wsis() -> Iterable[Path]:
