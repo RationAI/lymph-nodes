@@ -12,8 +12,8 @@ from rationai.tiling.writers import save_mlflow_dataset
 
 from preprocessing.data import (
     get_relative_dir_path,
-    negative_training_wsis,
-    positive_training_wsis,
+    negative_train_wsis,
+    positive_train_wsis,
 )
 
 
@@ -104,8 +104,8 @@ def tiler() -> None:
     # Downlaod artifacts
     mlflow.artifacts.download_artifacts(run_id=RUN_WITH_MASKS, dst_path="./data")
 
-    positive_slides = positive_training_wsis()
-    negative_slides = negative_training_wsis()
+    positive_slides = positive_train_wsis()
+    negative_slides = negative_train_wsis()
 
     negative_slides_df, negative_tiles_df = tiling(
         slides=list(negative_slides), handler=negative_slide_handler
