@@ -144,11 +144,11 @@ def tiler(run_with_masks_id: str) -> None:
 
     # Testing data
     test_slides, test_tiles = tile_dataset(
-        negative_test_wsis(), test_wsis_lymph_nodes(), "lymph_nodes"
+        test_wsis_lymph_nodes(), negative_test_wsis(), "lymph_nodes"
     )
 
     test_slides_colorectal, test_tiles_colrectal = tile_dataset(
-        [], test_wsis_colorectal(), "colorectal"
+        test_wsis_colorectal(), [], "colorectal"
     )
 
     test_slides = pd.concat([test_slides, test_slides_colorectal], ignore_index=True)

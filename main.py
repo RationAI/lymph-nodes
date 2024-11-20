@@ -43,6 +43,4 @@ if __name__ == "__main__":
     if "tiling" in triggers:
         params["masks_run_id"] = args.masks_run_id
 
-    print(triggers, params)
-
     main(triggers, params)
