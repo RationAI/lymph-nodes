@@ -32,22 +32,20 @@ class MetastazisTileMetadata(TileMetadata):
     metastazis: float
 
 
-class TissueMask(PyvipsMask[MetastazisTileMetadata]):
+class TissueMask(PyvipsMask[TileMetadata]):
     def forward_tile(
         self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
-    ) -> MetastazisTileMetadata | None:
+    ) -> TileMetadata | None:
         if class_overlaps.get(0, 0) > 0.95:
             return None
 
-        # Set default metastazis to 0.0
-        return MetastazisTileMetadata(**asdict(tile_labels), metastazis=0.0)
+        return tile_labels
 
 
 class MetastazisMask(PyvipsMask[MetastazisTileMetadata]):
     def forward_tile(
         self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
     ) -> MetastazisTileMetadata:
-        # Rewrite default metastazis to 0.0
         return MetastazisTileMetadata(
             **asdict(tile_labels), metastazis=class_overlaps.get(255, 0)
         )
@@ -119,6 +117,7 @@ def tile_dataset(
         slides=list(negative_slides), handler=negative_slide_handler
     )
 
+    negative_tiles_df["metastazis"] = 0.0
     negative_slides_df["kind"] = "lymph_nodes"
     positive_slides_df["kind"] = kind
 
