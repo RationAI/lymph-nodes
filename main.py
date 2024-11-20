@@ -6,10 +6,9 @@ import mlflow
 from preprocessing import tiling
 from preprocessing.calculate_mean_std import calculate_mean_std
 from preprocessing.create_masks import create_masks
-from preprocessing.create_tile_masks import create_tile_masks
 
 
-Triggres = Literal["create_masks", "tiling", "create_slide_tiles", "calculate_mean_std"]
+Triggres = Literal["create_masks", "tiling", "calculate_mean_std"]
 
 
 def main(triggers: list[Triggres]) -> None:
@@ -20,9 +19,6 @@ def main(triggers: list[Triggres]) -> None:
 
     if "tiling" in triggers:
         tiling.tiler()
-
-    if "create_slide_tiles" in triggers:
-        create_tile_masks()
 
     if "calculate_mean_std" in triggers:
         calculate_mean_std()
