@@ -23,7 +23,7 @@ class MetastazisMask(XMLPolygonMask):
         mask_size: tuple[int, int],
         mask_mpp_x: float,
         mask_mpp_y: float,
-        mode: str = "1",
+        mode: str = "L",
     ) -> None:
         self.annotation_mpp = annotation_mpp
         super().__init__(
@@ -37,7 +37,7 @@ class MetastazisMask(XMLPolygonMask):
     @property
     def regions(self) -> Iterable[tuple[ET.Element, _Ink]]:
         regions = self.root.findall("Annotations/Annotation")
-        return zip(regions, [True] * len(regions), strict=False)
+        return zip(regions, [255] * len(regions), strict=False)
 
     def get_region_coordinates(
         self, region: ET.Element
@@ -79,7 +79,7 @@ def metastazis_mask(
     mask = annotator()
 
     if invert:
-        mask = PIL.ImageOps.invert(mask.convert("L"))
+        mask = PIL.ImageOps.invert(mask)
 
     xres, yres = mpp_to_ppmm((mask_mpp_x, mask_mpp_y))
 
