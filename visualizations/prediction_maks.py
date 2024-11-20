@@ -20,7 +20,7 @@ def generate_mask(slide: Any, slide_tiles: pd.DataFrame, dest_dir: Path) -> None
         slide_tiles,
         tile_extent=(slide.tile_extent_x, slide.tile_extent_y),
         size=(slide.extent_x, slide.extent_y),
-        fill=lambda tile: int(tile["metastazis"] * 255),
+        fill=lambda tile: int(tile["cancer"] * 255),
         outline_width=0,
     )
     mask_path = Path(dest_dir, f"{Path(slide.path).stem}.tiff")

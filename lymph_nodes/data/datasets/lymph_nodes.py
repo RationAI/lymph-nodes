@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import torch
 from albumentations.pytorch import ToTensorV2
@@ -22,9 +23,16 @@ class LymphNodes(MetaTiledSlides[Sample]):
         super().__init__(uris=uris)
 
     def generate_datasets(self) -> Iterable[Dataset[Sample]]:
-        self.tiles["metastazis"] = (
-            self.tiles["metastazis_percentage"] > self.metastazis_threshold
-        )
+        positive_slides_id = self.slides[self.slides["kind"] == "colorectal"]["id"]
+
+        self.tiles["cancer"] = self.tiles["metastazis"] > self.metastazis_threshold
+        # filter out all tiles that are from positive slides, but dont contain meteastazis (eg. < 0.5) then rest the index
+        self.tiles = self.tiles[
+            ~np.logical_and(
+                self.tiles["slide_id"].isin(positive_slides_id),
+                ~self.tiles["cancer"],
+            )
+        ].reset_index()
 
         return (
             _LymphNodesSlideTiles(
