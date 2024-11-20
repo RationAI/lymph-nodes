@@ -79,7 +79,7 @@ def metastazis_mask(
     mask = annotator()
 
     if invert:
-        mask = PIL.ImageOps.invert(mask.convert("L")).convert("1")
+        mask = PIL.ImageOps.invert(mask.convert("L"))
 
     xres, yres = mpp_to_ppmm((mask_mpp_x, mask_mpp_y))
 
