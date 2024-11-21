@@ -104,9 +104,7 @@ class _LymphNodesSlideTiles(Dataset[Sample | PredictSample]):
         image = self.to_tensor(image=image)["image"]
 
         if self.include_label:
-            label = torch.tensor(
-                [self.slide_tiles.tiles.iloc[idx]["metastazis"]]
-            ).float()
+            label = torch.tensor([self.slide_tiles.tiles.iloc[idx]["cancer"]]).float()
             return image, label, metadata
 
         return image, metadata
