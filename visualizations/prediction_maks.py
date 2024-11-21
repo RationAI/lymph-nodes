@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any
 
+import mlflow
 import pandas as pd
 import pyvips
 import ray
@@ -40,3 +41,7 @@ def prediction_mask(slides: pd.DataFrame, tiles: pd.DataFrame) -> None:
         generate_mask(slide, tiles[tiles["slide_id"] == slide.id], dest_dir)
 
     process_items(slides.itertuples(), process_item=process_slide, max_concurrent=2)
+
+    mlflow.set_experiment(experiment_name="Lymph Nodes")
+    with mlflow.start_run(run_name="DAB predictions") as _:
+        mlflow.log_artifacts("data/prediction_mask", "prediction_mask")
