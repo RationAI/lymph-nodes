@@ -14,9 +14,9 @@ dependencies = [
     "pandas>=2.2.2",
     "torch>=2.2.2,<2.3",
     "tqdm>=4.66.5",
-    "rationai-masks @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git@feature/tile-visualization",
     "rationai-tiling @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/tiling.git",
     "rationai-mlkit @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/mlkit.git@feature/batch-sampler-new",
+    "rationai-masks @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git@feature/tile-visualization",
 ]
 
 [tool.pdm.dev-dependencies]

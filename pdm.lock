@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:191deb662b69e8686308f70cfb4a4c779fce5c84943516aefe8e68898caeeeb4"
+content_hash = "sha256:1b43c6ebfb3ba8ffca70b56f68b9208fc8b96bfea63b0239a01d85724011e282"
 
 [[package]]
 name = "aiohappyeyeballs"
@@ -2063,7 +2063,8 @@ name = "rationai-masks"
 version = "1.0.0"
 requires_python = ">=3.11"
 git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git"
-revision = "7d56f2ba3c7b411bdf6043ae1224676c745317d2"
+ref = "feature/tile-visualization"
+revision = "d899d6152d9ceae10ecfea43bbc080b3f7996bc2"
 summary = ""
 groups = ["default"]
 dependencies = [
