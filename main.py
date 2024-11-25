@@ -2,12 +2,11 @@ import argparse
 from typing import Literal
 
 import mlflow
-import pandas as pd
 
 from preprocessing.calculate_mean_std import calculate_mean_std
 from preprocessing.create_masks import create_training_masks
 from preprocessing.tiling import training_tiler
-from visualizations.download_data import load_parquet
+from visualizations.download_data import download_inference_data
 from visualizations.heatmap import heatmap
 
 
@@ -15,8 +14,8 @@ Triggres = Literal["create_masks", "tiling", "calculate_mean_std", "heatmap"]
 
 
 def main(triggers: list[Triggres], params: dict) -> None:
-    # mlflow.set_tracking_uri("http://mlflow.rationai-mlflow:5000")
-    mlflow.set_tracking_uri("https://mlflow.rationai.cloud.trusted.e-infra.cz")
+    mlflow.set_tracking_uri("http://mlflow.rationai-mlflow:5000")
+    # mlflow.set_tracking_uri("https://mlflow.rationai.cloud.trusted.e-infra.cz")
 
     if "create_masks" in triggers:
         create_training_masks()
@@ -28,11 +27,11 @@ def main(triggers: list[Triggres], params: dict) -> None:
         calculate_mean_std()
 
     if "heatmap" in triggers:
-        # slides, predictions = download_inference_data(
-        #     params["inference_slides_uri"], params["predictions_uri"]
-        # )
-        slides = load_parquet(params["inference_slides_uri"], "slides.parquet")
-        predictions = pd.read_parquet("./data/predictions.parquet")
+        slides, predictions = download_inference_data(
+            params["inference_slides_uri"], params["predictions_uri"]
+        )
+        # slides = load_parquet(params["inference_slides_uri"], "slides.parquet")
+        # predictions = pd.read_parquet("./data/predictions.parquet")
         heatmap(slides, predictions)
 
 
