@@ -68,6 +68,8 @@ class LymphNodesModel(LightningModule):
         ):
             self.test_metrics.update(output, target, key=slide)
 
+        self.log_dict(self.test_metrics, batch_size=len(inputs), on_epoch=True)
+
         for output, slide_id, x, y in zip(
             outputs, metadata["slide_id"], metadata["x"], metadata["y"], strict=False
         ):

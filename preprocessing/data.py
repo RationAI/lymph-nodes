@@ -97,3 +97,7 @@ def test_wsis() -> Iterable[Path]:
     return itertools.chain(
         negative_test_wsis(), test_wsis_lymph_nodes(), test_wsis_colorectal()
     )
+
+
+def inference_wsis() -> Iterable[Path]:
+    return Path(PATH_PREFIX, "dataset1-2023").glob("*-1.tiff")

@@ -13,6 +13,7 @@ from rationai.tiling.writers import save_mlflow_dataset
 
 from preprocessing.data import (
     get_relative_dir_path,
+    inference_wsis,
     negative_test_wsis,
     negative_train_wsis,
     negative_val_wsis,
@@ -130,7 +131,7 @@ def tile_dataset(
     return slides_df, tiles_df
 
 
-def tiler(run_with_masks_id: str) -> None:
+def training_tiler(run_with_masks_id: str) -> None:
     # Downlaod artifacts
     mlflow.artifacts.download_artifacts(run_id=run_with_masks_id, dst_path="./data")
 
@@ -170,4 +171,21 @@ def tiler(run_with_masks_id: str) -> None:
             slides=test_slides,
             tiles=test_tiles,
             dataset_name="DAB Lymph Nodes with Epitelium - test",
+        )
+
+
+def inference_tiler(run_with_masks_id: str) -> None:
+    # Downlaod artifacts
+    mlflow.artifacts.download_artifacts(run_id=run_with_masks_id, dst_path="./data")
+
+    slides, tiles = tiling(
+        slides=list(inference_wsis()), handler=negative_slide_handler
+    )
+
+    mlflow.set_experiment(experiment_name="Lymph Nodes")
+    with mlflow.start_run(run_name="DAB inference dataset 2023") as _:
+        save_mlflow_dataset(
+            slides=slides,
+            tiles=tiles,
+            dataset_name="DAB dataset 2023 - inference",
         )
