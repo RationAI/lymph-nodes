@@ -40,4 +40,4 @@ def create_heatmaps(slides: pd.DataFrame, tiles: pd.DataFrame) -> None:
 
     mlflow.set_experiment(experiment_name="Lymph Nodes")
     with mlflow.start_run(run_name="DAB heatmaps") as _:
-        mlflow.log_artifacts("data/heatmpas", "heatmaps")
+        mlflow.log_artifacts(DEST_DIR, "heatmaps")
