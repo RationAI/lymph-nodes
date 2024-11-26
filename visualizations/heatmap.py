@@ -13,18 +13,17 @@ DEST_DIR = "./data/heatmaps"
 
 
 def heatmap(slide: Any, tiles: pd.DataFrame) -> None:
-    heat = np.zeros((slide.extent_y, slide.extent_x))
-    counts = np.zeros((slide.extent_y, slide.extent_x))
+    heat = np.zeros((slide.extent_y, slide.extent_x)).astype(np.float32)
+    counts = np.zeros((slide.extent_y, slide.extent_x)).astype(np.float32)
 
     for tile in tiles.itertuples():
         heat[tile.y : tile.y + slide.stride_y, tile.x : tile.x + slide.stride_x] += (
             tile.probability
         )
-        counts[tile.y : tile.y + slide.stride_y, tile.x : tile.x + slide.strie_x] += 1
+        counts[tile.y : tile.y + slide.stride_y, tile.x : tile.x + slide.stride_x] += 1
 
-    for y in range(slide.extent_y):
-        for x in range(slide.extent_x):
-            heat[y, x] = heat[y, x] / counts[y, x]
+    counts[counts == 0] = 1
+    heat = heat / counts
 
     mask_path = Path(DEST_DIR, f"{Path(slide.path).stem}.tiff")
     mask_path.parent.mkdir(exist_ok=True, parents=True)

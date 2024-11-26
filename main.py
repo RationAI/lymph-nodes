@@ -7,7 +7,7 @@ from preprocessing.calculate_mean_std import calculate_mean_std
 from preprocessing.create_masks import create_training_masks
 from preprocessing.tiling import training_tiler
 from visualizations.download_data import download_inference_data
-from visualizations.heatmap import heatmap
+from visualizations.heatmap import create_heatmaps
 
 
 Triggres = Literal["create_masks", "tiling", "calculate_mean_std", "heatmap"]
@@ -30,9 +30,9 @@ def main(triggers: list[Triggres], params: dict) -> None:
         slides, predictions = download_inference_data(
             params["inference_slides_uri"], params["predictions_uri"]
         )
-        # slides = load_parquet(params["inference_slides_uri"], "slides.parquet")
-        # predictions = pd.read_parquet("./data/predictions.parquet")
-        heatmap(slides, predictions)
+        # slides = pd.read_parquet("./data/inference/slides.parquet")
+        # predictions = pd.read_parquet("./data/inference/predictions.parquet")
+        create_heatmaps(slides, predictions)
 
 
 if __name__ == "__main__":
