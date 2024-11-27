@@ -29,6 +29,7 @@ class LymphNodesModel(LightningModule):
         self.test_metrics_collection = self.val_metrics.clone()
         self.val_metrics.prefix = "validation/"
         self.predictions: Predictions = []
+        self.inference_data = []
 
     def forward(self, x: Tensor) -> Outputs:
         features = self.backbone(x)
@@ -98,8 +99,28 @@ class LymphNodesModel(LightningModule):
     def predict_step(
         self, batch: Tensor, batch_idx: int, dataloader_idx: int = 0
     ) -> Outputs:
-        inputs, _ = batch
-        return self(inputs)
+        inputs, metadata = batch
+        outputs = self(inputs)
+
+        for output, slide_id, x, y in zip(
+            outputs, metadata["slide_id"], metadata["x"], metadata["y"], strict=False
+        ):
+            self.inference_data.append(
+                Prediction(
+                    slide_id=slide_id,
+                    x=x.item(),
+                    y=y.item(),
+                    probability=output.item(),
+                )
+            )
+
+        return outputs
+
+    def on_predict_epoch_end(self) -> None:
+        pd.DataFrame(self.inference_data).to_parquet(
+            "./predictions.parquet", index=False
+        )
+        self.logger.experiment.log_artifact(self.logger.run_id, "./predictions.parquet")
 
     def configure_optimizers(self) -> Optimizer:
         return AdamW(self.parameters(), lr=0.0001)

@@ -4,7 +4,7 @@ defaults:
   - /data/datasets@data.train: lymph_nodes/train
   - /data/datasets@data.val: lymph_nodes/val
   - /data/datasets@data.test: lymph_nodes/test
-  # - /data/datasets@data.predict: lymph_nodes/predict
+  - /data/datasets@data.predict: lymph_nodes/predict
   - /model/backbone: ???
   - _self_
 
