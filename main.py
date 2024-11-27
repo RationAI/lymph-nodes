@@ -84,4 +84,4 @@ if __name__ == "__main__":
         params["inference_slides_uri"] = args.inference_slides_uri
         params["predictions_uri"] = args.predictions_uri
 
-    main(triggers, params)
+    inf_main(triggers, params)
