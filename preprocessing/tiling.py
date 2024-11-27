@@ -182,6 +182,8 @@ def inference_tiler(run_with_masks_id: str) -> None:
         slides=list(inference_wsis()), handler=negative_slide_handler
     )
 
+    slides["metastazis"] = True
+
     mlflow.set_experiment(experiment_name="Lymph Nodes")
     with mlflow.start_run(run_name="DAB inference dataset 2023") as _:
         save_mlflow_dataset(
