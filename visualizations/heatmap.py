@@ -23,7 +23,7 @@ def heatmap(slide: Any, tiles: pd.DataFrame) -> None:
         counts[tile.y : tile.y + slide.stride_y, tile.x : tile.x + slide.stride_x] += 1
 
     counts[counts == 0] = 1
-    heat = heat / counts
+    heat = (heat / counts * 255).astype(np.uint8)
 
     mask_path = Path(DEST_DIR, f"{Path(slide.path).stem}.tiff")
     mask_path.parent.mkdir(exist_ok=True, parents=True)
