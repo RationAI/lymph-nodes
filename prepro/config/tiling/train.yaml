@@ -1,0 +1,29 @@
+defaults:
+  - _self_@sources[0].slides: /datasets/train/tmas
+  - _self_@sources[1].slides: /datasets/train/negative_lymph_nodes
+
+__target__: prepro.tiling.tile_dataset
+sources:
+  - slides: ...
+    source_kind: tma
+    slide_metastazis: True
+    desired_mpp: ${metadata.tiling.mpp}
+    tissue_threshold: ${metadata.tiling.tissue_threshold}
+    tile_extent: ${metadata.tiling.tile_extent}
+    stride: ${metadata.tiling.stride}
+    tissue_masks_dir: ${metadata.tissue_mask_dest}
+    annotation_masks_dir: ${metadata.annotation_mask_dest}
+    realtive_path_prefix: ${metadata.relative_path_prefix}
+
+  - slides: ...
+    source_kind: lymph_node
+    slide_metastazis: False
+    desired_mpp: ${metadata.tiling.mpp}
+    tissue_threshold: ${metadata.tiling.tissue_threshold}
+    tile_extent: ${metadata.tiling.tile_extent}
+    stride: ${metadata.tiling.stride}
+    tissue_masks_dir: ${metadata.tissue_mask_dest}
+    annotation_masks_dir: ${metadata.annotation_mask_dest}
+    realtive_path_prefix: ${metadata.relative_path_prefix}
+
+dataset_name: Training 

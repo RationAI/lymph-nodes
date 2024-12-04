@@ -1,0 +1,3 @@
+__target__: prepro.data_source.DataSource
+src_dir: /mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/tma-registration/dab/Cytokeratin_mask_colorectal_TMAs
+glob_pattern: 'TNBC-BF-4-*'

@@ -1,0 +1,8 @@
+__target__: prepro.data_source.ChainedDataSources
+sources:
+  - __target__: prepro.data_source.DataSource
+    src_dir: /mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/dataset1-2023
+    glob_pattern: '-1.tiff'
+  - __target__: prepro.data_source.DataSource
+    src_dir: /mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/dataset2-2024/positive
+    glob_pattern: '-1.mrxs'

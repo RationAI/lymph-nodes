@@ -1,0 +1,5 @@
+__target__: prepro.data_source.DataSource
+src_dir: /mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/dataset1-2023
+glob_pattern:
+  - '*_20_SLIDE_[0-9]*-0.tiff'
+  - '*_59_SLIDE_[0-9]*-0.tiff'

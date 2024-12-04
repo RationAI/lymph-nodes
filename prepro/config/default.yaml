@@ -1,0 +1,25 @@
+defaults:
+  - hydra: default
+  # - logger: mlflow
+  - _self_@tasks:
+    - tissue_masks
+    - annotation_masks
+    - tiling
+
+
+seed: ${random_seed:}
+
+metadata:
+  tiling:
+    tile_extent: 512
+    stride: 256
+    tissue_threshold: 0.5
+    mpp: 0.25
+  relative_path_prefix: /mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry
+  tissue_mask_dest: data/tissue_masks
+  annotation_mask_dest: data/annotation_masks
+
+  experiment_name: Lymph Nodes
+  experiment_description: DAB data - masks + datasets
+  run_name: DAB masks + datasets
+  mlflow_uri: http://mlflow.rationai-mlflow:5000
