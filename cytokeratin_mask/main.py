@@ -52,9 +52,9 @@ def main() -> None:
         )
         mask_path.parent.mkdir(exist_ok=True, parents=True)
 
-        write_big_tiff(pyvips.new_from_array(mask), mask_path, mpp_x=mpp_x, mpp_y=mpp_y)
+        write_big_tiff(mask, mask_path, mpp_x=mpp_x, mpp_y=mpp_y)
 
-    process_items(wsis, process_item, max_concurrent=4)
+    process_items(wsis, process_item, max_concurrent=6)
 
     mlflow.log_artifacts(DEST_DIR, artifact_path="cytokeratin_masks")
     mlflow.end_run()
