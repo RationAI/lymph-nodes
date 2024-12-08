@@ -3,8 +3,8 @@ defaults:
   # - logger: mlflow
   - _self_@tasks:
     - tissue_masks
-    - annotation_masks
-    - tiling
+    # - annotation_masks
+    # - tiling
 
 
 seed: ${random_seed:}

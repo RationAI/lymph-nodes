@@ -1,5 +1,5 @@
 defaults:
-  - _self_@slide_paths/sources:
+  - _slide_paths/sources:
     - /datasets/infer/negative_lymph_nodes
     - /datasets/infer/positive_lymph_nodes
     - /datasets/test/positive_lymph_nodes
@@ -9,7 +9,7 @@ defaults:
     - /datasets/train/tmas
     - /datasets/val/negative_lymph_nodes
     - /datasets/val/tmas
-
+  - _self_
 
 __target__: prepro.tissue_masks.generate_tissue_masks
 slide_paths:

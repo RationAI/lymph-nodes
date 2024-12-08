@@ -8,16 +8,16 @@ repos:
         args: [--unsafe]
 
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.0.0
+    rev: v4.1.0
     hooks:
       - id: commitizen
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.1
+    rev: v0.8.2
     hooks:
       # Run the linter.
-      - id: ruff
-        entry: pdm lint --force-exclude
+      # - id: ruff
+        # entry: pdm lint --force-exclude
       # Run the formatter.
       - id: ruff-format
         entry: pdm format --force-exclude

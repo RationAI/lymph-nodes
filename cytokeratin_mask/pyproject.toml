@@ -1,0 +1,28 @@
+[project]
+name = "epitelium-mask"
+version = "1.0.0"
+description = "Default template for PDM package"
+authors = [
+    {name = "Jakub Pekár", email = "492788@mail.muni.cz"},
+]
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26.2,<2.0.0",
+    "nimfa>=1.4.0",
+    "scikit-image>=0.24.0",
+    "pyvips>=2.2.3",
+    "ray>=2.40.0",
+    "openslide-python>=1.4.1",
+    "rationai-masks @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git@feature/imagebuilder",
+    "mlflow>=2.18.0",
+]
+readme = "README.md"
+license = {text = "MIT"}
+
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = false

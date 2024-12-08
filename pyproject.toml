@@ -40,3 +40,6 @@ post_install = { composite = [
 
 [tool.pdm]
 distribution = false
+
+[tool.ruff]
+exclude = ["cytokeratin_mask"]

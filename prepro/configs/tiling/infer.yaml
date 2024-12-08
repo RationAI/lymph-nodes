@@ -1,6 +1,7 @@
 defaults:
-  - _self_@sources[0].slides: deatasets/infer/negative_lymph_nodes
-  - _self_@sources[1].slides: datasets/infer/positive_lymph_nodes
+  - _sources[0].slides: deatasets/infer/negative_lymph_nodes
+  - sources[1].slides: datasets/infer/positive_lymph_nodes
+  - _self_
 
 
 __target__: prepro.tiling.tile_dataset
