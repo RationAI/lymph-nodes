@@ -21,7 +21,7 @@ MPP = 4
 
 
 def main() -> None:
-    mlflow.set_tracking_uri("http://localhost:5000")
+    mlflow.set_tracking_uri("http://mlflow.rationai-mlflow:5000")
     mlflow.set_experiment("Lymph Nodes")
     mlflow.start_run(run_name="Cytokeratin Mask")
 
