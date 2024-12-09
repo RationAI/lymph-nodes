@@ -102,7 +102,7 @@ def generate_ignore_masks(
         dest_dir = Path(
             dest, get_relative_dir_path(slide_path, Path(reference_path))
         )  # keep last level
-        metastazis_mask(slide_path, mpp, dest_dir)
+        ignrore_mask(slide_path, mpp, dest_dir)
 
     process_items(slide_paths, process_item=process_slide)
 
