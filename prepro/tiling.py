@@ -70,15 +70,24 @@ def data_tiler(
     class IgnoreMask(PyvipsMask[TileMetadata]):
         def forward_tile(
             self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
-        ) -> TileMetadata:
+        ) -> TileMetadata | None:
             if class_overlaps.get(255, 0) > 0:
                 return None
 
             return tile_labels
 
     class NoMetastazisTiles(TilingModule):
-        def forward(self, tile_labels: TileMetadata) -> MetastazisTileMetadata:
-            return MetastazisTileMetadata(**asdict(tile_labels), metastazis=0)
+        def forward(
+            self, tiles_labels: Iterable[TileMetadata]
+        ) -> list[MetastazisTileMetadata]:
+            result: list[MetastazisTileMetadata] = []
+
+            for tile_labels in tiles_labels:
+                result.append(
+                    MetastazisTileMetadata(**asdict(tile_labels), metastazis=0)
+                )
+
+            return result
 
     source = OpenSlideTileSource(
         mpp=desired_mpp, tile_extent=tile_extent, stride=stride
