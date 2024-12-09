@@ -84,7 +84,7 @@ def main(config: DictConfig) -> None:
             "*_34_SLIDE_[0-9]*-0.tiff",
             "*_52_SLIDE_[0-9]*-0.tiff",
             "*_80_SLIDE_[0-9]*-0.tiff",
-            "*_144_SLIDE_[0-9]*-0.tiff",
+            "*_114_SLIDE_[0-9]*-0.tiff",
             "*_20_SLIDE_[0-9]*-0.tiff",
             "*_59_SLIDE_[0-9]*-0.tiff",
         ],
@@ -112,7 +112,7 @@ def main(config: DictConfig) -> None:
             "*_34_SLIDE_[0-9]*-0.tiff",
             "*_52_SLIDE_[0-9]*-0.tiff",
             "*_80_SLIDE_[0-9]*-0.tiff",
-            "*_144_SLIDE_[0-9]*-0.tiff",
+            "*_114_SLIDE_[0-9]*-0.tiff",
         ],
     )
     val_tmas = DataSource(
@@ -311,7 +311,7 @@ def main(config: DictConfig) -> None:
         dataset_name="Validation",
     )
 
-    active_run.end()
+    mlflow.end_run()
 
 
 if __name__ == "__main__":
