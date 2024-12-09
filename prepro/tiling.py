@@ -27,7 +27,7 @@ class Args(TypedDict):
     cytokeratin_masks_dir: str
     ignore_mask_dir: str
     annotation_masks_dir: str
-    realtive_path_prefix: str
+    relative_path_prefix: str
 
 
 @dataclass
@@ -47,7 +47,7 @@ def data_tiler(
     cytokeratin_masks_dir: str,
     ignore_mask_dir: str,
     annotation_masks_dir: str,
-    realtive_path_prefix: str,
+    relative_path_prefix: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     # Dedine tiling Modules
     class TissueMask(PyvipsMask[TileMetadata]):
@@ -109,25 +109,25 @@ def data_tiler(
     def slide_handler(slide_path: Path) -> TiledSlideMetadata:
         tissue_mask_path = Path(
             tissue_masks_dir,
-            get_relative_dir_path(slide_path, Path(realtive_path_prefix)),
+            get_relative_dir_path(slide_path, Path(relative_path_prefix)),
             f"{slide_path.stem}.tiff",
         )
 
         annotation_mask_path = Path(
             annotation_masks_dir,
-            get_relative_dir_path(slide_path, Path(realtive_path_prefix)),
+            get_relative_dir_path(slide_path, Path(relative_path_prefix)),
             f"{slide_path.stem}.tiff",
         )
 
         ignore_mask_path = Path(
             ignore_mask_dir,
-            get_relative_dir_path(slide_path, Path(realtive_path_prefix)),
+            get_relative_dir_path(slide_path, Path(relative_path_prefix)),
             f"{slide_path.stem}.tiff",
         )
 
         cytokeratin_mask_path = Path(
             cytokeratin_masks_dir,
-            get_relative_dir_path(slide_path, Path(realtive_path_prefix)),
+            get_relative_dir_path(slide_path, Path(relative_path_prefix)),
             f"{slide_path.stem}.tiff",
         )
 

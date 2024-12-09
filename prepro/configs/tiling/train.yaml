@@ -13,7 +13,7 @@ sources:
     stride: ${metadata.tiling.stride}
     tissue_masks_dir: ${metadata.tissue_mask_dest}
     annotation_masks_dir: ${metadata.annotation_mask_dest}
-    realtive_path_prefix: ${metadata.relative_path_prefix}
+    relative_path_prefix: ${metadata.relative_path_prefix}
 
   - slides: ...
     source_kind: lymph_node
@@ -24,6 +24,6 @@ sources:
     stride: ${metadata.tiling.stride}
     tissue_masks_dir: ${metadata.tissue_mask_dest}
     annotation_masks_dir: ${metadata.annotation_mask_dest}
-    realtive_path_prefix: ${metadata.relative_path_prefix}
+    relative_path_prefix: ${metadata.relative_path_prefix}
 
 dataset_name: Training 
