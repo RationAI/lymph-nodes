@@ -8,6 +8,7 @@ from prepro.annotation_masks import generate_annotation_masks
 from prepro.data_source import ChainedDataSources, DataSource
 from prepro.tiling import tile_dataset
 from prepro.tissue_masks import generate_tissue_masks
+from prepro.ignore_masks import generate_ignore_masks
 
 
 OmegaConf.register_new_resolver(
