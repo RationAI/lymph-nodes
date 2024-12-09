@@ -28,12 +28,12 @@ trainer:
 
 data:
   batch_size: 160
-  epoch_size: 1000
-  positive_batch_split: 0.2
+  epoch_size: 3000
+  positive_batch_split: 0.5
   num_workers: 8
 
 metadata:
   experiment_name: Lymph Nodes
-  run_name: Lymph Nodes DAB training [0.5 0.5]
-  description: Training a model on the Lymph Nodes DAB dataset
+  run_name: Lymph Nodes DAB training 0.5
+  description: Training a model on the Lymph Nodes DAB dataset with 0.5 split and 3000 epoch size
   hyperparams: {}

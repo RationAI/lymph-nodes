@@ -2,5 +2,5 @@ defaults:
   - /data/transforms@transforms: test
 
 _target_: lymph_nodes.data.datasets.LymphNodesPredict
-uris: ["mlflow-artifacts:/68/d18e980b8981414491d14b1f492d512b/artifacts/DAB dataset 2023 - inference"]
+uris: ["mlflow-artifacts:/68/72850f6885d44241b0d2c2e7e812438e/artifacts/Inference"]
 
