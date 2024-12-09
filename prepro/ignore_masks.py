@@ -19,7 +19,7 @@ from rationai.masks.annotations import XMLPolygonMask
 from prepro.utils import get_relative_dir_path, mpp_to_ppmm
 
 
-class MetastazisMask(XMLPolygonMask):
+class IgnoreMask(XMLPolygonMask):
     def __init__(
         self,
         annotation_mpp: tuple[float, float],
@@ -58,7 +58,7 @@ class MetastazisMask(XMLPolygonMask):
         return self.annotation_mpp[1]
 
 
-def metastazis_mask(slide_path: Path, desired_mpp: float, dest_dir: Path) -> None:
+def ignrore_mask(slide_path: Path, desired_mpp: float, dest_dir: Path) -> None:
     annotation_file = Path(slide_path.parent, f"{slide_path.stem}.xml")
 
     if not os.path.exists(annotation_file):
@@ -72,7 +72,7 @@ def metastazis_mask(slide_path: Path, desired_mpp: float, dest_dir: Path) -> Non
             slide, level=0
         )  # mppx for annotation is not provided
         mask_mpp_x, mask_mpp_y = slide_resolution(slide, level=level)
-        annotator = MetastazisMask(
+        annotator = IgnoreMask(
             annotation_mpp=annotation_mpp,
             path=annotation_file,
             mask_size=slide.level_dimensions[level],
@@ -94,7 +94,7 @@ def metastazis_mask(slide_path: Path, desired_mpp: float, dest_dir: Path) -> Non
     )
 
 
-def generate_annotation_masks(
+def generate_ignore_masks(
     slide_paths: Iterable[Path], mpp: float, reference_path: str, dest: str
 ) -> None:
     @ray.remote
@@ -106,4 +106,4 @@ def generate_annotation_masks(
 
     process_items(slide_paths, process_item=process_slide)
 
-    mlflow.log_artifacts(dest, artifact_path="annotation_masks")
+    mlflow.log_artifacts(dest, artifact_path="ignore_masks")

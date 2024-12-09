@@ -8,11 +8,13 @@ class DataSource(Iterable[Path]):
         self,
         src_dir: str,
         glob_pattern: str | list[str] = "*",
-        exclue_pattern: str | list[str] = "*",
+        exclue_pattern: None | str | list[str] = None,
     ) -> None:
         dir = Path(src_dir)
 
-        self.exclude_paths = list(self._paths(dir, exclue_pattern))
+        self.exclude_paths = (
+            list(self._paths(dir, exclue_pattern)) if exclue_pattern else []
+        )
         self.include_paths = list(self._paths(dir, glob_pattern))
 
         self.data = [

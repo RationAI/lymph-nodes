@@ -41,6 +41,6 @@ def generate_tissue_masks(
         )  # keep last level
         slide_tissue_mask(slide_path, mpp, dest_dir)
 
-    process_items(list(slide_paths), process_item=process_slide)
+    process_items(slide_paths, process_item=process_slide)
 
     mlflow.log_artifacts(dest, artifact_path="tissue_masks")

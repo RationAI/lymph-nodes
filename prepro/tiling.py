@@ -24,6 +24,8 @@ class Args(TypedDict):
     source_kind: str
     slide_metastazis: bool
     tissue_masks_dir: str
+    cytokeratin_masks_dir: str
+    ignore_mask_dir: str
     annotation_masks_dir: str
     realtive_path_prefix: str
 
@@ -42,6 +44,8 @@ def data_tiler(
     source_kind: str,
     slide_metastazis: bool,
     tissue_masks_dir: str,
+    cytokeratin_masks_dir: str,
+    ignore_mask_dir: str,
     annotation_masks_dir: str,
     realtive_path_prefix: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -63,6 +67,15 @@ def data_tiler(
                 **asdict(tile_labels), metastazis=class_overlaps.get(255, 0)
             )
 
+    class IgnoreMask(PyvipsMask[TileMetadata]):
+        def forward_tile(
+            self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
+        ) -> TileMetadata:
+            if class_overlaps.get(255, 0) > 0:
+                return None
+
+            return tile_labels
+
     class NoMetastazisTiles(TilingModule):
         def forward(self, tile_labels: TileMetadata) -> MetastazisTileMetadata:
             return MetastazisTileMetadata(**asdict(tile_labels), metastazis=0)
@@ -78,6 +91,12 @@ def data_tiler(
     )
 
     annotation_mask = MetastazisMask(
+        tile_extent=source.tile_extent,
+        absolute_roi_extent=tile_extent // 2,
+        relative_roi_offset=0,
+    )
+
+    ignore_mask = IgnoreMask(
         tile_extent=source.tile_extent,
         absolute_roi_extent=tile_extent // 2,
         relative_roi_offset=0,
@@ -100,10 +119,29 @@ def data_tiler(
             f"{slide_path.stem}.tiff",
         )
 
+        ignore_mask_path = Path(
+            ignore_mask_dir,
+            get_relative_dir_path(slide_path, Path(realtive_path_prefix)),
+            f"{slide_path.stem}.tiff",
+        )
+
+        cytokeratin_mask_path = Path(
+            cytokeratin_masks_dir,
+            get_relative_dir_path(slide_path, Path(realtive_path_prefix)),
+            f"{slide_path.stem}.tiff",
+        )
+
         slide, tiles = source(slide_path)
         tiles = tissue_mask(tissue_mask_path, slide.extent, tiles)
 
-        if annotation_mask_path.exists():
+        if ignore_mask_path.exists():
+            tiles = ignore_mask(ignore_mask_path, slide.extent, tiles)
+
+        if cytokeratin_mask_path.exists():
+            annotated_tiles = annotation_mask(
+                cytokeratin_mask_path, slide.extent, tiles
+            )
+        elif annotation_mask_path.exists():
             annotated_tiles = annotation_mask(annotation_mask_path, slide.extent, tiles)
         else:
             annotated_tiles = no_annotation_mask(tiles)

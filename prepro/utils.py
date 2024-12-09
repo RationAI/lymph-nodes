@@ -4,7 +4,10 @@ import pyvips
 
 
 def get_relative_dir_path(path: Path, prefix: Path) -> Path:
-    return path.relative_to(prefix).parent
+    try:
+        return path.relative_to(prefix).parent
+    except ValueError:
+        return path.relative_to("/mnt/data/Projects/lymph_nodes/").parent
 
 
 def mpp_to_ppmm(mpp: tuple[float, float]) -> tuple[float, float]:
