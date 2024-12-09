@@ -27,6 +27,21 @@ def main(config: DictConfig) -> None:
         artifact_uri=config.metadata.cytokeratin_masks_path, dst_path="./data"
     )
 
+    mlflow.artifacts.download_artifacts(
+        artifact_uri="mlflow-artifacts:/68/7d4bab3b22d14d5ba3c6e16a4bc1b5c1/artifacts/tissue_masks",
+        dst_path="./data",
+    )
+
+    mlflow.artifacts.download_artifacts(
+        artifact_uri="mlflow-artifacts:/68/7d4bab3b22d14d5ba3c6e16a4bc1b5c1/artifacts/ignore_masks",
+        dst_path="./data",
+    )
+
+    mlflow.artifacts.download_artifacts(
+        artifact_uri="mlflow-artifacts:/68/7d4bab3b22d14d5ba3c6e16a4bc1b5c1/artifacts/annotation_masks",
+        dst_path="./data",
+    )
+
     # DataSources
     ## Infer
     infer_negative_lymph_nodes = DataSource(
@@ -105,41 +120,41 @@ def main(config: DictConfig) -> None:
         glob_pattern="TNBC-BF-4-*mrxs",
     )
 
-    # Tissue masks
-    generate_tissue_masks(
-        slide_paths=ChainedDataSources(
-            [
-                infer_negative_lymph_nodes,
-                infer_positive_lymph_nodes,
-                test_negative_lymph_nodes,
-                test_positive_lymph_nodes,
-                test_tmas,
-                train_negative_lymph_nodes,
-                train_tmas,
-                val_negative_lymph_nodes,
-                val_tmas,
-            ]
-        ),
-        mpp=2,
-        reference_path=config.metadata.relative_path_prefix,
-        dest=config.metadata.tissue_mask_dest,
-    )
+    # # Tissue masks
+    # generate_tissue_masks(
+    #     slide_paths=ChainedDataSources(
+    #         [
+    #             infer_negative_lymph_nodes,
+    #             infer_positive_lymph_nodes,
+    #             test_negative_lymph_nodes,
+    #             test_positive_lymph_nodes,
+    #             test_tmas,
+    #             train_negative_lymph_nodes,
+    #             train_tmas,
+    #             val_negative_lymph_nodes,
+    #             val_tmas,
+    #         ]
+    #     ),
+    #     mpp=2,
+    #     reference_path=config.metadata.relative_path_prefix,
+    #     dest=config.metadata.tissue_mask_dest,
+    # )
 
-    # Annotation masks
-    generate_annotation_masks(
-        slide_paths=ChainedDataSources([test_positive_lymph_nodes]),
-        mpp=2,
-        reference_path=config.metadata.relative_path_prefix,
-        dest=config.metadata.annotation_mask_dest,
-    )
+    # # Annotation masks
+    # generate_annotation_masks(
+    #     slide_paths=ChainedDataSources([test_positive_lymph_nodes]),
+    #     mpp=2,
+    #     reference_path=config.metadata.relative_path_prefix,
+    #     dest=config.metadata.annotation_mask_dest,
+    # )
 
-    # Ignore masks
-    generate_ignore_masks(
-        slide_paths=ChainedDataSources([test_tmas, train_tmas, val_tmas]),
-        mpp=2,
-        reference_path=config.metadata.relative_path_prefix,
-        dest=config.metadata.ignore_mask_dest,
-    )
+    # # Ignore masks
+    # generate_ignore_masks(
+    #     slide_paths=ChainedDataSources([test_tmas, train_tmas, val_tmas]),
+    #     mpp=2,
+    #     reference_path=config.metadata.relative_path_prefix,
+    #     dest=config.metadata.ignore_mask_dest,
+    # )
 
     # Tiling
     ## Infer
@@ -154,7 +169,7 @@ def main(config: DictConfig) -> None:
                 "tile_extent": config.metadata.tiling.tile_extent,
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_masks_dest,
+                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "realative_path_prefix": config.metadata.relative_path_prefix,
@@ -168,7 +183,7 @@ def main(config: DictConfig) -> None:
                 "tile_extent": config.metadata.tiling.tile_extent,
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_masks_dest,
+                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "realative_path_prefix": config.metadata.relative_path_prefix,
@@ -189,7 +204,7 @@ def main(config: DictConfig) -> None:
                 "tile_extent": config.metadata.tiling.tile_extent,
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_masks_dest,
+                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "realative_path_prefix": config.metadata.relative_path_prefix,
@@ -203,7 +218,7 @@ def main(config: DictConfig) -> None:
                 "tile_extent": config.metadata.tiling.tile_extent,
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_masks_dest,
+                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "realative_path_prefix": config.metadata.relative_path_prefix,
@@ -217,7 +232,7 @@ def main(config: DictConfig) -> None:
                 "tile_extent": config.metadata.tiling.tile_extent,
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_masks_dest,
+                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "realative_path_prefix": config.metadata.relative_path_prefix,
@@ -238,7 +253,7 @@ def main(config: DictConfig) -> None:
                 "tile_extent": config.metadata.tiling.tile_extent,
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_masks_dest,
+                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "realative_path_prefix": config.metadata.relative_path_prefix,
@@ -252,7 +267,7 @@ def main(config: DictConfig) -> None:
                 "tile_extent": config.metadata.tiling.tile_extent,
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_masks_dest,
+                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "realative_path_prefix": config.metadata.relative_path_prefix,
@@ -273,7 +288,7 @@ def main(config: DictConfig) -> None:
                 "tile_extent": config.metadata.tiling.tile_extent,
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_masks_dest,
+                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "realative_path_prefix": config.metadata.relative_path_prefix,
@@ -287,7 +302,7 @@ def main(config: DictConfig) -> None:
                 "tile_extent": config.metadata.tiling.tile_extent,
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_masks_dest,
+                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "realative_path_prefix": config.metadata.relative_path_prefix,
