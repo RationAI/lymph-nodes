@@ -21,7 +21,7 @@ def prediction_heatmap(
         mask_path.parent.mkdir(exist_ok=True, parents=True)
 
         write_big_tiff(
-            pyvips.Image.new_from_array(mask),
+            mask,
             mask_path,
             mpp_x=slide.mpp_x,
             mpp_y=slide.mpp_y,

@@ -2195,7 +2195,7 @@ version = "1.0.1"
 requires_python = ">=3.11"
 git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git"
 ref = "feature/slide-assembler"
-revision = "e13d0820dcb8131d6a3e4abf5dbd623000a07275"
+revision = "cf7787a2f3668a127a91ac1bbc5f81e310951483"
 summary = ""
 groups = ["default"]
 dependencies = [
