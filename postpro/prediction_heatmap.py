@@ -15,7 +15,7 @@ def prediction_heatmap(
     @ray.remote
     def process_slide(slide: Any) -> None:
         slide_predictions = predictions[predictions["slide_id"] == slide.id]
-        mask = heatmap_assembler_avg(slide, slide_predictions)
+        mask = heatmap_assembler_avg(slide, slide_predictions, 4)
 
         mask_path = Path(dest, f"{Path(slide.path).stem}.tiff")
         mask_path.parent.mkdir(exist_ok=True, parents=True)

@@ -12,7 +12,7 @@ dependencies = [
     "albumentations>=1.4.14",
     "torchvision>=0.17.2",
     "pandas>=2.2.2",
-    "torch>=2.2.2,<2.3",
+    "torch>=2.2.2",
     "tqdm>=4.66.5",
     "numpy<2.0",
     "rationai-tiling @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/tiling.git",

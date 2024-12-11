@@ -13,5 +13,5 @@ metadata:
   experiment_name: Lymph Nodes
   experiment_description: DAB test heatmaps for run d24309ae94fc4b71a17247f2939cf39a
   run_name: DAB test heatmaps
-  # mlflow_uri: http://mlflow.rationai-mlflow:5000
-  mlflow_uri: https://mlflow.rationai.cloud.trusted.e-infra.cz
+  mlflow_uri: http://mlflow.rationai-mlflow:5000
+  # mlflow_uri: https://mlflow.rationai.cloud.trusted.e-infra.cz

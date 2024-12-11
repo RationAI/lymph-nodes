@@ -23,6 +23,7 @@ def main(config: DictConfig) -> None:
 
     active_run = mlflow.start_run(run_name=config.metadata.run_name)
 
+    print("Donwloading cytokeratin masks")
     mlflow.artifacts.download_artifacts(
         artifact_uri=config.metadata.cytokeratin_masks_path, dst_path="./data"
     )
@@ -41,6 +42,8 @@ def main(config: DictConfig) -> None:
     #     artifact_uri="mlflow-artifacts:/68/7d4bab3b22d14d5ba3c6e16a4bc1b5c1/artifacts/annotation_masks",
     #     dst_path="./data",
     # )
+
+    print("Prepare datasources")
 
     # DataSources
     ## Infer
@@ -120,6 +123,9 @@ def main(config: DictConfig) -> None:
         glob_pattern="TNBC-BF-4-*mrxs",
     )
 
+    # Masks
+
+    print("Generating tissue masks")
     # Tissue masks
     generate_tissue_masks(
         slide_paths=ChainedDataSources(
@@ -140,6 +146,8 @@ def main(config: DictConfig) -> None:
         dest=config.metadata.tissue_mask_dest,
     )
 
+    print("Generating annotation masks")
+
     # Annotation masks
     generate_annotation_masks(
         slide_paths=ChainedDataSources([test_positive_lymph_nodes]),
@@ -147,6 +155,8 @@ def main(config: DictConfig) -> None:
         reference_path=config.metadata.relative_path_prefix,
         dest=config.metadata.annotation_mask_dest,
     )
+
+    print("Generating ignore masks")
 
     # Ignore masks
     generate_ignore_masks(
@@ -157,7 +167,10 @@ def main(config: DictConfig) -> None:
     )
 
     # Tiling
+    print("Tiling")
     ## Infer
+    print("Tiling inference dataset")
+
     tile_dataset(
         [
             {
@@ -193,6 +206,8 @@ def main(config: DictConfig) -> None:
     )
 
     ## Test
+    print("Tiling test dataset")
+
     tile_dataset(
         [
             {
@@ -242,6 +257,8 @@ def main(config: DictConfig) -> None:
     )
 
     ## Train
+    print("Tiling train dataset")
+
     tile_dataset(
         [
             {
@@ -277,6 +294,8 @@ def main(config: DictConfig) -> None:
     )
 
     ## Val
+    print("Tiling validation dataset")
+
     tile_dataset(
         [
             {

@@ -31,7 +31,7 @@ def main(config: DictConfig) -> None:
 
     print("Loading data")
 
-    slides = pd.read_parquet(f"./data/slies.parquet")
+    slides = pd.read_parquet(f"./data/slides.parquet")
     predictions = pd.read_parquet(f"./data/predictions.parquet")
 
     print("Creating heatmaps")
