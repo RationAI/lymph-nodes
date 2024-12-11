@@ -27,6 +27,6 @@ def prediction_heatmap(
             mpp_y=slide.mpp_y,
         )
 
-    process_items(slides.itertuples(), process_item=process_slide)
+    process_items(slides.itertuples(), process_item=process_slide, max_concurrent=2)
 
     mlflow.log_artifacts(dest, "heatmaps")
