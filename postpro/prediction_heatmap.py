@@ -20,7 +20,12 @@ def prediction_heatmap(
         mask_path = Path(dest, f"{Path(slide.path).stem}.tiff")
         mask_path.parent.mkdir(exist_ok=True, parents=True)
 
-        write_big_tiff(pyvips.Image.new_from_array(mask), mask_path, 0, 0)
+        write_big_tiff(
+            pyvips.Image.new_from_array(mask),
+            mask_path,
+            mpp_x=slide.mpp_x,
+            mpp_y=slide.mpp_y,
+        )
 
     process_items(slides.itertuples(), process_item=process_slide)
 
