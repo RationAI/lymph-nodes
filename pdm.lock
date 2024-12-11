@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:1fb246c7f70f2665d46b90b848a119cf4dd2ec1dc0315e647bb83cd498fb043f"
+content_hash = "sha256:045cef72b969a345034372a9db9d36052770e146774489507948bb6a59019a68"
 
 [[package]]
 name = "aiohappyeyeballs"
@@ -2195,7 +2195,7 @@ version = "1.0.1"
 requires_python = ">=3.11"
 git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git"
 ref = "feature/slide-assembler"
-revision = "3b4d688ae42d389fe40bb074da9edfbe07c5d448"
+revision = "e13d0820dcb8131d6a3e4abf5dbd623000a07275"
 summary = ""
 groups = ["default"]
 dependencies = [
