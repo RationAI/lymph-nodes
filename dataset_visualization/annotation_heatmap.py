@@ -63,4 +63,4 @@ def annotation_heatmap(slides: pd.DataFrame, tiles: pd.DataFrame, dest: str) -> 
 
     process_items(list(slides.itertuples()), process_item=process_slide)
 
-    mlflow.log_artifacts(dest, "tile-visualizations")
+    mlflow.log_artifacts(dest, "annotation-heatmaps")
