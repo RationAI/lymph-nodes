@@ -39,9 +39,9 @@ def main(config: DictConfig) -> None:
     # Prediction heatmaps
     annotation_heatmap(slides, tiles, config.metadata.heatmap_dest)
 
-    print("Create tile masks")
-    # Tile masks
-    tile_visualization(slides, tiles, config.metadata.tile_visualization_dest)
+    # print("Create tile masks")
+    # # Tile masks
+    # tile_visualization(slides, tiles, config.metadata.tile_visualization_dest)
 
     mlflow.end_run()
 
