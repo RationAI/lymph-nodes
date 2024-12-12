@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pyvips
 import ray
+from numpy.typing import NDArray
 from rationai.masks import process_items, write_big_tiff
 from rationai.masks.slide_assembler import slide_assembler
 
@@ -14,24 +15,25 @@ def max_assembler(
     slide: Any,
     tiles: pd.DataFrame,
 ) -> pyvips.Image:
-    def init(slide: Any) -> pyvips.Image:
-        temp = np.memmap(
-            f"{Path(slide.path).stem}_max.nmp",
-            dtype=np.uint8,
+    def init(slide: Any) -> NDArray:
+        return np.memmap(
+            f"{Path(slide.path).stem}_tile-map.nmp",
+            dtype=np.int8,
             mode="w+",
             shape=(slide.extent_y, slide.extent_x),
         )
-        return pyvips.Image.new_from_memory(
-            temp.data, slide.extent_x, slide.extent_y, 1, format=pyvips.BandFormat.UCHAR
-        )
 
-    def aggregate(acc: pyvips.Image, slide: Any, tile: Any) -> pyvips.Image:
-        return acc.draw_rect(
-            255, tile.x, tile.y, slide.tile_extent_x, slide.tile_extent_y
-        )
-
-    def finalize(acc: pyvips.Image) -> pyvips.Image:
+    def aggregate(acc: NDArray, slide: Any, tile: Any) -> NDArray:
+        acc[
+            tile.y : tile.y + slide.tile_extent_y,
+            tile.x : tile.x + slide.tile_extent_x,
+        ] = 255
         return acc
+
+    def finalize(acc: NDArray) -> pyvips.Image:
+        return pyvips.Image.new_from_memory(
+            acc.data, slide.extent_x, slide.extent_y, 1, format=pyvips.BandFormat.UCHAR
+        )
 
     return slide_assembler(slide, tiles, init, aggregate, finalize)
 

@@ -23,8 +23,6 @@ def max_assembler(
             shape=(slide.extent_y, slide.extent_x),
         )
 
-        #
-
     def aggregate(acc: NDArray, slide: Any, tile: Any) -> NDArray:
         if tile.metastazis:
             acc[
@@ -39,7 +37,7 @@ def max_assembler(
             )
         return acc
 
-    def finalize(acc: pyvips.Image) -> pyvips.Image:
+    def finalize(acc: NDArray) -> pyvips.Image:
         return pyvips.Image.new_from_memory(
             acc.data, slide.extent_x, slide.extent_y, 1, format=pyvips.BandFormat.UCHAR
         )
