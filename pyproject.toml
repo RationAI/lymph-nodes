@@ -26,6 +26,7 @@ dev = ["mypy", "pre-commit", "ruff"]
 [tool.pdm.scripts]
 preprocess = "python -m prepro"
 postprocess = "python -m postpro"
+visualize-dataset = "python -m dataset_visualization"
 fit = "python -m lymph_nodes mode=fit"
 validate = "python -m lymph_nodes mode=validate"
 test = "python -m lymph_nodes mode=test"
