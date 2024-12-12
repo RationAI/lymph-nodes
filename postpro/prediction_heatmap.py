@@ -3,8 +3,8 @@ from typing import Any
 
 import mlflow
 import pandas as pd
-import pyvips
-import ray
+
+# import ray
 from rationai.masks import process_items, write_big_tiff
 from rationai.masks.slide_assembler import heatmap_assembler_avg
 
@@ -12,7 +12,7 @@ from rationai.masks.slide_assembler import heatmap_assembler_avg
 def prediction_heatmap(
     slides: pd.DataFrame, predictions: pd.DataFrame, dest: str
 ) -> None:
-    @ray.remote
+    # @ray.remote
     def process_slide(slide: Any) -> None:
         slide_predictions = predictions[predictions["slide_id"] == slide.id]
         mask = heatmap_assembler_avg(slide, slide_predictions, 4)
@@ -27,6 +27,9 @@ def prediction_heatmap(
             mpp_y=slide.mpp_y,
         )
 
-    process_items(slides.itertuples(), process_item=process_slide, max_concurrent=2)
+    # process_items(slides.itertuples(), process_item=process_slide, max_concurrent=2)
+    for i, slide in enumerate(slides.itertuples()):
+        print(f"Processing slide {i+1}/{len(slides)}")
+        process_slide(slide)
 
     mlflow.log_artifacts(dest, "heatmaps")
