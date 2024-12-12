@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any
 
 import mlflow
+import numpy as np
 import pandas as pd
 import pyvips
 import ray
@@ -14,7 +15,15 @@ def max_assembler(
     tiles: pd.DataFrame,
 ) -> pyvips.Image:
     def init(slide: Any) -> pyvips.Image:
-        return pyvips.Image.black(slide.extent_x, slide.extent_y)
+        temp = np.memmap(
+            f"{Path(slide.path).stem}_max.nmp",
+            dtype=np.uint8,
+            mode="w+",
+            shape=(slide.extent_y, slide.extent_x),
+        )
+        return pyvips.Image.new_from_memory(
+            temp.data, slide.extent_x, slide.extent_y, 1, format=pyvips.BandFormat.UCHAR
+        )
 
     def aggregate(acc: pyvips.Image, slide: Any, tile: Any) -> pyvips.Image:
         return acc.draw_rect(
