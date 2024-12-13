@@ -35,6 +35,7 @@ def max_assembler(
                 ],
                 tile.metastazis * 255,
             )
+            acc.flush()
         return acc
 
     def finalize(acc: NDArray) -> pyvips.Image:
