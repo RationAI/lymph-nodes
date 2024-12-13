@@ -28,13 +28,7 @@ def max_assembler(
             acc[
                 tile.y : tile.y + slide.tile_extent_y,
                 tile.x : tile.x + slide.tile_extent_x,
-            ] = np.maximum(
-                acc[
-                    tile.y : tile.y + slide.tile_extent_y,
-                    tile.x : tile.x + slide.tile_extent_x,
-                ],
-                tile.metastazis * 255,
-            )
+            ] = 255
             acc.flush()
         return acc
 
