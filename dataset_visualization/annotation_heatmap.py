@@ -55,7 +55,7 @@ def max_assembler(
 
 
 def annotation_heatmap(slides: pd.DataFrame, tiles: pd.DataFrame, dest: str) -> None:
-    @ray.remote
+    # @ray.remote
     def process_slide(slide: Any) -> None:
         slide_tiles = tiles[tiles["slide_id"] == slide.id]
         mask = max_assembler(slide, slide_tiles)
@@ -70,6 +70,9 @@ def annotation_heatmap(slides: pd.DataFrame, tiles: pd.DataFrame, dest: str) -> 
             mpp_y=slide.mpp_y,
         )
 
-    process_items(list(slides.itertuples()), process_item=process_slide)
+    # process_items(list(slides.itertuples()), process_item=process_slide)
+
+    for slide in slides.itertuples():
+        process_slide(slide)
 
     mlflow.log_artifacts(dest, "annotation-heatmaps")
