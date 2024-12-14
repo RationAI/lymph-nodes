@@ -37,13 +37,6 @@ def max_assembler(
             )
             acc.flush()
 
-        acc = np.memmap(
-            f"{Path(slide.path).stem}_annoatation-heat.nmp",
-            dtype=np.int8,
-            mode="r+",
-            shape=(slide.extent_y, slide.extent_x),
-        )
-
         return acc
 
     def finalize(acc: NDArray) -> pyvips.Image:
@@ -55,7 +48,7 @@ def max_assembler(
 
 
 def annotation_heatmap(slides: pd.DataFrame, tiles: pd.DataFrame, dest: str) -> None:
-    # @ray.remote
+    @ray.remote
     def process_slide(slide: Any) -> None:
         slide_tiles = tiles[tiles["slide_id"] == slide.id]
         mask = max_assembler(slide, slide_tiles)

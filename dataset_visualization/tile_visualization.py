@@ -18,7 +18,7 @@ def max_assembler(
     def init(slide: Any) -> NDArray:
         return np.memmap(
             f"{Path(slide.path).stem}_tile-map.nmp",
-            dtype=np.int8,
+            dtype=np.uint8,
             mode="w+",
             shape=(slide.extent_y, slide.extent_x),
         )
