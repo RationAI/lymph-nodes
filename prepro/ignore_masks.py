@@ -16,7 +16,7 @@ from rationai.masks import (
 )
 from rationai.masks.annotations import XMLPolygonMask
 
-from prepro.utils import get_relative_dir_path, mpp_to_ppmm
+from prepro.utils import get_relative_dir_path
 
 
 class IgnoreMask(XMLPolygonMask):
@@ -71,26 +71,24 @@ def ignrore_mask(slide_path: Path, desired_mpp: float, dest_dir: Path) -> None:
         annotation_mpp = slide_resolution(
             slide, level=0
         )  # mppx for annotation is not provided
-        mask_mpp_x, mask_mpp_y = slide_resolution(slide, level=level)
+        mpp_x, mpp_y = slide_resolution(slide, level=level)
         annotator = IgnoreMask(
             annotation_mpp=annotation_mpp,
             path=annotation_file,
             mask_size=slide.level_dimensions[level],
-            mask_mpp_x=mask_mpp_x,
-            mask_mpp_y=mask_mpp_y,
+            mask_mpp_x=mpp_x,
+            mask_mpp_y=mpp_y,
         )
 
     mask = annotator()
-
-    xres, yres = mpp_to_ppmm((mask_mpp_x, mask_mpp_y))
 
     mask_path = Path(dest_dir, f"{slide_path.stem}.tiff")
     mask_path.parent.mkdir(exist_ok=True, parents=True)
     write_big_tiff(
         pyvips.Image.new_from_array(mask),  # type: ignore pyvips.Image
         path=mask_path,
-        xres=xres,
-        yres=yres,
+        mpp_x=mpp_x,
+        mpp_y=mpp_y,
     )
 
 
