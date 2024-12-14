@@ -50,13 +50,9 @@ def heatmap_assembler_avg(slide: Any, tiles: pd.DataFrame) -> pyvips.Image:
     def finalize(acc: Acc) -> pyvips.Image:
         heatmap, counts = acc
 
-        return pyvips.Image.new_from_memory(
-            np.where(counts, heatmap / counts, 0) * 255,
-            slide.extent_x,
-            slide.extent_y,
-            1,
-            format=pyvips.BandFormat.UCHAR,
-        )
+        t = np.asarray(np.where(counts != 0, heatmap / counts, 0) * 255, dtype=np.uint8)
+
+        return pyvips.Image.new_from_array(t)
 
     return slide_assembler(slide, tiles, init, aggregate, finalize)
 
