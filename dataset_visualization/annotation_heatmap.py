@@ -19,7 +19,7 @@ def max_assembler(
         return np.memmap(
             f"{Path(slide.path).stem}_annoatation-heat.nmp",
             dtype=np.int8,
-            mode="w+",
+            mode="r+",
             shape=(slide.extent_y, slide.extent_x),
         )
 
