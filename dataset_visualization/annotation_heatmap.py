@@ -18,7 +18,7 @@ def max_assembler(
     def init(slide: Any) -> NDArray:
         return np.memmap(
             f"{Path(slide.path).stem}_annoatation-heat.nmp",
-            dtype=np.int8,
+            dtype=np.uint8,
             mode="w+",
             shape=(slide.extent_y, slide.extent_x),
         )
@@ -70,9 +70,6 @@ def annotation_heatmap(slides: pd.DataFrame, tiles: pd.DataFrame, dest: str) -> 
             mpp_y=slide.mpp_y,
         )
 
-    # process_items(list(slides.itertuples()), process_item=process_slide)
-
-    for slide in slides.itertuples():
-        process_slide(slide)
+    process_items(list(slides.itertuples()), process_item=process_slide)
 
     mlflow.log_artifacts(dest, "annotation-heatmaps")
