@@ -19,7 +19,7 @@ def max_assembler(
         return np.memmap(
             f"{Path(slide.path).stem}_annoatation-heat.nmp",
             dtype=np.int8,
-            mode="r+",
+            mode="w+",
             shape=(slide.extent_y, slide.extent_x),
         )
 
@@ -36,6 +36,14 @@ def max_assembler(
                 tile.metastazis * 255,
             )
             acc.flush()
+
+        acc = np.memmap(
+            f"{Path(slide.path).stem}_annoatation-heat.nmp",
+            dtype=np.int8,
+            mode="r+",
+            shape=(slide.extent_y, slide.extent_x),
+        )
+
         return acc
 
     def finalize(acc: NDArray) -> pyvips.Image:
