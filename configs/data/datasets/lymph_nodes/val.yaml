@@ -2,5 +2,5 @@ defaults:
   - /data/transforms@transforms: test
 
 _target_: lymph_nodes.data.datasets.LymphNodes
-uris: ["mlflow-artifacts:/68/daa4558828d0494b8d49e3df8ed70ae7/artifacts/Validation"]
+uris: ["mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/Validation"]
 metastazis_threshold: 0
