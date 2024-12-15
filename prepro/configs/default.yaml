@@ -11,7 +11,7 @@ metadata:
     tile_extent: 512
     stride: 256
     tissue_threshold: 0.5
-    mpp: 1.0
+    mpp: 0.5
   relative_path_prefix: /mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry
   tissue_mask_dest: data/tissue_masks
   annotation_mask_dest: data/annotation_masks
