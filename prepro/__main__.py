@@ -4,11 +4,14 @@ import hydra
 import mlflow
 from omegaconf import DictConfig, OmegaConf
 
-from prepro.annotation_masks import generate_annotation_masks
+# from prepro.annotation_masks import generate_annotation_masks
 from prepro.data_source import ChainedDataSources, DataSource
-from prepro.ignore_masks import generate_ignore_masks
+
+# from prepro.ignore_masks import generate_ignore_masks
 from prepro.tiling import tile_dataset
-from prepro.tissue_masks import generate_tissue_masks
+
+
+# from prepro.tissue_masks import generate_tissue_masks
 
 
 OmegaConf.register_new_resolver(
@@ -28,20 +31,20 @@ def main(config: DictConfig) -> None:
         artifact_uri=config.metadata.cytokeratin_masks_path, dst_path="./data"
     )
 
-    # mlflow.artifacts.download_artifacts(
-    #     artifact_uri="mlflow-artifacts:/68/7d4bab3b22d14d5ba3c6e16a4bc1b5c1/artifacts/tissue_masks",
-    #     dst_path="./data",
-    # )
+    mlflow.artifacts.download_artifacts(
+        artifact_uri="mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/tissue_masks",
+        dst_path="./data",
+    )
 
-    # mlflow.artifacts.download_artifacts(
-    #     artifact_uri="mlflow-artifacts:/68/7d4bab3b22d14d5ba3c6e16a4bc1b5c1/artifacts/ignore_masks",
-    #     dst_path="./data",
-    # )
+    mlflow.artifacts.download_artifacts(
+        artifact_uri="mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/ignore_masks",
+        dst_path="./data",
+    )
 
-    # mlflow.artifacts.download_artifacts(
-    #     artifact_uri="mlflow-artifacts:/68/7d4bab3b22d14d5ba3c6e16a4bc1b5c1/artifacts/annotation_masks",
-    #     dst_path="./data",
-    # )
+    mlflow.artifacts.download_artifacts(
+        artifact_uri="mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/annotation_masks",
+        dst_path="./data",
+    )
 
     print("Prepare datasources")
 
@@ -127,44 +130,44 @@ def main(config: DictConfig) -> None:
 
     print("Generating tissue masks")
     # Tissue masks
-    generate_tissue_masks(
-        slide_paths=ChainedDataSources(
-            [
-                infer_negative_lymph_nodes,
-                infer_positive_lymph_nodes,
-                test_negative_lymph_nodes,
-                test_positive_lymph_nodes,
-                test_tmas,
-                train_negative_lymph_nodes,
-                train_tmas,
-                val_negative_lymph_nodes,
-                val_tmas,
-            ]
-        ),
-        mpp=2,
-        reference_path=config.metadata.relative_path_prefix,
-        dest=config.metadata.tissue_mask_dest,
-    )
+    # generate_tissue_masks(
+    #     slide_paths=ChainedDataSources(
+    #         [
+    #             infer_negative_lymph_nodes,
+    #             infer_positive_lymph_nodes,
+    #             test_negative_lymph_nodes,
+    #             test_positive_lymph_nodes,
+    #             test_tmas,
+    #             train_negative_lymph_nodes,
+    #             train_tmas,
+    #             val_negative_lymph_nodes,
+    #             val_tmas,
+    #         ]
+    #     ),
+    #     mpp=2,
+    #     reference_path=config.metadata.relative_path_prefix,
+    #     dest=config.metadata.tissue_mask_dest,
+    # )
 
     print("Generating annotation masks")
 
     # Annotation masks
-    generate_annotation_masks(
-        slide_paths=ChainedDataSources([test_positive_lymph_nodes]),
-        mpp=2,
-        reference_path=config.metadata.relative_path_prefix,
-        dest=config.metadata.annotation_mask_dest,
-    )
+    # generate_annotation_masks(
+    #     slide_paths=ChainedDataSources([test_positive_lymph_nodes]),
+    #     mpp=2,
+    #     reference_path=config.metadata.relative_path_prefix,
+    #     dest=config.metadata.annotation_mask_dest,
+    # )
 
-    print("Generating ignore masks")
+    # print("Generating ignore masks")
 
-    # Ignore masks
-    generate_ignore_masks(
-        slide_paths=ChainedDataSources([test_tmas, train_tmas, val_tmas]),
-        mpp=2,
-        reference_path=config.metadata.relative_path_prefix,
-        dest=config.metadata.ignore_mask_dest,
-    )
+    # # Ignore masks
+    # generate_ignore_masks(
+    #     slide_paths=ChainedDataSources([test_tmas, train_tmas, val_tmas]),
+    #     mpp=2,
+    #     reference_path=config.metadata.relative_path_prefix,
+    #     dest=config.metadata.ignore_mask_dest,
+    # )
 
     # Tiling
     print("Tiling")

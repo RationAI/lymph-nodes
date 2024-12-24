@@ -101,7 +101,7 @@ def data_tiler(
 
     annotation_mask = MetastazisMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=tile_extent // 2,
+        absolute_roi_extent=tile_extent - 64,
         relative_roi_offset=0,
     )
 

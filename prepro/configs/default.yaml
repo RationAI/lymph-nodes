@@ -20,6 +20,6 @@ metadata:
   cytokeratin_masks_path: mlflow-artifacts:/68/42ff2d1b9b8649bd94a4fe6360db201e/artifacts/cytokeratin_masks
 
   experiment_name: Lymph Nodes
-  experiment_description: DAB data - masks + datasets
-  run_name: DAB masks + datasets
+  experiment_description: DAB datasets ROI 512 - 64
+  run_name: DAB datasets
   mlflow_uri: http://mlflow.rationai-mlflow:5000
