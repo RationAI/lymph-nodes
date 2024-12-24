@@ -29,11 +29,11 @@ trainer:
 data:
   batch_size: 128
   epoch_size: 500
-  positive_batch_split: 0.5
+  positive_batch_split: 0.3
   num_workers: 8
 
 metadata:
   experiment_name: Lymph Nodes
-  run_name: Lymph Nodes DAB training 0.5 VGG16 500
-  description: Training a model on the Lymph Nodes DAB dataset with 0.5 split and 500 epoch size using VGG16 backbone
+  run_name: Lymph Nodes DAB training 0.3 VGG16 500
+  description: Training a model on the Lymph Nodes DAB dataset with 0.3 split and 500 epoch size using VGG16 backbone
   hyperparams: {}
