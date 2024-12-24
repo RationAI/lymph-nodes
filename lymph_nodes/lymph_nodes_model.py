@@ -123,4 +123,4 @@ class LymphNodesModel(LightningModule):
         self.logger.experiment.log_artifact(self.logger.run_id, "./predictions.parquet")
 
     def configure_optimizers(self) -> Optimizer:
-        return AdamW(self.parameters(), lr=0.000001)
+        return AdamW(self.parameters(), lr=0.0001)
