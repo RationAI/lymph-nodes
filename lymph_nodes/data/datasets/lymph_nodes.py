@@ -1,7 +1,6 @@
 from collections.abc import Iterable
 from typing import Any
 
-import numpy as np
 import pandas as pd
 import torch
 from albumentations.pytorch import ToTensorV2
@@ -55,6 +54,10 @@ class LymphNodesPredict(MetaTiledSlides[PredictSample]):
         super().__init__(uris=uris)
 
     def generate_datasets(self) -> Iterable[Dataset[PredictSample]]:
+        slides_2023 = self.slides[self.slides["path"].str.contains("2023")]["id"]
+
+        self.tiles = self.tiles[self.tiles["slide_id"].isin(slides_2023),].reset_index()
+
         return (
             _LymphNodesSlideTiles(
                 slide,
