@@ -7,7 +7,7 @@ seed: ${random_seed:}
 
 metadata:
   slides: mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/Test/slides.parquet
-  predictions: mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/Inference/slides.parquet
+  predictions: mlflow-artifacts:/68/295aa1428da14c34ac14cb399bbf9526/artifacts/predictions.parquet
   heatmap_dest: "./data/heatmpas"
 
   experiment_name: Lymph Nodes
