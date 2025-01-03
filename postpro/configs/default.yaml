@@ -7,11 +7,11 @@ seed: ${random_seed:}
 
 metadata:
   slides: mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/Test/slides.parquet
-  predictions: mlflow-artifacts:/68/30d97e3595664124ab90f19327ad7c3d/artifacts/predictions.parquet
+  predictions: mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/Inference/slides.parquet
   heatmap_dest: "./data/heatmpas"
 
   experiment_name: Lymph Nodes
-  experiment_description: DAB test heatmaps for run d24309ae94fc4b71a17247f2939cf39a
+  experiment_description: DAB test heatmaps for run b75ae72569654c45891e25a2d58186ce
   run_name: DAB test heatmaps
   mlflow_uri: http://mlflow.rationai-mlflow:5000
   # mlflow_uri: https://mlflow.rationai.cloud.trusted.e-infra.cz
