@@ -12,6 +12,7 @@ from prepro.tiling import tile_dataset
 
 
 # from prepro.tissue_masks import generate_tissue_masks
+from prepro.color_separation import color_separation
 
 
 OmegaConf.register_new_resolver(
@@ -72,10 +73,6 @@ def main(config: DictConfig) -> None:
         "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
         glob_pattern=["*_20_SLIDE_[0-9]*-0.tiff", "*_59_SLIDE_[0-9]*-0.tiff"],
     )
-    test_positive_lymph_nodes = DataSource(
-        "/mnt/data/Projects/lymph_nodes/annotated_ihc_test",
-        glob_pattern=["*.mrxs"],
-    )
     test_tmas = DataSource(
         "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_final_scans",
         glob_pattern=["FIN-CK-*.mrxs"],
@@ -94,6 +91,11 @@ def main(config: DictConfig) -> None:
             "*_20_SLIDE_[0-9]*-0.tiff",
             "*_59_SLIDE_[0-9]*-0.tiff",
         ],
+    )
+
+    train_positive_lymph_nodes = DataSource(
+        "/mnt/data/Projects/lymph_nodes/annotated_ihc_test",
+        glob_pattern=["*.mrxs"],
     )
 
     train_tmas = ChainedDataSources(
@@ -169,6 +171,25 @@ def main(config: DictConfig) -> None:
     #     dest=config.metadata.ignore_mask_dest,
     # )
 
+    # Generate color separation masks
+    color_separation(
+        slides=ChainedDataSources(
+            [
+                infer_negative_lymph_nodes,
+                infer_positive_lymph_nodes,
+                test_negative_lymph_nodes,
+                test_tmas,
+                train_negative_lymph_nodes,
+                train_positive_lymph_nodes,
+                train_tmas,
+                val_negative_lymph_nodes,
+                val_tmas,
+            ]
+        ),
+        reference_path=config.metadata.relative_path_prefix,
+        dest=config.metadata.color_separation_mask_dest,
+    )
+
     # Tiling
     print("Tiling")
     ## Infer
@@ -186,6 +207,7 @@ def main(config: DictConfig) -> None:
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
                 "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
+                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "relative_path_prefix": config.metadata.relative_path_prefix,
@@ -200,6 +222,7 @@ def main(config: DictConfig) -> None:
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
                 "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
+                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "relative_path_prefix": config.metadata.relative_path_prefix,
@@ -223,20 +246,7 @@ def main(config: DictConfig) -> None:
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
                 "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
-                "ignore_mask_dir": config.metadata.ignore_mask_dest,
-                "annotation_masks_dir": config.metadata.annotation_mask_dest,
-                "relative_path_prefix": config.metadata.relative_path_prefix,
-            },
-            {
-                "slides": test_positive_lymph_nodes,
-                "source_kind": "lymph_node",
-                "slide_metastazis": True,
-                "desired_mpp": config.metadata.tiling.mpp,
-                "tissue_threshold": config.metadata.tiling.tissue_threshold,
-                "tile_extent": config.metadata.tiling.tile_extent,
-                "stride": config.metadata.tiling.stride,
-                "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
+                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "relative_path_prefix": config.metadata.relative_path_prefix,
@@ -251,6 +261,7 @@ def main(config: DictConfig) -> None:
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
                 "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
+                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "relative_path_prefix": config.metadata.relative_path_prefix,
@@ -274,6 +285,7 @@ def main(config: DictConfig) -> None:
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
                 "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
+                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "relative_path_prefix": config.metadata.relative_path_prefix,
@@ -288,6 +300,22 @@ def main(config: DictConfig) -> None:
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
                 "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
+                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
+                "ignore_mask_dir": config.metadata.ignore_mask_dest,
+                "annotation_masks_dir": config.metadata.annotation_mask_dest,
+                "relative_path_prefix": config.metadata.relative_path_prefix,
+            },
+            {
+                "slides": train_positive_lymph_nodes,
+                "source_kind": "lymph_node",
+                "slide_metastazis": True,
+                "desired_mpp": config.metadata.tiling.mpp,
+                "tissue_threshold": config.metadata.tiling.tissue_threshold,
+                "tile_extent": config.metadata.tiling.tile_extent,
+                "stride": config.metadata.tiling.stride,
+                "tissue_masks_dir": config.metadata.tissue_mask_dest,
+                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
+                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "relative_path_prefix": config.metadata.relative_path_prefix,
@@ -311,6 +339,7 @@ def main(config: DictConfig) -> None:
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
                 "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
+                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "relative_path_prefix": config.metadata.relative_path_prefix,
@@ -325,6 +354,7 @@ def main(config: DictConfig) -> None:
                 "stride": config.metadata.tiling.stride,
                 "tissue_masks_dir": config.metadata.tissue_mask_dest,
                 "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
+                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
                 "ignore_mask_dir": config.metadata.ignore_mask_dest,
                 "annotation_masks_dir": config.metadata.annotation_mask_dest,
                 "relative_path_prefix": config.metadata.relative_path_prefix,

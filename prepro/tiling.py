@@ -25,6 +25,7 @@ class Args(TypedDict):
     slide_metastazis: bool
     tissue_masks_dir: str
     cytokeratin_masks_dir: str
+    color_separation_mask_dir: str
     ignore_mask_dir: str
     annotation_masks_dir: str
     relative_path_prefix: str
@@ -33,6 +34,11 @@ class Args(TypedDict):
 @dataclass
 class MetastazisTileMetadata(TileMetadata):
     metastazis: float
+
+
+@dataclass
+class BrownishTileMetadata(TileMetadata):
+    brownish: float
 
 
 def data_tiler(
@@ -45,6 +51,7 @@ def data_tiler(
     slide_metastazis: bool,
     tissue_masks_dir: str,
     cytokeratin_masks_dir: str,
+    color_separation_mask_dir: str,
     ignore_mask_dir: str,
     annotation_masks_dir: str,
     relative_path_prefix: str,
@@ -75,6 +82,14 @@ def data_tiler(
                 return None
 
             return tile_labels
+
+    class ColorSeparationMask(PyvipsMask[BrownishTileMetadata]):
+        def forward_tile(
+            self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
+        ) -> BrownishTileMetadata | None:
+            return BrownishTileMetadata(
+                **asdict(tile_labels), brownish=class_overlaps.get(255, 0)
+            )
 
     class NoMetastazisTiles(TilingModule):
         def forward(
@@ -111,51 +126,65 @@ def data_tiler(
         relative_roi_offset=0,
     )
 
+    color_separation_mask = ColorSeparationMask(
+        tile_extent=source.tile_extent,
+        absolute_roi_extent=tile_extent // 2,
+        relative_roi_offset=0,
+    )
+
     no_annotation_mask = NoMetastazisTiles()
 
     # Tiling function
     @ray.remote
     def slide_handler(slide_path: Path) -> TiledSlideMetadata:
+        relative_path = get_relative_dir_path(slide_path, Path(relative_path_prefix))
+
         tissue_mask_path = Path(
             tissue_masks_dir,
-            get_relative_dir_path(slide_path, Path(relative_path_prefix)),
+            relative_path,
             f"{slide_path.stem}.tiff",
         )
 
         annotation_mask_path = Path(
             annotation_masks_dir,
-            get_relative_dir_path(slide_path, Path(relative_path_prefix)),
+            relative_path,
             f"{slide_path.stem}.tiff",
         )
 
         ignore_mask_path = Path(
             ignore_mask_dir,
-            get_relative_dir_path(slide_path, Path(relative_path_prefix)),
+            relative_path,
             f"{slide_path.stem}.tiff",
         )
 
         cytokeratin_mask_path = Path(
             cytokeratin_masks_dir,
-            get_relative_dir_path(slide_path, Path(relative_path_prefix)),
+            relative_path,
+            f"{slide_path.stem}.tiff",
+        )
+
+        color_separation_mask_path = Path(
+            color_separation_mask_dir,
+            relative_path,
             f"{slide_path.stem}.tiff",
         )
 
         slide, tiles = source(slide_path)
         tiles = tissue_mask(tissue_mask_path, slide.extent, tiles)
 
+        tiles = color_separation_mask(color_separation_mask_path, slide.extent, tiles)
+
         if ignore_mask_path.exists():
             tiles = ignore_mask(ignore_mask_path, slide.extent, tiles)
 
         if cytokeratin_mask_path.exists():
-            annotated_tiles = annotation_mask(
-                cytokeratin_mask_path, slide.extent, tiles
-            )
+            tiles = annotation_mask(cytokeratin_mask_path, slide.extent, tiles)
         elif annotation_mask_path.exists():
-            annotated_tiles = annotation_mask(annotation_mask_path, slide.extent, tiles)
+            tiles = annotation_mask(annotation_mask_path, slide.extent, tiles)
         else:
-            annotated_tiles = no_annotation_mask(tiles)
+            tiles = no_annotation_mask(tiles)
 
-        return slide, annotated_tiles
+        return slide, tiles
 
     slides_df, tiles_df = tiling(slides=list(slides), handler=slide_handler)
 
