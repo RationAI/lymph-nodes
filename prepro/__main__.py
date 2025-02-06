@@ -74,7 +74,7 @@ def main(config: DictConfig) -> None:
         glob_pattern=["*_20_SLIDE_[0-9]*-0.tiff", "*_59_SLIDE_[0-9]*-0.tiff"],
     )
     test_tmas = DataSource(
-        "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_final_scans",
+        "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_final_scans",
         glob_pattern=["FIN-CK-*.mrxs"],
     )
 
@@ -101,12 +101,12 @@ def main(config: DictConfig) -> None:
     train_tmas = ChainedDataSources(
         [
             DataSource(
-                "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
+                "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
                 glob_pattern="*.mrxs",
                 exclue_pattern=["TNBC-BF-4-*.mrxs"],
             ),
             DataSource(
-                "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_colorectal_TMAs",
+                "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_colorectal_TMAs",
                 glob_pattern="DAB-*.mrxs",
             ),
         ]
@@ -124,7 +124,7 @@ def main(config: DictConfig) -> None:
         ],
     )
     val_tmas = DataSource(
-        "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
+        "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
         glob_pattern="TNBC-BF-4-*mrxs",
     )
 
@@ -170,6 +170,8 @@ def main(config: DictConfig) -> None:
     #     reference_path=config.metadata.relative_path_prefix,
     #     dest=config.metadata.ignore_mask_dest,
     # )
+
+    print("Generating color separation masks")
 
     # Generate color separation masks
     color_separation(
