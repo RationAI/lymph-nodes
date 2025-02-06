@@ -41,7 +41,7 @@ def color_separation(slides: Iterable[Path], reference_path: str, dest: str) -> 
         dest_dir = Path(dest, slide_path.relative_to(reference_path).parent)
         slide_color_separation(slide_path, dest_dir)
 
-    process_items(slides, process_slide, 2)
+    process_items(slides, process_slide)
 
 
 def generate_color_separation_masks(
