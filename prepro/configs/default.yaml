@@ -12,7 +12,7 @@ metadata:
     stride: 256
     tissue_threshold: 0.5
     mpp: 0.5
-  relative_path_prefix: /mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry
+  relative_path_prefix: /mnt/data/Projects/lymph_nodes
   tissue_mask_dest: data/tissue_masks
   annotation_mask_dest: data/annotation_masks
   cytokeratin_mask_dest: data/cytokeratin_masks
