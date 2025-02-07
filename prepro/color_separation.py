@@ -4,20 +4,36 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import mlflow
+from openslide import OpenSlide
 import ray
 from rationai.masks import (
+    closest_level,
     process_items,
+    slide_resolution,
     write_big_tiff,
 )
+
+from rationai.masks.vips_filters import VipsClosing, VipsCompose, VipsOpening
 
 from prepro.utils import vips_read
 
 
-def slide_color_separation(slide_path: Path, dest_dir: Path) -> None:
-    slide = vips_read(slide_path, level=0)
+MPP = 2
 
-    mpp_x = 1 / slide.xres * 1000
-    mpp_y = 1 / slide.yres * 1000
+
+morph_filters = VipsCompose(
+    [
+        VipsOpening(),
+        VipsClosing(),
+    ]
+)
+
+
+def slide_color_separation(slide_path: Path, dest_dir: Path) -> None:
+    with OpenSlide(slide_path) as slide:
+        level = closest_level(slide, MPP)
+        mpp = slide_resolution(slide, level)
+    slide = vips_read(slide_path, level=0)
 
     red, green, blue, *_ = slide.bandsplit()
 
@@ -28,6 +44,8 @@ def slide_color_separation(slide_path: Path, dest_dir: Path) -> None:
         & (red >= 50)
         & (red < 175)
     )
+
+    mask, (mpp_x, mpp_y) = morph_filters(mask, mpp)
 
     mask_path = Path(dest_dir, f"{Path(slide_path).stem}.tiff")
     mask_path.parent.mkdir(exist_ok=True, parents=True)
@@ -41,7 +59,7 @@ def color_separation(slides: Iterable[Path], reference_path: str, dest: str) -> 
         dest_dir = Path(dest, slide_path.relative_to(reference_path).parent)
         slide_color_separation(slide_path, dest_dir)
 
-    process_items(slides, process_slide)
+    process_items(slides, process_slide, 2)
 
 
 def generate_color_separation_masks(
@@ -67,6 +85,6 @@ if __name__ == "__main__":
     ]
 
     reference_path = "/mnt/data/Projects/lymph_nodes"
-    destination = "/mnt/data/Projects/lymph_nodes/dev/baseline/color_separation"
+    destination = "/mnt/data/Projects/lymph_nodes/dev/baseline-v2/color_separation"
 
     color_separation(list(map(Path, test_wsis)), reference_path, destination)
