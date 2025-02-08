@@ -12,7 +12,7 @@ from prepro.tiling import tile_dataset
 
 
 # from prepro.tissue_masks import generate_tissue_masks
-from prepro.color_separation import color_separation
+from prepro.color_separation import generate_color_separation_masks
 
 
 OmegaConf.register_new_resolver(
@@ -174,8 +174,8 @@ def main(config: DictConfig) -> None:
     print("Generating color separation masks")
 
     # Generate color separation masks
-    color_separation(
-        slides=ChainedDataSources(
+    generate_color_separation_masks(
+        slide_paths=ChainedDataSources(
             [
                 infer_negative_lymph_nodes,
                 infer_positive_lymph_nodes,
@@ -188,6 +188,7 @@ def main(config: DictConfig) -> None:
                 val_tmas,
             ]
         ),
+        mpp=2,
         reference_path=config.metadata.relative_path_prefix,
         dest=config.metadata.color_separation_mask_dest,
     )

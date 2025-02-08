@@ -32,13 +32,13 @@ class Args(TypedDict):
 
 
 @dataclass
-class MetastazisTileMetadata(TileMetadata):
-    metastazis: float
+class BrownishTileMetadata(TileMetadata):
+    brownish: float
 
 
 @dataclass
-class BrownishTileMetadata(TileMetadata):
-    brownish: float
+class MetastazisTileMetadata(BrownishTileMetadata):
+    metastazis: float
 
 
 def data_tiler(
@@ -110,25 +110,25 @@ def data_tiler(
 
     tissue_mask = TissueMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=tile_extent // 2,
+        absolute_roi_extent=256,
         relative_roi_offset=0,
     )
 
     annotation_mask = MetastazisMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=tile_extent - 64,
+        absolute_roi_extent=256,
         relative_roi_offset=0,
     )
 
     ignore_mask = IgnoreMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=tile_extent // 2,
+        absolute_roi_extent=256,
         relative_roi_offset=0,
     )
 
     color_separation_mask = ColorSeparationMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=tile_extent // 2,
+        absolute_roi_extent=256,
         relative_roi_offset=0,
     )
 

@@ -8,7 +8,7 @@ seed: ${random_seed:}
 
 metadata:
   tiling:
-    tile_extent: 768
+    tile_extent: 640 # 512 + 128
     stride: 256
     tissue_threshold: 0.5
     mpp: 0.5

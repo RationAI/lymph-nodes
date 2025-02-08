@@ -18,9 +18,6 @@ from rationai.masks.vips_filters import VipsClosing, VipsCompose, VipsOpening
 from prepro.utils import vips_read
 
 
-MPP = 2
-
-
 morph_filters = VipsCompose(
     [
         VipsOpening(),
@@ -29,9 +26,11 @@ morph_filters = VipsCompose(
 )
 
 
-def slide_color_separation(slide_path: Path, dest_dir: Path) -> None:
+def slide_color_separation(
+    slide_path: Path, desired_mpp: float, dest_dir: Path
+) -> None:
     with OpenSlide(slide_path) as slide:
-        level = closest_level(slide, MPP)
+        level = closest_level(slide, desired_mpp)
         mpp = slide_resolution(slide, level)
     slide = vips_read(slide_path, level=0)
 
@@ -53,24 +52,28 @@ def slide_color_separation(slide_path: Path, dest_dir: Path) -> None:
     write_big_tiff(mask, path=mask_path, mpp_x=mpp_x, mpp_y=mpp_y)
 
 
-def color_separation(slides: Iterable[Path], reference_path: str, dest: str) -> None:
+def color_separation(
+    slides: Iterable[Path], mpp: float, reference_path: str, dest: str
+) -> None:
     @ray.remote
     def process_slide(slide_path: Path) -> None:
         dest_dir = Path(dest, slide_path.relative_to(reference_path).parent)
-        slide_color_separation(slide_path, dest_dir)
+        slide_color_separation(slide_path, mpp, dest_dir)
 
-    process_items(slides, process_slide, 2)
+    process_items(slides, process_slide)
 
 
 def generate_color_separation_masks(
     slide_paths: Iterable[Path], mpp: float, reference_path: str, dest: str
 ) -> None:
-    color_separation(slide_paths, reference_path, dest)
+    color_separation(slide_paths, mpp, reference_path, dest)
     mlflow.log_artifacts(dest, artifact_path="color_separation_masks")
 
 
 if __name__ == "__main__":
     # Testing setup (to define suitable thresholds for brownish (eg metastazis) color separation)
+
+    TEST_MPP = 2
 
     # Testing WSIs
     test_wsis = [
@@ -87,4 +90,4 @@ if __name__ == "__main__":
     reference_path = "/mnt/data/Projects/lymph_nodes"
     destination = "/mnt/data/Projects/lymph_nodes/dev/baseline-v2/color_separation"
 
-    color_separation(list(map(Path, test_wsis)), reference_path, destination)
+    color_separation(list(map(Path, test_wsis)), TEST_MPP, reference_path, destination)
