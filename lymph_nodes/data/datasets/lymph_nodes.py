@@ -76,7 +76,12 @@ class LymphNodesPredict(MetaTiledSlides[PredictSample]):
     def generate_datasets(self) -> Iterable[Dataset[PredictSample]]:
         slides_2023 = self.slides[self.slides["path"].str.contains("2023")]["id"]
 
-        self.tiles = self.tiles[self.tiles["slide_id"].isin(slides_2023)].reset_index()
+        self.tiles = self.tiles[
+            np.logical_and(
+                self.tiles["slide_id"].isin(slides_2023),
+                self.slides["brownish"] > 0,
+            )
+        ].reset_index()
 
         return (
             _LymphNodesSlideTiles(
