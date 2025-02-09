@@ -6,8 +6,10 @@ transforms:
     p: 1.0
   - _target_: albumentations.RandomRotate90
     p: 1.0
-  - _target_: albumentations.Flip
-    p: 0.75
+  - _target_: albumentations.HorizontalFlip
+    p: 0.5
+  - _target_: albumentations.VerticalFlip
+    p: 0.5
   - _target_: albumentations.RandomGamma
     p: 0.5
   - _target_: albumentations.RandomBrightnessContrast
