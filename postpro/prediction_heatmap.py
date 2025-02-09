@@ -42,7 +42,7 @@ def heatmap_assembler_avg(slide: Any, tiles: pd.DataFrame) -> pyvips.Image:
         heatmap, counts = acc
 
         x, y = norm(tile.x), norm(tile.y)
-        extent_x, extent_y = norm(tile.extent_x), norm(tile.extent_y)
+        extent_x, extent_y = norm(slide.tile_extent_x), norm(slide.tile_extent_y)
 
         heatmap[y : y + extent_y, x : x + extent_x] += tile.probability
         counts[y : y + extent_y, x : x + extent_x] += 1
