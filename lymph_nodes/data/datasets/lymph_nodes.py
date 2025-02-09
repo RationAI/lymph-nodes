@@ -33,16 +33,14 @@ class LymphNodes(MetaTiledSlides[Sample]):
         ]["id"]
 
         # Filter out annotated lymphs from training
-        self.tiles = self.tiles[
-            ~np.logical_or(
-                self.tiles["slide_id"].isin(annotated_lymph_slides_ids),
-                self.tiles["brownish"] == 0,
-            )
-        ].reset_index()
-
         # self.tiles = self.tiles[
-        #         self.tiles["brownish"] == 0
+        #     ~np.logical_or(
+        #         self.tiles["slide_id"].isin(annotated_lymph_slides_ids),
+        #         self.tiles["brownish"] == 0,
+        #     )
         # ].reset_index()
+
+        self.tiles = self.tiles[self.tiles["brownish"] > 0].reset_index()
 
         # positive_slides_id = self.slides[self.slides["kind"] == "colorectal"]["id"]
 
