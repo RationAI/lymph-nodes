@@ -26,7 +26,7 @@ class LymphNodes(MetaTiledSlides[Sample]):
         annotated_lymph_slides_ids = self.slides[
             np.logical_and(
                 self.slides["kind"] == "lymph_node",
-                self.slides["slide_metastazis"] == True,
+                self.slides["metastazis"] == True,
             )
         ]["id"]
 
@@ -37,6 +37,10 @@ class LymphNodes(MetaTiledSlides[Sample]):
                 self.tiles["brownish"] == 0,
             )
         ].reset_index()
+
+        # self.tiles = self.tiles[
+        #         self.tiles["brownish"] == 0
+        # ].reset_index()
 
         # positive_slides_id = self.slides[self.slides["kind"] == "colorectal"]["id"]
 
