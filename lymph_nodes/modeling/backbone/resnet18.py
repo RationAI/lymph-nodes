@@ -6,5 +6,5 @@ def resnet18(weights: str | None = None) -> nn.Module:
     resnet = torchvision.models.resnet18(weights=weights)
     return nn.Sequential(
         *(list(resnet.children())[:-2]),
-        nn.Conv2d(1024, 512, kernel_size=1, stride=1),
+        nn.Conv2d(512, 512, kernel_size=1, stride=1),
     )
