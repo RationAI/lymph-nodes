@@ -13,6 +13,12 @@ from rationai.masks.slide_assembler import slide_assembler
 
 Acc: TypeAlias = tuple[NDArray, NDArray]
 
+FACTOR = 2 ^ 3
+
+
+def norm(x: int) -> int:
+    return round(x / FACTOR)
+
 
 def heatmap_assembler_avg(slide: Any, tiles: pd.DataFrame) -> pyvips.Image:
     def init(slide: Any) -> Acc:
@@ -20,14 +26,14 @@ def heatmap_assembler_avg(slide: Any, tiles: pd.DataFrame) -> pyvips.Image:
             str(Path(slide.path).stem) + "_heatmap.nmp",
             dtype=np.float32,
             mode="w+",
-            shape=(slide.extent_y, slide.extent_x),
+            shape=(norm(slide.extent_y), norm(slide.extent_x)),
         )
 
         counts = np.memmap(
             str(Path(slide.path).stem) + "_count.nmp",
             dtype=np.uint8,
             mode="w+",
-            shape=(slide.extent_y, slide.extent_x),
+            shape=(norm(slide.extent_y), norm(slide.extent_x)),
         )
 
         return heatmap, counts
@@ -35,12 +41,11 @@ def heatmap_assembler_avg(slide: Any, tiles: pd.DataFrame) -> pyvips.Image:
     def aggregate(acc: Acc, slide: Any, tile: Any) -> Acc:
         heatmap, counts = acc
 
-        heatmap[
-            tile.y : tile.y + slide.tile_extent_y, tile.x : tile.x + slide.tile_extent_x
-        ] += tile.probability
-        counts[
-            tile.y : tile.y + slide.tile_extent_y, tile.x : tile.x + slide.tile_extent_x
-        ] += 1
+        x, y = norm(tile.x), norm(tile.y)
+        extent_x, extent_y = norm(tile.extent_x), norm(tile.extent_y)
+
+        heatmap[y : y + extent_y, x : x + extent_x] += tile.probability
+        counts[y : y + extent_y, x : x + extent_x] += 1
 
         heatmap.flush()
         counts.flush()
