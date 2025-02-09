@@ -23,6 +23,8 @@ class LymphNodes(MetaTiledSlides[Sample]):
         super().__init__(uris=uris)
 
     def generate_datasets(self) -> Iterable[Dataset[Sample]]:
+        self.tiles["cancer"] = self.tiles["metastazis"] > self.metastazis_threshold
+
         annotated_lymph_slides_ids = self.slides[
             np.logical_and(
                 self.slides["kind"] == "lymph_node",
