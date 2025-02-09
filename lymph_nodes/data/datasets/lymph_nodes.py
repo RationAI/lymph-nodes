@@ -34,7 +34,7 @@ class LymphNodes(MetaTiledSlides[Sample]):
 
         # Filter out annotated lymphs from training
         self.tiles = self.tiles[
-            ~np.logical_and(
+            ~np.logical_or(
                 self.tiles["slide_id"].isin(annotated_lymph_slides_ids),
                 self.tiles["brownish"] == 0,
             )
