@@ -1,0 +1,2 @@
+_target_: lymph_nodes.modeling.backbone.resnet18
+weights: null
