@@ -79,7 +79,7 @@ class LymphNodesPredict(MetaTiledSlides[PredictSample]):
         self.tiles = self.tiles[
             np.logical_and(
                 self.tiles["slide_id"].isin(slides_2023),
-                self.slides["brownish"] > 0,
+                self.tiles["brownish"] > 0,
             )
         ].reset_index()
 
