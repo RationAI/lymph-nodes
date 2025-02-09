@@ -66,6 +66,10 @@ def prediction_heatmap(slides: pd.DataFrame, tiles: pd.DataFrame, dest: str) -> 
     @ray.remote
     def process_slide(slide: Any) -> None:
         slide_tiles = tiles[tiles["slide_id"] == slide.id]
+
+        if len(slide_tiles) == 0:
+            return
+
         mask = heatmap_assembler_avg(slide, slide_tiles)
 
         mask_path = Path(dest, f"{Path(slide.path).stem}.tiff")
