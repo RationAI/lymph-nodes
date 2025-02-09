@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:6a80e92c100d5d1deba5615070ba094357075e00c3ffdd3f7689ad789d33f1dd"
+content_hash = "sha256:045cef72b969a345034372a9db9d36052770e146774489507948bb6a59019a68"
 
 [[package]]
 name = "aiohappyeyeballs"
@@ -2212,11 +2212,11 @@ files = [
 
 [[package]]
 name = "rationai-masks"
-version = "1.1.0"
+version = "1.0.1"
 requires_python = ">=3.11"
 git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git"
-ref = "feature/modular-tissue-mask"
-revision = "fe3f3ad89870d2501c184383f9846a44d4112cb5"
+ref = "feature/slide-assembler"
+revision = "cf7787a2f3668a127a91ac1bbc5f81e310951483"
 summary = ""
 groups = ["default"]
 dependencies = [
@@ -2226,7 +2226,6 @@ dependencies = [
     "pillow>=10.4.0",
     "pyvips>=2.2.3",
     "ray>=2.34.0",
-    "scikit-image>=0.25.1",
     "torch>=2.5.1",
     "tqdm>=4.66.5",
 ]
