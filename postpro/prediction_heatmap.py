@@ -13,7 +13,7 @@ from rationai.masks.slide_assembler import slide_assembler
 
 Acc: TypeAlias = tuple[NDArray, NDArray]
 
-FACTOR = 2 ^ 3
+FACTOR = 2**4
 
 
 def norm(x: int) -> int:
@@ -55,9 +55,11 @@ def heatmap_assembler_avg(slide: Any, tiles: pd.DataFrame) -> pyvips.Image:
     def finalize(acc: Acc) -> pyvips.Image:
         heatmap, counts = acc
 
-        t = np.asarray(np.where(counts != 0, heatmap / counts, 0) * 255, dtype=np.uint8)
+        counts = np.where(counts == 0, 1, counts)
 
-        return pyvips.Image.new_from_array(t)
+        # t = np.asarray(np.where(counts != 0, heatmap / counts, 0) * 255, dtype=np.uint8)
+
+        return pyvips.Image.new_from_array((heatmap / counts) * 255)
 
     return slide_assembler(slide, tiles, init, aggregate, finalize)
 
