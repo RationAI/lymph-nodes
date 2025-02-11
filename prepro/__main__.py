@@ -144,7 +144,7 @@ def main(config: DictConfig) -> None:
         "tmas": {
             "test": Dataset(
                 datasource=DataSource(
-                    "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_final_scans",
+                    "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_final_scans",
                     glob_pattern=["FIN-CK-*.mrxs"],
                 ),
                 source_kind="tma",
@@ -154,12 +154,12 @@ def main(config: DictConfig) -> None:
                 datasource=ChainedDataSources(
                     [
                         DataSource(
-                            "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
+                            "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
                             glob_pattern="*.mrxs",
                             exclue_pattern=["TNBC-BF-4-*.mrxs"],
                         ),
                         DataSource(
-                            "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_colorectal_TMAs",
+                            "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_colorectal_TMAs",
                             glob_pattern="DAB-*.mrxs",
                         ),
                     ]
@@ -169,7 +169,7 @@ def main(config: DictConfig) -> None:
             ),
             "val": Dataset(
                 datasource=DataSource(
-                    "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
+                    "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
                     glob_pattern="TNBC-BF-4-*mrxs",
                 ),
                 source_kind="tma",
