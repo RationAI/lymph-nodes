@@ -1,4 +1,6 @@
+from dataclasses import dataclass
 from random import randint
+from typing import Any
 
 import hydra
 import mlflow
@@ -8,11 +10,17 @@ from omegaconf import DictConfig, OmegaConf
 from prepro.data_source import ChainedDataSources, DataSource
 
 # from prepro.ignore_masks import generate_ignore_masks
-from prepro.tiling import tile_dataset
+from prepro.tiling import Args, tile_dataset
 
 
 # from prepro.tissue_masks import generate_tissue_masks
-from prepro.color_separation import generate_color_separation_masks
+
+
+@dataclass
+class Dataset:
+    datasource: DataSource
+    source_kind: str
+    slide_metastazis: bool
 
 
 OmegaConf.register_new_resolver(
@@ -47,91 +55,135 @@ def main(config: DictConfig) -> None:
         dst_path="./data",
     )
 
+    mlflow.artifacts.download_artifacts(
+        artifact_uri="mlflow-artifacts:/68/04f3267cd2fc4c6bbecbacb3336a13a1/artifacts/color_separation_masks",
+        dst_path="./data",
+    )
+
     print("Prepare datasources")
 
-    # DataSources
-    ## Infer
-    infer_negative_lymph_nodes = DataSource(
-        "/mnt/data/Projects/lymph_nodes/dataset2-ihc-2024/negative",
-        glob_pattern="*-0.mrxs",
-    )
-    infer_positive_lymph_nodes = ChainedDataSources(
-        [
-            DataSource(
-                "/mnt/data/Projects/lymph_nodes/dataset2-ihc-2024/positive",
-                glob_pattern="*-1.mrxs",
+    datasets = {
+        "lymhps-2023": {
+            "positive": Dataset(
+                datasource=DataSource(
+                    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
+                    glob_pattern="*-1.tiff",
+                ),
+                source_kind="lymph_node",
+                slide_metastazis=True,
             ),
-            DataSource(
-                "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
-                glob_pattern="*-1.tiff",
+            "negative-test": Dataset(
+                datasource=DataSource(
+                    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
+                    glob_pattern=[
+                        "*_20_SLIDE_[0-9]*-0.tiff",
+                        "*_59_SLIDE_[0-9]*-0.tiff",
+                    ],
+                ),
+                source_kind="lymph_node",
+                slide_metastazis=False,
             ),
-        ]
-    )
-
-    ## Test
-    test_negative_lymph_nodes = DataSource(
-        "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
-        glob_pattern=["*_20_SLIDE_[0-9]*-0.tiff", "*_59_SLIDE_[0-9]*-0.tiff"],
-    )
-    test_tmas = DataSource(
-        "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_final_scans",
-        glob_pattern=["FIN-CK-*.mrxs"],
-    )
-
-    ## Train
-    train_negative_lymph_nodes = DataSource(
-        "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
-        glob_pattern="*-0.tiff",
-        exclue_pattern=[
-            "*_3_SLIDE_[0-9]*-0.tiff",
-            "*_34_SLIDE_[0-9]*-0.tiff",
-            "*_52_SLIDE_[0-9]*-0.tiff",
-            "*_80_SLIDE_[0-9]*-0.tiff",
-            "*_114_SLIDE_[0-9]*-0.tiff",
-            "*_20_SLIDE_[0-9]*-0.tiff",
-            "*_59_SLIDE_[0-9]*-0.tiff",
-        ],
-    )
-
-    train_positive_lymph_nodes = DataSource(
-        "/mnt/data/Projects/lymph_nodes/annotated_ihc_test",
-        glob_pattern=["*.mrxs"],
-    )
-
-    train_tmas = ChainedDataSources(
-        [
-            DataSource(
-                "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
-                glob_pattern="*.mrxs",
-                exclue_pattern=["TNBC-BF-4-*.mrxs"],
+            "negative-train": Dataset(
+                datasource=DataSource(
+                    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
+                    glob_pattern="*-0.tiff",
+                    exclue_pattern=[
+                        "*_3_SLIDE_[0-9]*-0.tiff",
+                        "*_34_SLIDE_[0-9]*-0.tiff",
+                        "*_52_SLIDE_[0-9]*-0.tiff",
+                        "*_80_SLIDE_[0-9]*-0.tiff",
+                        "*_114_SLIDE_[0-9]*-0.tiff",
+                        "*_20_SLIDE_[0-9]*-0.tiff",
+                        "*_59_SLIDE_[0-9]*-0.tiff",
+                    ],
+                ),
+                source_kind="lymph_node",
+                slide_metastazis=False,
             ),
-            DataSource(
-                "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_colorectal_TMAs",
-                glob_pattern="DAB-*.mrxs",
+            "negative-val": Dataset(
+                datasource=DataSource(
+                    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
+                    glob_pattern=[
+                        "*_3_SLIDE_[0-9]*-0.tiff",
+                        "*_34_SLIDE_[0-9]*-0.tiff",
+                        "*_52_SLIDE_[0-9]*-0.tiff",
+                        "*_80_SLIDE_[0-9]*-0.tiff",
+                        "*_114_SLIDE_[0-9]*-0.tiff",
+                    ],
+                ),
+                source_kind="lymph_node",
+                slide_metastazis=False,
             ),
-        ]
-    )
+        },
+        "positive-lymph-nodes": Dataset(
+            datasource=DataSource(
+                "/mnt/data/Projects/lymph_nodes/annotated_ihc_test",
+                glob_pattern=["*.mrxs"],
+            ),
+            source_kind="lymph_node",
+            slide_metastazis=True,
+        ),
+        "lymphs-2024": {
+            "positive": Dataset(
+                datasource=DataSource(
+                    "/mnt/data/Projects/lymph_nodes/dataset2-ihc-2024/positive",
+                    glob_pattern="*-1.mrxs",
+                ),
+                source_kind="lymph_node",
+                slide_metastazis=True,
+            ),
+            "negative": Dataset(
+                datasource=DataSource(
+                    "/mnt/data/Projects/lymph_nodes/dataset2-ihc-2024/negative",
+                    glob_pattern="*-0.mrxs",
+                ),
+                source_kind="lymph_node",
+                slide_metastazis=False,
+            ),
+        },
+        "tmas": {
+            "test": Dataset(
+                datasource=DataSource(
+                    "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_final_scans",
+                    glob_pattern=["FIN-CK-*.mrxs"],
+                ),
+                source_kind="tma",
+                slide_metastazis=True,
+            ),
+            "train": Dataset(
+                datasource=ChainedDataSources(
+                    [
+                        DataSource(
+                            "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
+                            glob_pattern="*.mrxs",
+                            exclue_pattern=["TNBC-BF-4-*.mrxs"],
+                        ),
+                        DataSource(
+                            "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_colorectal_TMAs",
+                            glob_pattern="DAB-*.mrxs",
+                        ),
+                    ]
+                ),
+                source_kind="tma",
+                slide_metastazis=True,
+            ),
+            "val": Dataset(
+                datasource=DataSource(
+                    "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
+                    glob_pattern="TNBC-BF-4-*mrxs",
+                ),
+                source_kind="tma",
+                slide_metastazis=True,
+            ),
+        },
+    }
 
-    ## Val
-    val_negative_lymph_nodes = DataSource(
-        "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
-        glob_pattern=[
-            "*_3_SLIDE_[0-9]*-0.tiff",
-            "*_34_SLIDE_[0-9]*-0.tiff",
-            "*_52_SLIDE_[0-9]*-0.tiff",
-            "*_80_SLIDE_[0-9]*-0.tiff",
-            "*_114_SLIDE_[0-9]*-0.tiff",
-        ],
-    )
-    val_tmas = DataSource(
-        "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
-        glob_pattern="TNBC-BF-4-*mrxs",
-    )
+    # DataSource
 
     # Masks
 
-    print("Generating tissue masks")
     # Tissue masks
+    # print("Generating tissue masks")
     # generate_tissue_masks(
     #     slide_paths=ChainedDataSources(
     #         [
@@ -151,9 +203,8 @@ def main(config: DictConfig) -> None:
     #     dest=config.metadata.tissue_mask_dest,
     # )
 
-    print("Generating annotation masks")
-
     # Annotation masks
+    # print("Generating annotation masks")
     # generate_annotation_masks(
     #     slide_paths=ChainedDataSources([test_positive_lymph_nodes]),
     #     mpp=2,
@@ -171,201 +222,50 @@ def main(config: DictConfig) -> None:
     #     dest=config.metadata.ignore_mask_dest,
     # )
 
-    print("Generating color separation masks")
-
-    # Generate color separation masks
-    generate_color_separation_masks(
-        slide_paths=ChainedDataSources(
-            [
-                infer_negative_lymph_nodes,
-                infer_positive_lymph_nodes,
-                test_negative_lymph_nodes,
-                test_tmas,
-                train_negative_lymph_nodes,
-                train_positive_lymph_nodes,
-                train_tmas,
-                val_negative_lymph_nodes,
-                val_tmas,
-            ]
-        ),
-        mpp=2,
-        reference_path=config.metadata.relative_path_prefix,
-        dest=config.metadata.color_separation_mask_dest,
-    )
-
     # Tiling
     print("Tiling")
+
+    def tile_config(
+        dataset: DataSource, source_kind: str, slide_metastazis: bool
+    ) -> Args:
+        return {
+            "slides": dataset,
+            "source_kind": source_kind,
+            "slide_metastazis": slide_metastazis,
+            "desired_mpp": config.metadata.tiling.mpp,
+            "tissue_threshold": config.metadata.tiling.tissue_threshold,
+            "tile_extent": config.metadata.tiling.tile_extent,
+            "stride": config.metadata.tiling.stride,
+            "tissue_masks_dir": config.metadata.tissue_mask_dest,
+            "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
+            "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
+            "ignore_mask_dir": config.metadata.ignore_mask_dest,
+            "annotation_masks_dir": config.metadata.annotation_mask_dest,
+            "relative_path_prefix": config.metadata.relative_path_prefix,
+        }
+
     ## Infer
     print("Tiling inference dataset")
 
-    tile_dataset(
-        [
-            {
-                "slides": infer_negative_lymph_nodes,
-                "source_kind": "lymph_node",
-                "slide_metastazis": False,
-                "desired_mpp": config.metadata.tiling.mpp,
-                "tissue_threshold": config.metadata.tiling.tissue_threshold,
-                "tile_extent": config.metadata.tiling.tile_extent,
-                "stride": config.metadata.tiling.stride,
-                "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
-                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
-                "ignore_mask_dir": config.metadata.ignore_mask_dest,
-                "annotation_masks_dir": config.metadata.annotation_mask_dest,
-                "relative_path_prefix": config.metadata.relative_path_prefix,
-            },
-            {
-                "slides": infer_positive_lymph_nodes,
-                "source_kind": "lymph_node",
-                "slide_metastazis": True,
-                "desired_mpp": config.metadata.tiling.mpp,
-                "tissue_threshold": config.metadata.tiling.tissue_threshold,
-                "tile_extent": config.metadata.tiling.tile_extent,
-                "stride": config.metadata.tiling.stride,
-                "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
-                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
-                "ignore_mask_dir": config.metadata.ignore_mask_dest,
-                "annotation_masks_dir": config.metadata.annotation_mask_dest,
-                "relative_path_prefix": config.metadata.relative_path_prefix,
-            },
-        ],
-        dataset_name="Inference",
-    )
+    def process_dataset(dataset: dict[str, Any], prefix: str = "") -> None:
+        for key in dataset:
+            name: str = f"{prefix}/{key}" if prefix else key
 
-    ## Test
-    print("Tiling test dataset")
+            if isinstance(dataset[key], Dataset):
+                data = dataset[key]
+                tile_dataset(
+                    [
+                        tile_config(
+                            data.datasource, data.source_kind, data.slide_metastazis
+                        )
+                    ],
+                    dataset_name=name,
+                )
 
-    tile_dataset(
-        [
-            {
-                "slides": test_negative_lymph_nodes,
-                "source_kind": "lymph_node",
-                "slide_metastazis": False,
-                "desired_mpp": config.metadata.tiling.mpp,
-                "tissue_threshold": config.metadata.tiling.tissue_threshold,
-                "tile_extent": config.metadata.tiling.tile_extent,
-                "stride": config.metadata.tiling.stride,
-                "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
-                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
-                "ignore_mask_dir": config.metadata.ignore_mask_dest,
-                "annotation_masks_dir": config.metadata.annotation_mask_dest,
-                "relative_path_prefix": config.metadata.relative_path_prefix,
-            },
-            {
-                "slides": test_tmas,
-                "source_kind": "tma",
-                "slide_metastazis": True,
-                "desired_mpp": config.metadata.tiling.mpp,
-                "tissue_threshold": config.metadata.tiling.tissue_threshold,
-                "tile_extent": config.metadata.tiling.tile_extent,
-                "stride": config.metadata.tiling.stride,
-                "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
-                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
-                "ignore_mask_dir": config.metadata.ignore_mask_dest,
-                "annotation_masks_dir": config.metadata.annotation_mask_dest,
-                "relative_path_prefix": config.metadata.relative_path_prefix,
-            },
-        ],
-        dataset_name="Test",
-    )
+            else:
+                process_dataset(dataset[key], name)
 
-    ## Train
-    print("Tiling train dataset")
-
-    tile_dataset(
-        [
-            {
-                "slides": train_negative_lymph_nodes,
-                "source_kind": "lymph_node",
-                "slide_metastazis": False,
-                "desired_mpp": config.metadata.tiling.mpp,
-                "tissue_threshold": config.metadata.tiling.tissue_threshold,
-                "tile_extent": config.metadata.tiling.tile_extent,
-                "stride": config.metadata.tiling.stride,
-                "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
-                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
-                "ignore_mask_dir": config.metadata.ignore_mask_dest,
-                "annotation_masks_dir": config.metadata.annotation_mask_dest,
-                "relative_path_prefix": config.metadata.relative_path_prefix,
-            },
-            {
-                "slides": train_tmas,
-                "source_kind": "tma",
-                "slide_metastazis": True,
-                "desired_mpp": config.metadata.tiling.mpp,
-                "tissue_threshold": config.metadata.tiling.tissue_threshold,
-                "tile_extent": config.metadata.tiling.tile_extent,
-                "stride": config.metadata.tiling.stride,
-                "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
-                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
-                "ignore_mask_dir": config.metadata.ignore_mask_dest,
-                "annotation_masks_dir": config.metadata.annotation_mask_dest,
-                "relative_path_prefix": config.metadata.relative_path_prefix,
-            },
-            {
-                "slides": train_positive_lymph_nodes,
-                "source_kind": "lymph_node",
-                "slide_metastazis": True,
-                "desired_mpp": config.metadata.tiling.mpp,
-                "tissue_threshold": config.metadata.tiling.tissue_threshold,
-                "tile_extent": config.metadata.tiling.tile_extent,
-                "stride": config.metadata.tiling.stride,
-                "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
-                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
-                "ignore_mask_dir": config.metadata.ignore_mask_dest,
-                "annotation_masks_dir": config.metadata.annotation_mask_dest,
-                "relative_path_prefix": config.metadata.relative_path_prefix,
-            },
-        ],
-        dataset_name="Training",
-    )
-
-    ## Val
-    print("Tiling validation dataset")
-
-    tile_dataset(
-        [
-            {
-                "slides": val_negative_lymph_nodes,
-                "source_kind": "lymph_node",
-                "slide_metastazis": False,
-                "desired_mpp": config.metadata.tiling.mpp,
-                "tissue_threshold": config.metadata.tiling.tissue_threshold,
-                "tile_extent": config.metadata.tiling.tile_extent,
-                "stride": config.metadata.tiling.stride,
-                "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
-                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
-                "ignore_mask_dir": config.metadata.ignore_mask_dest,
-                "annotation_masks_dir": config.metadata.annotation_mask_dest,
-                "relative_path_prefix": config.metadata.relative_path_prefix,
-            },
-            {
-                "slides": val_tmas,
-                "source_kind": "tma",
-                "slide_metastazis": True,
-                "desired_mpp": config.metadata.tiling.mpp,
-                "tissue_threshold": config.metadata.tiling.tissue_threshold,
-                "tile_extent": config.metadata.tiling.tile_extent,
-                "stride": config.metadata.tiling.stride,
-                "tissue_masks_dir": config.metadata.tissue_mask_dest,
-                "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
-                "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
-                "ignore_mask_dir": config.metadata.ignore_mask_dest,
-                "annotation_masks_dir": config.metadata.annotation_mask_dest,
-                "relative_path_prefix": config.metadata.relative_path_prefix,
-            },
-        ],
-        dataset_name="Validation",
-    )
-
+    process_dataset(datasets)
     mlflow.end_run()
 
 
