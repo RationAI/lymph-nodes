@@ -2,6 +2,10 @@ defaults:
   - /data/transforms@transforms: train
 
 _target_: lymph_nodes.data.datasets.LymphNodes
-uris: ["mlflow-artifacts:/68/73c898a164424882809431da0a260a7d/artifacts/lymhps-2023/negative-train", "mlflow-artifacts:/68/73c898a164424882809431da0a260a7d/artifacts/positive-lymph-nodes", "mlflow-artifacts:/68/73c898a164424882809431da0a260a7d/artifacts/tmas/train"]
+uris: [
+  "mlflow-artifacts:/68/73c898a164424882809431da0a260a7d/artifacts/lymhps-2023/negative-train",
+  # "mlflow-artifacts:/68/73c898a164424882809431da0a260a7d/artifacts/positive-lymph-nodes",
+  "mlflow-artifacts:/68/73c898a164424882809431da0a260a7d/artifacts/tmas/train"
+]
 metastazis_threshold: 0
 
