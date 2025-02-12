@@ -1,8 +1,8 @@
 from collections.abc import Iterable
 from typing import Any
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import torch
 from albumentations.pytorch import ToTensorV2
 from rationai.mlkit.data.datasets import MetaTiledSlides, OpenSlideTilesDataset
@@ -25,12 +25,12 @@ class LymphNodes(MetaTiledSlides[Sample]):
     def generate_datasets(self) -> Iterable[Dataset[Sample]]:
         self.tiles["cancer"] = self.tiles["metastazis"] > self.metastazis_threshold
 
-        annotated_lymph_slides_ids = self.slides[
-            np.logical_and(
-                self.slides["kind"] == "lymph_node",
-                self.slides["metastazis"] == True,
-            )
-        ]["id"]
+        # annotated_lymph_slides_ids = self.slides[
+        #     np.logical_and(
+        #         self.slides["kind"] == "lymph_node",
+        #         self.slides["metastazis"] == True,
+        #     )
+        # ]["id"]
 
         # Filter out annotated lymphs from training
         # self.tiles = self.tiles[
