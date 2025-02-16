@@ -6,7 +6,7 @@ import hydra
 import mlflow
 from omegaconf import DictConfig, OmegaConf
 
-# from prepro.annotation_masks import generate_annotation_masks
+from prepro.annotation_masks import generate_annotation_masks
 from prepro.data_source import ChainedDataSources, DataSource
 
 # from prepro.ignore_masks import generate_ignore_masks
@@ -50,10 +50,10 @@ def main(config: DictConfig) -> None:
         dst_path="./data",
     )
 
-    mlflow.artifacts.download_artifacts(
-        artifact_uri="mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/annotation_masks",
-        dst_path="./data",
-    )
+    # mlflow.artifacts.download_artifacts(
+    #     artifact_uri="mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/annotation_masks",
+    #     dst_path="./data",
+    # )
 
     mlflow.artifacts.download_artifacts(
         artifact_uri="mlflow-artifacts:/68/04f3267cd2fc4c6bbecbacb3336a13a1/artifacts/color_separation_masks",
@@ -64,10 +64,44 @@ def main(config: DictConfig) -> None:
 
     datasets = {
         "lymhps-2023": {
-            "positive": Dataset(
+            "positive-train": Dataset(
                 datasource=DataSource(
                     "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
-                    glob_pattern="*-1.tiff",
+                    glob_pattern=[
+                        "*_1_SLIDE_3-1.mrxs",
+                        "*_5_SLIDE_2-1.mrxs",
+                        "*_7_SLIDE_2-1.mrxs",
+                        "*_8_SLIDE_1-1.mrxs",
+                        "*_105_SLIDE_1-1.mrxs",
+                    ],
+                ),
+                source_kind="lymph_node",
+                slide_metastazis=True,
+            ),
+            "positive-val": Dataset(
+                datasource=DataSource(
+                    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
+                    glob_pattern=[
+                        "*_2_SLIDE_1-1.mrxs",
+                        "*_3_SLIDE_2-1.mrxs",
+                    ],
+                ),
+                source_kind="lymph_node",
+                slide_metastazis=True,
+            ),
+            "positive-infer": Dataset(
+                datasource=DataSource(
+                    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
+                    glob_pattern="*-1.mrxs",
+                    exclue_pattern=[
+                        "*_1_SLIDE_3-1.mrxs",
+                        "*_2_SLIDE_1-1.mrxs",
+                        "*_3_SLIDE_2-1.mrxs",
+                        "*_5_SLIDE_2-1.mrxs",
+                        "*_7_SLIDE_2-1.mrxs",
+                        "*_8_SLIDE_1-1.mrxs",
+                        "*_105_SLIDE_1-1.mrxs",
+                    ],
                 ),
                 source_kind="lymph_node",
                 slide_metastazis=True,
@@ -76,8 +110,8 @@ def main(config: DictConfig) -> None:
                 datasource=DataSource(
                     "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
                     glob_pattern=[
-                        "*_20_SLIDE_[0-9]*-0.tiff",
-                        "*_59_SLIDE_[0-9]*-0.tiff",
+                        "*_20_SLIDE_[0-9]*-0.mrxs",
+                        "*_59_SLIDE_[0-9]*-0.mrxs",
                     ],
                 ),
                 source_kind="lymph_node",
@@ -86,15 +120,16 @@ def main(config: DictConfig) -> None:
             "negative-train": Dataset(
                 datasource=DataSource(
                     "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
-                    glob_pattern="*-0.tiff",
+                    glob_pattern="*-0.mrxs",
                     exclue_pattern=[
-                        "*_3_SLIDE_[0-9]*-0.tiff",
-                        "*_34_SLIDE_[0-9]*-0.tiff",
-                        "*_52_SLIDE_[0-9]*-0.tiff",
-                        "*_80_SLIDE_[0-9]*-0.tiff",
-                        "*_114_SLIDE_[0-9]*-0.tiff",
-                        "*_20_SLIDE_[0-9]*-0.tiff",
-                        "*_59_SLIDE_[0-9]*-0.tiff",
+                        "*_2_SLIDE_[0-9]*-0.mrxs",
+                        "*_3_SLIDE_[0-9]*-0.mrxs",
+                        "*_34_SLIDE_[0-9]*-0.mrxs",
+                        "*_52_SLIDE_[0-9]*-0.mrxs",
+                        "*_80_SLIDE_[0-9]*-0.mrxs",
+                        "*_114_SLIDE_[0-9]*-0.mrxs",
+                        "*_20_SLIDE_[0-9]*-0.mrxs",
+                        "*_59_SLIDE_[0-9]*-0.mrxs",
                     ],
                 ),
                 source_kind="lymph_node",
@@ -104,11 +139,12 @@ def main(config: DictConfig) -> None:
                 datasource=DataSource(
                     "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
                     glob_pattern=[
-                        "*_3_SLIDE_[0-9]*-0.tiff",
-                        "*_34_SLIDE_[0-9]*-0.tiff",
-                        "*_52_SLIDE_[0-9]*-0.tiff",
-                        "*_80_SLIDE_[0-9]*-0.tiff",
-                        "*_114_SLIDE_[0-9]*-0.tiff",
+                        "*_2_SLIDE_[0-9]*-0.mrxs",
+                        "*_3_SLIDE_[0-9]*-0.mrxs",
+                        "*_34_SLIDE_[0-9]*-0.mrxs",
+                        "*_52_SLIDE_[0-9]*-0.mrxs",
+                        "*_80_SLIDE_[0-9]*-0.mrxs",
+                        "*_114_SLIDE_[0-9]*-0.mrxs",
                     ],
                 ),
                 source_kind="lymph_node",
@@ -204,13 +240,19 @@ def main(config: DictConfig) -> None:
     # )
 
     # Annotation masks
-    # print("Generating annotation masks")
-    # generate_annotation_masks(
-    #     slide_paths=ChainedDataSources([test_positive_lymph_nodes]),
-    #     mpp=2,
-    #     reference_path=config.metadata.relative_path_prefix,
-    #     dest=config.metadata.annotation_mask_dest,
-    # )
+    print("Generating annotation masks")
+    generate_annotation_masks(
+        slide_paths=ChainedDataSources(
+            [
+                datasets["lymhps-2023"]["positive-train"].datasource,
+                datasets["lymhps-2023"]["positive-val"].datasource,
+                datasets["positive-lymph-nodes"].datasource,
+            ]
+        ),
+        mpp=2,
+        reference_path=config.metadata.relative_path_prefix,
+        dest=config.metadata.annotation_mask_dest,
+    )
 
     # print("Generating ignore masks")
 
