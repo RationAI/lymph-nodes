@@ -130,6 +130,9 @@ def main(config: DictConfig) -> None:
                         "*_114_SLIDE_[0-9]*-0.mrxs",
                         "*_20_SLIDE_[0-9]*-0.mrxs",
                         "*_59_SLIDE_[0-9]*-0.mrxs",
+                        # Faulty file
+                        "SNB_IHC_CASE_81_SLIDE_1-0.mrxs",
+                        "SNB_IHC_CASE_82_SLIDE_1-0.mrxs",
                     ],
                 ),
                 source_kind="lymph_node",
