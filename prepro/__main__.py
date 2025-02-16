@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from dataclasses import dataclass
 from random import randint
 from typing import Any
@@ -7,13 +8,12 @@ import mlflow
 from omegaconf import DictConfig, OmegaConf
 
 from prepro.annotation_masks import generate_annotation_masks
+from prepro.color_separation import generate_color_separation_masks
 from prepro.data_source import ChainedDataSources, DataSource
 
 # from prepro.ignore_masks import generate_ignore_masks
 from prepro.tiling import Args, tile_dataset
-
-
-# from prepro.tissue_masks import generate_tissue_masks
+from prepro.tissue_masks import generate_tissue_masks
 
 
 @dataclass
@@ -40,10 +40,10 @@ def main(config: DictConfig) -> None:
         artifact_uri=config.metadata.cytokeratin_masks_path, dst_path="./data"
     )
 
-    mlflow.artifacts.download_artifacts(
-        artifact_uri="mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/tissue_masks",
-        dst_path="./data",
-    )
+    # mlflow.artifacts.download_artifacts(
+    #     artifact_uri="mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/tissue_masks",
+    #     dst_path="./data",
+    # )
 
     mlflow.artifacts.download_artifacts(
         artifact_uri="mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/ignore_masks",
@@ -55,10 +55,10 @@ def main(config: DictConfig) -> None:
     #     dst_path="./data",
     # )
 
-    mlflow.artifacts.download_artifacts(
-        artifact_uri="mlflow-artifacts:/68/04f3267cd2fc4c6bbecbacb3336a13a1/artifacts/color_separation_masks",
-        dst_path="./data",
-    )
+    # mlflow.artifacts.download_artifacts(
+    #     artifact_uri="mlflow-artifacts:/68/04f3267cd2fc4c6bbecbacb3336a13a1/artifacts/color_separation_masks",
+    #     dst_path="./data",
+    # )
 
     print("Prepare datasources")
 
@@ -216,28 +216,23 @@ def main(config: DictConfig) -> None:
 
     # DataSource
 
+    def map_datasets(datasets: dict[str, Any]) -> Iterator[DataSource]:
+        if isinstance(datasets, Dataset):
+            yield datasets.datasource
+        else:
+            for key in datasets:
+                yield from map_datasets(datasets[key])
+
     # Masks
 
     # Tissue masks
-    # print("Generating tissue masks")
-    # generate_tissue_masks(
-    #     slide_paths=ChainedDataSources(
-    #         [
-    #             infer_negative_lymph_nodes,
-    #             infer_positive_lymph_nodes,
-    #             test_negative_lymph_nodes,
-    #             test_positive_lymph_nodes,
-    #             test_tmas,
-    #             train_negative_lymph_nodes,
-    #             train_tmas,
-    #             val_negative_lymph_nodes,
-    #             val_tmas,
-    #         ]
-    #     ),
-    #     mpp=2,
-    #     reference_path=config.metadata.relative_path_prefix,
-    #     dest=config.metadata.tissue_mask_dest,
-    # )
+    print("Generating tissue masks")
+    generate_tissue_masks(
+        slide_paths=ChainedDataSources(list(map_datasets(datasets))),
+        mpp=2,
+        reference_path=config.metadata.relative_path_prefix,
+        dest=config.metadata.tissue_mask_dest,
+    )
 
     # Annotation masks
     print("Generating annotation masks")
@@ -254,15 +249,23 @@ def main(config: DictConfig) -> None:
         dest=config.metadata.annotation_mask_dest,
     )
 
-    # print("Generating ignore masks")
-
     # # Ignore masks
+    # print("Generating ignore masks")
     # generate_ignore_masks(
     #     slide_paths=ChainedDataSources([test_tmas, train_tmas, val_tmas]),
     #     mpp=2,
     #     reference_path=config.metadata.relative_path_prefix,
     #     dest=config.metadata.ignore_mask_dest,
     # )
+
+    # Color separation masks
+    print("Generating color separation masks")
+    generate_color_separation_masks(
+        slide_paths=ChainedDataSources(list(map_datasets(datasets))),
+        mpp=2,
+        reference_path=config.metadata.relative_path_prefix,
+        dest=config.metadata.color_separation_mask_dest,
+    )
 
     # Tiling
     print("Tiling")
