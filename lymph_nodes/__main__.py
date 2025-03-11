@@ -1,3 +1,5 @@
+from functools import reduce
+from pathlib import Path
 from random import randint
 
 import hydra
@@ -16,6 +18,24 @@ OmegaConf.register_new_resolver(
 )
 
 
+def load_dataset_config(task: str, kind: str) -> DictConfig:
+    """Dynamically loads the dataset config file."""
+    return reduce(
+        lambda conf, path: (DictConfig)(
+            OmegaConf.merge(
+                conf,
+                {
+                    Path(path).stem: OmegaConf.load(
+                        f"config/data/datasets/{task}/{path}"
+                    )
+                },
+            )
+        ),
+        [f"{kind}/train.yaml", f"{kind}/val.yaml", "/test.yaml", "predict.yaml"],
+        OmegaConf.create(),
+    )
+
+
 @hydra.main(config_path="../configs", config_name="default", version_base=None)
 @autolog
 def main(config: DictConfig, logger: Logger | None) -> None:
@@ -24,7 +44,10 @@ def main(config: DictConfig, logger: Logger | None) -> None:
     torch.set_float32_matmul_precision("medium")
 
     data = hydra.utils.instantiate(
-        config.data,
+        OmegaConf.merge(
+            config.data,
+            load_dataset_config(config.task, config.kind),
+        ),
         _recursive_=False,  # to avoid instantiating all the datasets
         _target_=DataModule,
     )
