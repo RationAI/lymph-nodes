@@ -7,8 +7,8 @@ from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig, OmegaConf
 from rationai.mlkit import Trainer, autolog
 
+from lymph_nodes import ClassificationModel, SegmentationModel
 from lymph_nodes.data import DataModule
-from lymph_nodes.lymph_nodes_model import LymphNodesModel
 
 
 OmegaConf.register_new_resolver(
@@ -28,7 +28,12 @@ def main(config: DictConfig, logger: Logger | None) -> None:
         _recursive_=False,  # to avoid instantiating all the datasets
         _target_=DataModule,
     )
-    model = hydra.utils.instantiate(config.model, _target_=LymphNodesModel)
+    model = hydra.utils.instantiate(
+        config.model,
+        _target_=SegmentationModel
+        if config.task == "segmentation"
+        else ClassificationModel,
+    )
 
     trainer = hydra.utils.instantiate(config.trainer, _target_=Trainer, logger=logger)
     getattr(trainer, config.mode)(model, datamodule=data, ckpt_path=config.checkpoint)
