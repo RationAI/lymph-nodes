@@ -1,17 +1,18 @@
+mode: ???
+task: ???
+kind: ???
+
 defaults:
   - hydra: default
   - logger: mlflow
-  - /data/datasets@data.train: ${task}/${kind}/train
-  - /data/datasets@data.val: ${task}/${kind}/val
-  - /data/datasets@data.test: ${task}/test
-  - /data/datasets@data.predict: ${task}/predict
+  - /data/datasets@data.train: ${task:}/${kind:}/train
+  - /data/datasets@data.val: ${task:}/${kind:}/val
+  - /data/datasets@data.test: ${task:}/test
+  - /data/datasets@data.predict: ${task:}/predict
   - /model/backbone: ???
   - _self_
 
 seed: ${random_seed:}
-mode: ???
-task: ???
-kind: ???
 checkpoint: null
 
 trainer:
@@ -36,6 +37,6 @@ data:
 
 metadata:
   experiment_name: Lymph Nodes
-  run_name: DAB ${mode} ${/model/backbone} ${task} - ${kind}
-  description: ${mode} model on the Lymph Nodes DAB using ${taks} task on ${kind} dataset using ${model/backbone} backbone
+  run_name: DAB ${mode:} ${/model/backbone} ${task:} - ${kind:}
+  description: ${mode:} model on the Lymph Nodes DAB using ${taks:} task on ${kind:} dataset using ${model/backbone} backbone
   hyperparams: {}
