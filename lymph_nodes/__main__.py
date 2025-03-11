@@ -26,7 +26,7 @@ def load_dataset_config(task: str, kind: str) -> DictConfig:
                 conf,
                 {
                     Path(path).stem: OmegaConf.load(
-                        f"config/data/datasets/{task}/{path}"
+                        f"./config/data/datasets/{task}/{path}"
                     )
                 },
             )
