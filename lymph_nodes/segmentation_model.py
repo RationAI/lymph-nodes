@@ -17,9 +17,6 @@ from lymph_nodes.typing import Outputs
 
 
 class SegmentationModel(LymphNodesModel):
-    def __init__(self, backbone: nn.Module) -> None:
-        super().__init__(backbone)
-
     @cached_property
     def criterion(self) -> nn.Module:
         return DiceFocalLoss()

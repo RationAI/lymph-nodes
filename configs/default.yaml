@@ -3,8 +3,8 @@ defaults:
   - logger: mlflow
   - /data/datasets@data.train: ${task:}/${kind:}/train
   - /data/datasets@data.val: ${task:}/${kind:}/val
-  - /data/datasets@data.test: ${task:}/test
-  - /data/datasets@data.predict: ${task:}/predict
+  - /data/datasets@data.test: ${task}/test
+  - /data/datasets@data.predict: ${task}/predict
   - /model/backbone: ???
   - _self_
 
