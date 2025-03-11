@@ -19,6 +19,7 @@ dependencies = [
     "rationai-mlkit @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/mlkit.git@feature/batch-sampler-new",
     "report @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/tools/report.git",
     "rationai-masks @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git@feature/modular-tissue-mask",
+    "rationai-kube-jobs @ git+ssh://git@gitlab.ics.muni.cz/rationai/digital-pathology/libraries/kube-jobs.git",
 ]
 
 [tool.pdm.dev-dependencies]
@@ -32,6 +33,7 @@ fit = "python -m lymph_nodes mode=fit"
 validate = "python -m lymph_nodes mode=validate"
 test = "python -m lymph_nodes mode=test"
 predict = "python -m lymph_nodes mode=predict"
+job = "python job.py"
 l = { composite = ["lint", "format", "mypy"] }
 lint = "ruff check --fix"
 format = "ruff format"
