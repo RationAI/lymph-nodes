@@ -5,7 +5,8 @@ submit_job(
     job_name="lymph-convnext",
     username="pekarj",
     cpu=10,
-    memory="20Gi",
+    memory="30Gi",
+    shm="24Gi",
     gpu="H100",
     script=[
         "git clone https://gitlab.ics.muni.cz/rationai/digital-pathology/pathology/lymph-nodes.git workdir",
