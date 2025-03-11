@@ -2,7 +2,7 @@ from kube_jobs import Storage, submit_job
 
 
 submit_job(
-    job_name="lymph - convnext",
+    job_name="lymph-convnext",
     username="pekarj",
     cpu=10,
     memory="20Gi",
