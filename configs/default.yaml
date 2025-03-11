@@ -1,15 +1,17 @@
 defaults:
   - hydra: default
   - logger: mlflow
-  - /data/datasets@data.train: lymph_nodes/train
-  - /data/datasets@data.val: lymph_nodes/val
-  - /data/datasets@data.test: lymph_nodes/test
-  - /data/datasets@data.predict: lymph_nodes/predict
+  - /data/datasets@data.train: ${task}/${kind}/train
+  - /data/datasets@data.val: ${task}/${kind}/val
+  - /data/datasets@data.test: ${task}/test
+  - /data/datasets@data.predict: ${task}/predict
   - /model/backbone: ???
   - _self_
 
 seed: ${random_seed:}
 mode: ???
+task: ???
+kind: ???
 checkpoint: null
 
 trainer:
@@ -24,16 +26,16 @@ trainer:
     - _target_: lightning.pytorch.callbacks.EarlyStopping
       monitor: validation/loss
       mode: min
-      patience: 20
+      patience: 10
 
 data:
-  batch_size: 64
-  epoch_size: 250
+  batch_size: 128
+  epoch_size: 500
   positive_batch_split: 0.5
-  num_workers: 8
+  num_workers: 10
 
 metadata:
   experiment_name: Lymph Nodes
-  run_name: Lymph Nodes DAB training 0.5 ResNet18 baseline 250
-  description: Training baseline a model on the Lymph Nodes DAB dataset with 0.5 split and 250 epoch size using ResNet18 backbone
+  run_name: DAB ${mode} ${/model/backbone} ${task} - ${kind}
+  description: ${mode} model on the Lymph Nodes DAB using ${taks} task on ${kind} dataset using ${model/backbone} backbone
   hyperparams: {}

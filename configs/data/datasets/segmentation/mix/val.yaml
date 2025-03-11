@@ -1,10 +1,9 @@
 defaults:
   - /data/transforms@transforms: test
 
-_target_: lymph_nodes.data.datasets.LymphNodes
+_target_: lymph_nodes.data.datasets.SegmentationDataset
 uris: [
   "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/lymhps-2023/negative-val",
   "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/lymhps-2023/positive-val",
   "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/tmas/val"
 ]
-metastazis_threshold: 0

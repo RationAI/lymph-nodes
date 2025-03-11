@@ -1,4 +1,16 @@
-from lymph_nodes.data.datasets.lymph_nodes import LymphNodes, LymphNodesPredict
+from lymph_nodes.data.datasets.classification_dataset import (
+    ClassificationDataset,
+    ClassificationPredictDataset,
+)
+from lymph_nodes.data.datasets.segmentation_dataset import (
+    SegmentationDataset,
+    SegmentationPredictDataset,
+)
 
 
-__all__ = ["LymphNodes", "LymphNodesPredict"]
+__all__ = [
+    "ClassificationDataset",
+    "ClassificationPredictDataset",
+    "SegmentationDataset",
+    "SegmentationPredictDataset",
+]

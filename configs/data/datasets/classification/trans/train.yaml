@@ -1,0 +1,8 @@
+defaults:
+  - /data/transforms@transforms: train
+
+_target_: lymph_nodes.data.datasets.ClassificationDataset
+uris: [
+  "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/lymhps-2023/negative-train",
+  "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/tmas/train",
+]

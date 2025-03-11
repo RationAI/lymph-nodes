@@ -1,6 +1,0 @@
-defaults:
-  - /data/transforms@transforms: test
-
-_target_: lymph_nodes.data.datasets.LymphNodesPredict
-uris: ["mlflow-artifacts:/68/73c898a164424882809431da0a260a7d/artifacts/lymhps-2023/positive"]
-
