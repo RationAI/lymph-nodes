@@ -17,8 +17,7 @@ class ClassificationModel(LymphNodesModel):
     def criterion(self) -> nn.Module:
         return nn.BCELoss()
 
-    @cached_property
-    def val_metrics(self) -> MetricCollection:
+    def get_val_metrics(self) -> MetricCollection:
         return MetricCollection(
             {
                 "AUC": AUROC("binary"),

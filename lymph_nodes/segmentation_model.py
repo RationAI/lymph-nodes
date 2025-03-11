@@ -21,11 +21,10 @@ class SegmentationModel(LymphNodesModel):
     def criterion(self) -> nn.Module:
         return DiceFocalLoss()
 
-    @cached_property
-    def val_metrics(self) -> MetricCollection:
+    def get_val_metrics(self) -> MetricCollection:
         return MetricCollection(
             {
-                "DICE": Dice(num_classes=2),
+                "DICE": Dice(),
                 "IOU": JaccardIndex(task="binary"),
                 "AUC": AUROC("binary"),
                 "accuracy": Accuracy("binary"),
@@ -35,4 +34,4 @@ class SegmentationModel(LymphNodesModel):
         )
 
     def forward(self, x: Tensor) -> Outputs:
-        return self.backbone(x)
+        return self.backbone(x).squeeze(1)

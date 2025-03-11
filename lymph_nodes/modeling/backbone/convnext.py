@@ -8,14 +8,16 @@ class ConvNeXt(nn.Module):
         super().__init__()
 
         # Load pre-trained ConvNeXt backbone
-        self.backbone = models.convnext_base(pretrained=True)
+        self.backbone = models.convnext_base(
+            weights=models.ConvNeXt_Base_Weights.DEFAULT
+        )
 
         # Extract encoder stages
         self.encoder_layers = list(self.backbone.features.children())
-        self.stage1 = nn.Sequential(*self.encoder_layers[:2])  # Stage 1
-        self.stage2 = nn.Sequential(*self.encoder_layers[2:4])  # Stage 2
-        self.stage3 = nn.Sequential(*self.encoder_layers[4:6])  # Stage 3
-        self.stage4 = nn.Sequential(*self.encoder_layers[6:8])  # Stage 4
+        self.stage1 = nn.Sequential(*self.encoder_layers[:2])
+        self.stage2 = nn.Sequential(*self.encoder_layers[2:4])
+        self.stage3 = nn.Sequential(*self.encoder_layers[4:6])
+        self.stage4 = nn.Sequential(*self.encoder_layers[6:8])
 
         # Bottleneck
         self.bottleneck = nn.Conv2d(1024, 1024, kernel_size=3, padding=1)

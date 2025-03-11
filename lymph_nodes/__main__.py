@@ -25,13 +25,18 @@ def load_dataset_config(task: str, kind: str) -> DictConfig:
             OmegaConf.merge(
                 conf,
                 {
-                    Path(path).stem: OmegaConf.load(
-                        f"./config/data/datasets/{task}/{path}"
+                    path.split("/")[-1]: reduce(
+                        lambda conf, key: conf[key],
+                        path.split("/")[:-1],
+                        hydra.compose(config_name=path),
                     )
                 },
             )
         ),
-        [f"{kind}/train.yaml", f"{kind}/val.yaml", "/test.yaml", "predict.yaml"],
+        map(
+            lambda x: f"data/datasets/{task}/{x}",
+            [f"{kind}/train", f"{kind}/val", "test", "predict"],
+        ),
         OmegaConf.create(),
     )
 
@@ -45,7 +50,7 @@ def main(config: DictConfig, logger: Logger | None) -> None:
 
     data = hydra.utils.instantiate(
         OmegaConf.merge(
-            config.data,
+            OmegaConf.create(config.data),
             load_dataset_config(config.task, config.kind),
         ),
         _recursive_=False,  # to avoid instantiating all the datasets

@@ -7,6 +7,7 @@ from torch import Tensor, nn
 from torch.optim.adamw import AdamW
 from torch.optim.optimizer import Optimizer
 from torchmetrics import MetricCollection
+import torch
 
 from lymph_nodes.typing import Input
 
@@ -16,6 +17,7 @@ class LymphNodesModel(LightningModule, ABC):
         super().__init__()
         self.backbone = backbone
 
+        self.val_metrics = self.get_val_metrics()
         self.test_metrics = LazyMetricDict(self.val_metrics.clone())
         self.test_metrics_collection = self.val_metrics.clone()
         self.val_metrics.prefix = "validation/"
@@ -24,9 +26,8 @@ class LymphNodesModel(LightningModule, ABC):
     @abstractmethod
     def criterion(self) -> nn.Module: ...
 
-    @cached_property
     @abstractmethod
-    def val_metrics(self) -> MetricCollection: ...
+    def get_val_metrics(self) -> MetricCollection: ...
 
     def training_step(self, batch: Input) -> Tensor:
         inputs, targets, _ = batch
@@ -44,6 +45,7 @@ class LymphNodesModel(LightningModule, ABC):
         outputs = self(inputs)
 
         loss = self.criterion(outputs, targets)
+
         self.log(
             "validation/loss",
             loss,
@@ -52,7 +54,7 @@ class LymphNodesModel(LightningModule, ABC):
             prog_bar=True,
         )
 
-        self.val_metrics.update(outputs, targets)
+        self.val_metrics.update(outputs, targets.to(torch.uint8))
         self.log_dict(self.val_metrics, batch_size=len(inputs), on_epoch=True)
 
     def configure_optimizers(self) -> Optimizer:

@@ -36,8 +36,8 @@ class MaskSlideTiles(SlideTiles[T]):
             x = tile["x"] * res_factor_x
             y = tile["y"] * res_factor_y
 
-            extent_x = tile["width"] * res_factor_x
-            extent_y = tile["height"] * res_factor_y
+            extent_x = self.slide_metadata["tile_extent_x"] * res_factor_x
+            extent_y = self.slide_metadata["tile_extent_y"] * res_factor_y
 
             mask_x = int(x * slide.level_downsamples[level])
             mask_y = int(y * slide.level_downsamples[level])
@@ -49,7 +49,16 @@ class MaskSlideTiles(SlideTiles[T]):
                 (mask_x, mask_y), level, (mask_extent_x, mask_extent_y)
             )
             return (
-                np.array(mask.convert("L").resize(tile["height"], tile["width"])) / 255
+                np.array(
+                    mask.convert("L").resize(
+                        (
+                            self.slide_metadata["tile_extent_y"],
+                            self.slide_metadata["tile_extent_x"],
+                        )
+                    ),
+                    dtype=np.float32,
+                )
+                / 255
             )
 
     def _get_mask_path(self, pref: str) -> Path:
@@ -65,15 +74,17 @@ class _SegmentationSlideTiles(MaskSlideTiles[Sample]):
     def __getitem__(self, idx: int) -> Sample:
         np_image = self.slide_tiles[idx]
 
-        cyto_path = self._get_mask_path("")
-        annot_path = self._get_mask_path("annotation_masks")
-        color_path = self._get_mask_path("color_separation_masks")
+        cyto_path = self._get_mask_path("cytokeratin_masks").with_suffix(".tiff")
+        annot_path = self._get_mask_path("annotation_masks").with_suffix(".tiff")
+        color_path = self._get_mask_path("color_separation_masks").with_suffix(".tiff")
 
         cyto_mask = self._get_mask(idx, cyto_path)
         annot_mask = self._get_mask(idx, annot_path)
         color_mask = self._get_mask(idx, color_path)
 
-        np_mask = cyto_mask if cyto_mask else np.min(annot_mask - color_mask, 0)
+        np_mask = (
+            cyto_mask if cyto_mask else ((annot_mask if annot_mask else 0) * color_mask)
+        )
 
         metadata = self._get_metadata(idx)
 
