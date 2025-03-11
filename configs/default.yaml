@@ -1,14 +1,14 @@
 defaults:
+  - _self_
   - hydra: default
   - logger: mlflow
-  - /data/datasets@data.train: ${task:}/${kind:}/train
-  - /data/datasets@data.val: ${task:}/${kind:}/val
+  - /data/datasets@data.train: ${task}/${kind}/train
+  - /data/datasets@data.val: ${task}/${kind}/val
   - /data/datasets@data.test: ${task}/test
   - /data/datasets@data.predict: ${task}/predict
   - /model/backbone: ???
-  - _self_
-
-seed: ${random_seed:}
+  
+seed: ${random_seed}
 mode: ???
 task: ???
 kind: ???
@@ -36,6 +36,9 @@ data:
 
 metadata:
   experiment_name: Lymph Nodes
-  run_name: DAB ${mode:} ${/model/backbone} ${task:} - ${kind:}
-  description: ${mode:} model on the Lymph Nodes DAB using ${taks:} task on ${kind:} dataset using ${model/backbone} backbone
+  run_name: "DAB ${mode} | Backbone: ${model.backbone} | Task: ${task} | Dataset: ${kind}"
+  description: >
+    Running a ${mode} mode deep learning model on the Lymph Nodes DAB dataset.
+    This experiment is configured for the ${task} task using the ${kind} dataset and 
+    the ${model.backbone} backbone architecture.
   hyperparams: {}
