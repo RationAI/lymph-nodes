@@ -4,8 +4,8 @@ from torch import Tensor, nn
 from torchmetrics import (
     AUROC,
     Accuracy,
-    Dice,
-    JaccardIndex,
+    # Dice,
+    # JaccardIndex,
     MetricCollection,
     Precision,
     Recall,
@@ -24,8 +24,8 @@ class SegmentationModel(LymphNodesModel):
     def get_val_metrics(self) -> MetricCollection:
         return MetricCollection(
             {
-                "DICE": Dice(),
-                "IOU": JaccardIndex(task="binary"),
+                # "DICE": Dice(),
+                # "IOU": JaccardIndex(task="binary"),
                 "AUC": AUROC("binary"),
                 "accuracy": Accuracy("binary"),
                 "precision": Precision("binary"),
