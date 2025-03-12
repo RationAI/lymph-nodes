@@ -7,8 +7,8 @@ from torchmetrics import (
     # Dice,
     # JaccardIndex,
     MetricCollection,
-    # Precision,
-    # Recall,
+    Precision,
+    Recall,
 )
 
 from lymph_nodes.model import LymphNodesModel
@@ -28,8 +28,8 @@ class SegmentationModel(LymphNodesModel):
                 # "IOU": JaccardIndex(task="binary"),
                 # "AUC": AUROC("binary"),
                 "accuracy": Accuracy("binary"),
-                # "precision": Precision("binary"),
-                # "recall": Recall("binary"),
+                "precision": Precision("binary"),
+                "recall": Recall("binary"),
             }
         )
 
