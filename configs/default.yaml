@@ -32,7 +32,7 @@ data:
   batch_size: 64
   epoch_size: 1000
   positive_batch_split: 0.5
-  num_workers: 10
+  num_workers: 20
 
 metadata:
   experiment_name: Lymph Nodes
