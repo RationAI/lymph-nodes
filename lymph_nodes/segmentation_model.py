@@ -2,13 +2,13 @@ from functools import cached_property
 
 from torch import Tensor, nn
 from torchmetrics import (
-    AUROC,
+    # AUROC,
     Accuracy,
     # Dice,
     # JaccardIndex,
     MetricCollection,
-    Precision,
-    Recall,
+    # Precision,
+    # Recall,
 )
 
 from lymph_nodes.model import LymphNodesModel
@@ -26,10 +26,10 @@ class SegmentationModel(LymphNodesModel):
             {
                 # "DICE": Dice(),
                 # "IOU": JaccardIndex(task="binary"),
-                "AUC": AUROC("binary"),
+                # "AUC": AUROC("binary"),
                 "accuracy": Accuracy("binary"),
-                "precision": Precision("binary"),
-                "recall": Recall("binary"),
+                # "precision": Precision("binary"),
+                # "recall": Recall("binary"),
             }
         )
 
