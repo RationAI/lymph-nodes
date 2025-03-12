@@ -5,7 +5,7 @@ from torchmetrics import (
     AUROC,
     Accuracy,
     # Dice,
-    JaccardIndex,
+    # JaccardIndex,
     MetricCollection,
     Precision,
     Recall,
