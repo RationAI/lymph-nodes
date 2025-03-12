@@ -29,8 +29,8 @@ trainer:
       patience: 10
 
 data:
-  batch_size: 64
-  epoch_size: 1000
+  batch_size: 32
+  epoch_size: 2500
   positive_batch_split: 0.5
   num_workers: 20
 

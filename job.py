@@ -4,7 +4,7 @@ from kube_jobs import Storage, submit_job
 submit_job(
     job_name="lymph-convnext",
     username="pekarj",
-    cpu=10,
+    cpu=25,
     memory="30Gi",
     shm="24Gi",
     gpu="H100",
