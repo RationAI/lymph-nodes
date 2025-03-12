@@ -39,15 +39,16 @@ class MaskSlideTiles(SlideTiles[T]):
             extent_x = self.slide_metadata["tile_extent_x"] * res_factor_x
             extent_y = self.slide_metadata["tile_extent_y"] * res_factor_y
 
-            mask_x = int(x * slide.level_downsamples[level])
-            mask_y = int(y * slide.level_downsamples[level])
+            mask_x = int(round(x * slide.level_downsamples[level]))
+            mask_y = int(round(y * slide.level_downsamples[level]))
 
-            mask_extent_x = int(extent_x * slide.level_downsamples[level])
-            mask_extent_y = int(extent_y * slide.level_downsamples[level])
+            mask_extent_x = int(round(extent_x * slide.level_downsamples[level]))
+            mask_extent_y = int(round(extent_y * slide.level_downsamples[level]))
 
             mask = slide.read_region(
                 (mask_x, mask_y), level, (mask_extent_x, mask_extent_y)
             )
+
             return (
                 np.array(
                     mask.convert("L").resize(
@@ -83,7 +84,9 @@ class _SegmentationSlideTiles(MaskSlideTiles[Sample]):
         color_mask = self._get_mask(idx, color_path)
 
         np_mask = (
-            cyto_mask if cyto_mask else ((annot_mask if annot_mask else 0) * color_mask)
+            cyto_mask
+            if cyto_mask is not None
+            else ((annot_mask if annot_mask is not None else 0) * color_mask)
         )
 
         metadata = self._get_metadata(idx)
