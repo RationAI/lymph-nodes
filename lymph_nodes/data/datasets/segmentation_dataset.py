@@ -20,15 +20,22 @@ T = TypeVar("T", bound=Sample | PredictSample)
 
 
 class MaskSlideTiles(SlideTiles[T]):
-    def _get_mask(self, idx: int, mask_path: Path | str) -> NDArray | None:
+    def _get_mask(
+        self, idx: int, mask_path: Path | str, messed: bool = False
+    ) -> NDArray | None:
         tile = self.slide_tiles.tiles.iloc[idx]
 
         if not os.path.exists(mask_path):
             return None
 
-        with OpenSlide(mask_path) as slide:
-            level = closest_level(slide, mpp=self.slide_metadata["mpp_x"])
-            mpp_x, mpp_y = slide_resolution(slide, level)
+        with (
+            OpenSlide(mask_path) as slide,
+            OpenSlide(self.slide_metadata.path) as slide_org,
+        ):
+            level = closest_level(
+                slide_org if messed else slide, mpp=self.slide_metadata["mpp_x"]
+            )
+            mpp_x, mpp_y = slide_resolution(slide_org if messed else slide, level)
 
             res_factor_x = self.slide_metadata["mpp_x"] / mpp_x
             res_factor_y = self.slide_metadata["mpp_y"] / mpp_y
@@ -42,16 +49,16 @@ class MaskSlideTiles(SlideTiles[T]):
             mask_x = int(round(x * slide.level_downsamples[level]))
             mask_y = int(round(y * slide.level_downsamples[level]))
 
-            mask_extent_x = int(round(extent_x * slide.level_downsamples[level]))
-            mask_extent_y = int(round(extent_y * slide.level_downsamples[level]))
+            mask_extent_x = int(round(extent_x))
+            mask_extent_y = int(round(extent_y))
 
             mask = slide.read_region(
                 (mask_x, mask_y), level, (mask_extent_x, mask_extent_y)
-            )
+            ).convert("L")
 
             return (
                 np.array(
-                    mask.convert("L").resize(
+                    mask.resize(
                         (
                             self.slide_metadata["tile_extent_y"],
                             self.slide_metadata["tile_extent_x"],
@@ -81,7 +88,7 @@ class _SegmentationSlideTiles(MaskSlideTiles[Sample]):
 
         cyto_mask = self._get_mask(idx, cyto_path)
         annot_mask = self._get_mask(idx, annot_path)
-        color_mask = self._get_mask(idx, color_path)
+        color_mask = self._get_mask(idx, color_path, True)
 
         np_mask = (
             cyto_mask
