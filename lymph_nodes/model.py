@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from functools import cached_property
 
-import torch
 from lightning import LightningModule
 from rationai.mlkit.metrics import LazyMetricDict
 from torch import Tensor, nn
@@ -54,7 +53,7 @@ class LymphNodesModel(LightningModule, ABC):
             prog_bar=True,
         )
 
-        self.val_metrics.update(outputs, targets.to(torch.uint8))
+        self.val_metrics.update(outputs, targets)
         self.log_dict(self.val_metrics, batch_size=len(inputs), on_epoch=True)
 
     def test_step(self, batch: Input) -> None:
