@@ -24,7 +24,7 @@ trainer:
       mode: min
       patience: 10
     # Predict callbacks
-    - _target_: lymph_nodes.callbacks.tile_mask_builder
+    - _target_: lymph_nodes.callbacks.tile_mask_builder.TileMaskBuilderTest
 
 
 
