@@ -25,7 +25,7 @@ class TileMaskBuilderTest(MultiloaderLifecycle):
         self.mask_builder = TileMaskBuilder(
             save_dir=tmp_dir,
             filename=Path(self.slide.path).stem,
-            extent_x=sefl.slide.extent_x,
+            extent_x=self.slide.extent_x,
             extent_y=self.slide.extent_y,
             mpp_X=self.slide.mpp_x,
             mpp_y=self.slide.mpp_y,
