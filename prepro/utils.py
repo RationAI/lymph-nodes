@@ -3,9 +3,12 @@ from pathlib import Path
 import pyvips
 
 
-def get_relative_dir_path(path: Path, prefix: Path) -> Path:
+def get_relative_dir_path(path: Path, prefix: Path | None = None) -> Path:
     try:
-        return path.relative_to(prefix).parent
+        if prefix:
+            return path.relative_to(prefix).parent
+        else:
+            raise ValueError
     except ValueError:
         return path.relative_to("/mnt/data/Projects/lymph_nodes/").parent
 

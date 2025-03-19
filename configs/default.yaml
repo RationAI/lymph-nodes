@@ -23,6 +23,10 @@ trainer:
       monitor: validation/loss
       mode: min
       patience: 10
+    # Predict callbacks
+    - _target_: lymph_nodes.callbacks.tile_mask_builder
+
+
 
 data:
   batch_size: 32
