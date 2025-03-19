@@ -45,7 +45,7 @@ class TileMaskBuilderTest(MultiloaderLifecycle):
             raise ValueError("Trainer should have datamodule attribute")
 
         datamodule = cast("DataModule", trainer.datamodule)
-        self.slide = cast("pd.Series", datamodule.predict.slides.iloc[dataloader_idx])
+        self.slide = cast("pd.Series", datamodule.test.slides.iloc[dataloader_idx])
 
         # Initialize the mask builders for each output
         self.mask_builder = TileMaskBuilder(
