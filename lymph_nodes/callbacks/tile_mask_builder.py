@@ -28,6 +28,16 @@ class TileMaskBuilderTest(MultiloaderLifecycle):
         # Remove the temp dir
         self.tmp_dir.cleanup()
 
+    def on_test_dataloader_start(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule, dataloader_idx: int
+    ) -> None:
+        return self.on_predict_dataloader_start(trainer, pl_module, dataloader_idx)
+
+    def on_test_dataloader_end(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule, dataloader_idx: int
+    ) -> None:
+        return self.on_predict_dataloader_end(trainer, pl_module, dataloader_idx)
+
     def on_predict_dataloader_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule, dataloader_idx: int
     ) -> None:

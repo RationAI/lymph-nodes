@@ -57,5 +57,25 @@ class LymphNodesModel(LightningModule, ABC):
         self.val_metrics.update(outputs, targets.to(torch.uint8))
         self.log_dict(self.val_metrics, batch_size=len(inputs), on_epoch=True)
 
+    def test_step(self, batch: Input) -> None:
+        inputs, targets, metadata = batch
+        outputs = self(inputs)
+
+        for output, target, slide in zip(
+            outputs, targets, metadata["slide"], strict=False
+        ):
+            self.test_metrics.update(output, target, key=slide)
+
+        self.test_metrics_collection.update(outputs, targets)
+        self.log_dict(
+            self.test_metrics_collection, batch_size=len(inputs), on_epoch=True
+        )
+
     def configure_optimizers(self) -> Optimizer:
         return AdamW(self.parameters(), lr=0.0001)
+
+    def on_test_epoch_end(self) -> None:
+        for key, metrics in self.test_metrics.compute().items():
+            table = {k: v.item() for k, v in metrics.items()}
+            self.logger.log_table({"slide": key, **table}, "test_metrics.json")
+        self.test_metrics.reset()
