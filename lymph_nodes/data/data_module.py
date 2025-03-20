@@ -69,7 +69,7 @@ class DataModule(LightningDataModule):
                 batch_size=self.batch_size,
                 num_workers=self.num_workers,
             )
-            for dataset in self.predict.datasets
+            for dataset in self.test.datasets
         ]
 
     def predict_dataloader(self) -> list[Iterable[Sample]]:
