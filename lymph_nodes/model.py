@@ -75,25 +75,25 @@ class LymphNodesModel(LightningModule, ABC):
 
         return outputs
 
-    def predict_step(
-        self, batch: Tensor, batch_idx: int, dataloader_idx: int = 0
-    ) -> Outputs:
-        inputs, metadata = batch
-        outputs = self(inputs)
+    # def predict_step(
+    #     self, batch: Tensor, batch_idx: int, dataloader_idx: int = 0
+    # ) -> Outputs:
+    #     inputs, metadata = batch
+    #     outputs = self(inputs)
 
-        for output, slide_id, x, y in zip(
-            outputs, metadata["slide_id"], metadata["x"], metadata["y"], strict=False
-        ):
-            self.inference_data.append(
-                Prediction(
-                    slide_id=slide_id,
-                    x=x.item(),
-                    y=y.item(),
-                    probability=output.item(),
-                )
-            )
+    #     for output, slide_id, x, y in zip(
+    #         outputs, metadata["slide_id"], metadata["x"], metadata["y"], strict=False
+    #     ):
+    #         self.inference_data.append(
+    #             Prediction(
+    #                 slide_id=slide_id,
+    #                 x=x.item(),
+    #                 y=y.item(),
+    #                 probability=output.item(),
+    #             )
+    #         )
 
-        return outputs
+    #     return outputs
 
     def configure_optimizers(self) -> Optimizer:
         return AdamW(self.parameters(), lr=0.0001)
