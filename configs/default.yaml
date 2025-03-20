@@ -29,7 +29,7 @@ trainer:
 
 
 data:
-  batch_size: 32
+  batch_size: 256
   epoch_size: 2500
   positive_batch_split: 0.5
   num_workers: 8

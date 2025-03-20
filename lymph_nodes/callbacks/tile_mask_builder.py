@@ -67,7 +67,7 @@ class TileMaskBuilderTest(MultiloaderLifecycle):
 
         mlflow.log_artifact(
             str(pred_path),
-            artifact_path=f"segmemtation_masks/{get_relative_dir_path(self.slide.path)}",
+            artifact_path=f"segmemtation_masks/{get_relative_dir_path(Path(self.slide.path))}",
         )
 
         pred_path.unlink()
