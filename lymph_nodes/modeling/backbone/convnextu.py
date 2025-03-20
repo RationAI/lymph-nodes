@@ -10,7 +10,6 @@ class ConvNeXtEncoder(nn.Module):
     ) -> None:
         super().__init__()
         self.encoder = models.convnext_base(pretrained=pretrained).features
-        self.out_channels = [96, 192, 384, 768]  # ConvNeXt Base feature map sizes
 
     def forward(self, x: torch.Tensor) -> list[torch.Tensor]:
         features = []
@@ -44,10 +43,10 @@ class ConvNeXtU(nn.Module):
         super().__init__()
         self.encoder = ConvNeXtEncoder()
 
-        self.decoder4 = DecoderBlock(768, 384)
-        self.decoder3 = DecoderBlock(384, 192)
-        self.decoder2 = DecoderBlock(192, 96)
-        self.decoder1 = DecoderBlock(96, 64)
+        self.decoder4 = DecoderBlock(1024, 512)
+        self.decoder3 = DecoderBlock(512, 256)
+        self.decoder2 = DecoderBlock(256, 128)
+        self.decoder1 = DecoderBlock(128, 64)
 
         self.final_conv = nn.Conv2d(64, num_classes, kernel_size=1)
 
