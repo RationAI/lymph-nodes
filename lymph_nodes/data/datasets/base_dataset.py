@@ -61,6 +61,13 @@ class BaseDataset(MetaTiledSlides[T], ABC):
     def generate_datasets(self) -> Iterable[Dataset[T]]:
         self.tiles["cancer"] = self.tiles["metastazis"] > 0
 
+        self.tiles["gb-kind"] = "normal"
+        self.tiles.loc[self.tiles["cancer"], "gb-kind"] = "cancer"
+        self.tiles[~self.tiles["cancer"] & (self.tiles["brownish"] > 0), "gb-kind"] = (
+            "brownish"
+        )
+        self.tiles["gb-kind"] = self.tiles["gb-kind"].astype("category")
+
         self._prepare_data_hook()
 
         return (
