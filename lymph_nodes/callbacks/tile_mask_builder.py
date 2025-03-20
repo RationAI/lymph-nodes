@@ -9,7 +9,7 @@ import torch
 from rationai.masks.mask_builders import TileMaskBuilder
 from rationai.mlkit.lightning.callbacks import MultiloaderLifecycle
 
-from lymph_nodes.typing import PredictSample
+from lymph_nodes.typing import PredictSample, Sample
 from prepro.utils import get_relative_dir_path
 
 
@@ -43,12 +43,14 @@ class TileMaskBuilderTest(MultiloaderLifecycle):
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
         outputs: torch.Tensor,
-        batch: PredictSample,
+        batch: Sample,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
+        inputs, targets, metadata = batch
+
         return self.on_predict_batch_end(
-            trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
+            trainer, pl_module, outputs, (inputs, metadata), batch_idx, dataloader_idx
         )
 
     def on_predict_dataloader_start(
