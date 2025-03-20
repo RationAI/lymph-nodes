@@ -38,6 +38,19 @@ class TileMaskBuilderTest(MultiloaderLifecycle):
     ) -> None:
         return self.on_predict_dataloader_end(trainer, pl_module, dataloader_idx)
 
+    def on_test_batch_end(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: torch.Tensor,
+        batch: PredictSample,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
+        return super().on_test_batch_end(
+            trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
+        )
+
     def on_predict_dataloader_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule, dataloader_idx: int
     ) -> None:
