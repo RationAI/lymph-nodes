@@ -5,7 +5,6 @@ from typing import Any, TypeVar
 
 import mlflow
 import numpy as np
-import torch
 from numpy.typing import NDArray
 from openslide import OpenSlide
 from rationai.masks import (
@@ -109,7 +108,7 @@ class _SegmentationSlideTiles(MaskSlideTiles[Sample]):
         image = tensor["image"]
         mask = tensor["mask"]
 
-        return image, mask.to(torch.uint8), metadata
+        return image, mask, metadata
 
 
 class _SegmentationSlideTilesPred(MaskSlideTiles[PredictSample]):

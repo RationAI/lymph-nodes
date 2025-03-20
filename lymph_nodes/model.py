@@ -54,7 +54,7 @@ class LymphNodesModel(LightningModule, ABC):
             prog_bar=True,
         )
 
-        self.val_metrics.update(outputs, targets)
+        self.val_metrics.update(outputs, targets.to(torch.uint8))
         self.log_dict(self.val_metrics, batch_size=len(inputs), on_epoch=True)
 
     def test_step(
@@ -66,9 +66,9 @@ class LymphNodesModel(LightningModule, ABC):
         for output, target, slide in zip(
             outputs, targets, metadata["slide"], strict=False
         ):
-            self.test_metrics.update(output, target, key=slide)
+            self.test_metrics.update(output, target.to(torch.uint8), key=slide)
 
-        self.test_metrics_collection.update(outputs, targets)
+        self.test_metrics_collection.update(outputs, targets.to(torch.uint8))
         self.log_dict(
             self.test_metrics_collection, batch_size=len(inputs), on_epoch=True
         )
