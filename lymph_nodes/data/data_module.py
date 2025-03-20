@@ -62,12 +62,15 @@ class DataModule(LightningDataModule):
             persistent_workers=self.num_workers > 0,
         )
 
-    def test_dataloader(self) -> Iterable[Sample]:
-        return DataLoader(
-            self.test,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-        )
+    def test_dataloader(self) -> list[Iterable[Sample]]:
+        return [
+            DataLoader(
+                dataset,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+            )
+            for dataset in self.predict.datasets
+        ]
 
     def predict_dataloader(self) -> list[Iterable[Sample]]:
         return [
