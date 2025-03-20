@@ -47,7 +47,7 @@ class TileMaskBuilderTest(MultiloaderLifecycle):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        return super().on_predict_batch_end(
+        return self.on_predict_batch_end(
             trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
         )
 
