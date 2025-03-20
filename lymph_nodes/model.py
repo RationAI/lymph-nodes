@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from functools import cached_property
 
+import torch
 from lightning import LightningModule
 from rationai.mlkit.metrics import LazyMetricDict
 from torch import Tensor, nn
@@ -56,7 +57,9 @@ class LymphNodesModel(LightningModule, ABC):
         self.val_metrics.update(outputs, targets)
         self.log_dict(self.val_metrics, batch_size=len(inputs), on_epoch=True)
 
-    def test_step(self, batch: Input) -> None:
+    def test_step(
+        self, batch: Input, batch_idx: int, dataloader_idx: int = 0
+    ) -> torch.Tensor:
         inputs, targets, metadata = batch
         outputs = self(inputs)
 
@@ -69,6 +72,28 @@ class LymphNodesModel(LightningModule, ABC):
         self.log_dict(
             self.test_metrics_collection, batch_size=len(inputs), on_epoch=True
         )
+
+        return outputs
+
+    def predict_step(
+        self, batch: Tensor, batch_idx: int, dataloader_idx: int = 0
+    ) -> Outputs:
+        inputs, metadata = batch
+        outputs = self(inputs)
+
+        for output, slide_id, x, y in zip(
+            outputs, metadata["slide_id"], metadata["x"], metadata["y"], strict=False
+        ):
+            self.inference_data.append(
+                Prediction(
+                    slide_id=slide_id,
+                    x=x.item(),
+                    y=y.item(),
+                    probability=output.item(),
+                )
+            )
+
+        return outputs
 
     def configure_optimizers(self) -> Optimizer:
         return AdamW(self.parameters(), lr=0.0001)
