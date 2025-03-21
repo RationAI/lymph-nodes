@@ -1,5 +1,6 @@
 from functools import cached_property
 
+import torch
 from torch import Tensor, nn
 from torchmetrics import (
     # AUROC,
@@ -19,7 +20,7 @@ from lymph_nodes.typing import Outputs
 class SegmentationModel(LymphNodesModel):
     @cached_property
     def criterion(self) -> nn.Module:
-        return DiceFocalLoss(alpha=0.5, gamma=2.0, dice_weight=0.25, focal_weight=0.75)
+        return DiceFocalLoss(alpha=0.5, gamma=2.0, dice_weight=0.5, focal_weight=0.5)
 
     def get_val_metrics(self) -> MetricCollection:
         return MetricCollection(
@@ -34,4 +35,4 @@ class SegmentationModel(LymphNodesModel):
         )
 
     def forward(self, x: Tensor) -> Outputs:
-        return self.backbone(x).squeeze(1)
+        return torch.sigmoid(self.backbone(x)).squeeze(1)

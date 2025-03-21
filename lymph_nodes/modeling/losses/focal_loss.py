@@ -1,4 +1,4 @@
-import torch
+# import torch
 from torch import Tensor, nn
 
 
@@ -11,7 +11,7 @@ class FocalLoss(nn.Module):
         self.bce = nn.BCELoss(reduction="none")
 
     def forward(self, preds: Tensor, targets: Tensor) -> Tensor:
-        preds = torch.sigmoid(preds)  # Convert logits to probabilities
+        # preds = torch.sigmoid(preds)  # Convert logits to probabilities
         bce_loss = self.bce(preds, targets)
 
         # Compute focal weight
