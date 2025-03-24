@@ -8,7 +8,6 @@ class DiceLoss(nn.Module):
         self.smooth = smooth
 
     def forward(self, preds: Tensor, targets: Tensor) -> Tensor:
-        # preds = torch.sigmoid(preds)  # Convert logits to probabilities
         preds = preds.view(-1)
         targets = targets.view(-1)
 
