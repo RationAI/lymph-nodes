@@ -96,7 +96,7 @@ class LymphNodesModel(LightningModule, ABC):
     #     return outputs
 
     def configure_optimizers(self) -> Optimizer:
-        return AdamW(self.parameters(), lr=0.001)
+        return AdamW(self.parameters(), lr=0.0001)
 
     def on_test_epoch_end(self) -> None:
         for key, metrics in self.test_metrics.compute().items():
