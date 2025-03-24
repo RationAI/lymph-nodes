@@ -2,6 +2,7 @@ from torch import Tensor, nn
 
 from lymph_nodes.modeling.losses.dice_loss import DiceLoss
 from lymph_nodes.modeling.losses.focal_loss import FocalLoss
+from lymph_nodes.modeling.losses.tversky_loss import TverskyLoss
 
 
 class DiceFocalLoss(nn.Module):
@@ -15,10 +16,12 @@ class DiceFocalLoss(nn.Module):
         super().__init__()
         self.dice = DiceLoss()
         self.focal = FocalLoss(alpha, gamma)
+        self.tversky = TverskyLoss()
         self.dice_weight = dice_weight
         self.focal_weight = focal_weight
 
     def forward(self, preds: Tensor, targets: Tensor) -> Tensor:
-        return self.dice_weight * self.dice(
-            preds, targets
-        ) + self.focal_weight * self.focal(preds, targets)
+        return 0.4 * (
+            self.dice_weight * self.dice(preds, targets)
+            + self.focal_weight * self.focal(preds, targets)
+        ) + 0.6 * (self.tversky(preds, targets))

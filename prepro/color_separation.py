@@ -1,18 +1,15 @@
-from pathlib import Path
-
 from collections.abc import Iterable
 from pathlib import Path
 
 import mlflow
-from openslide import OpenSlide
 import ray
+from openslide import OpenSlide
 from rationai.masks import (
     closest_level,
     process_items,
     slide_resolution,
     write_big_tiff,
 )
-
 from rationai.masks.vips_filters import VipsClosing, VipsCompose, VipsOpening
 
 from prepro.utils import vips_read
