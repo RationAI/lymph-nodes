@@ -15,9 +15,9 @@ class TverskyLoss(nn.Module):
         preds = preds.view(preds.shape[0], -1)
         targets = targets.view(targets.shape[0], -1)
 
-        true_pos = (preds * targets).sum(dim=(1, 2, 3))
-        false_neg = ((1 - preds) * targets).sum(dim=(1, 2, 3))
-        false_pos = (preds * (1 - targets)).sum(dim=(1, 2, 3))
+        true_pos = (preds * targets).sum(dim=-1)
+        false_neg = ((1 - preds) * targets).sum(dim=-1)
+        false_pos = (preds * (1 - targets)).sum(dim=-1)
 
         tversky_index = (true_pos + self.smooth) / (
             true_pos + self.alpha * false_neg + self.beta * false_pos + self.smooth
