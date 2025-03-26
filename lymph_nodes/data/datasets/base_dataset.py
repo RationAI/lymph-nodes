@@ -67,8 +67,10 @@ class BaseDataset(MetaTiledSlides[T], ABC):
             ~self.tiles["cancer"] & (self.tiles["brownish"] > 0.05), "gb-kind"
         ] = "brownish"
         # Make sure it is ordered by cateogry when using order by
-        self.tiles["gb-kind"] = self.tiles["gb-kind"].cat.set_categories(
-            ["cancer", "brownish", "normal"], ordered=True
+        self.tiles["gb-kind"] = (
+            self.tiles["gb-kind"]
+            .astype("category")
+            .cat.set_categories(["cancer", "brownish", "normal"], ordered=True)
         )
 
         self._prepare_data_hook()
