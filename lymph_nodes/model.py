@@ -30,10 +30,20 @@ class LymphNodesModel(LightningModule, ABC):
     def get_val_metrics(self) -> MetricCollection: ...
 
     def training_step(self, batch: Input) -> Tensor:
-        inputs, targets, _ = batch
+        inputs, targets, metadata = batch
         outputs = self(inputs)
 
         loss = self.criterion(outputs, targets)
+
+        if loss > 3:
+            print(
+                inputs,
+                targets,
+                outputs,
+                metadata,
+                targets.view(targets.shape[0], -1).sum(dim=1),
+            )
+
         self.log(
             "train/loss", loss, batch_size=len(inputs), on_step=True, prog_bar=True
         )
