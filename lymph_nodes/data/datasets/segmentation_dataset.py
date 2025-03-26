@@ -54,19 +54,16 @@ class MaskSlideTiles(SlideTiles[T]):
 
             mask = slide.read_region(
                 (mask_x, mask_y), level, (mask_extent_x, mask_extent_y)
-            ).convert("L")
+            ).convert("1")
 
-            return (
-                np.array(
-                    mask.resize(
-                        (
-                            self.slide_metadata["tile_extent_y"],
-                            self.slide_metadata["tile_extent_x"],
-                        )
-                    ),
-                    dtype=np.float32,
-                )
-                / 255
+            return np.array(
+                mask.resize(
+                    (
+                        self.slide_metadata["tile_extent_y"],
+                        self.slide_metadata["tile_extent_x"],
+                    )
+                ),
+                dtype=np.float32,
             )
 
     def _get_mask_path(self, pref: str) -> Path:
