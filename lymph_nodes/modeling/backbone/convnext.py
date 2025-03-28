@@ -9,8 +9,8 @@ class ConvNeXt(nn.Module):
 
         # Load pre-trained ConvNeXt backbone
         self.backbone = models.convnext_base(
-            # weights=models.ConvNeXt_Base_Weights.DEFAULT
-            weights=None
+            weights=models.ConvNeXt_Base_Weights.DEFAULT
+            # weights=None
         )
 
         # Extract encoder stages

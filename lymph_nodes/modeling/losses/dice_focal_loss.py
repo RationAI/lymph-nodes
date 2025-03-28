@@ -21,6 +21,8 @@ class DiceFocalLoss(nn.Module):
         self.focal_weight = focal_weight
 
     def forward(self, preds: Tensor, targets: Tensor) -> Tensor:
-        return self.dice_weight * self.dice(
-            preds, targets
-        ) + self.focal_weight * self.focal(preds, targets)
+        return (
+            self.dice_weight * self.dice(preds, targets)
+            + self.focal_weight * self.focal(preds, targets)
+            + self.tversky(preds, targets)
+        )
