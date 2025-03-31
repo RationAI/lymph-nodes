@@ -44,7 +44,7 @@ class DataModule(LightningDataModule):
             batch_sampler=PDMulticlassBatchSampler(
                 self.train.tiles,
                 stratify_by="gb-kind",
-                distribution=np.array([0.5, 0.2, 0.3]),
+                distribution=np.array([0.4, 0.2, 0.4]),
                 batch_size=self.batch_size,
                 epoch_size=self.epoch_size,
             ),

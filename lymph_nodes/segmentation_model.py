@@ -20,7 +20,7 @@ from lymph_nodes.typing import Outputs
 class SegmentationModel(LymphNodesModel):
     @cached_property
     def criterion(self) -> nn.Module:
-        return DiceFocalLoss()
+        return DiceFocalLoss(alpha=0.5, gamma=2, dice_weight=0.5, focal_weight=0.5)
 
     def get_val_metrics(self) -> MetricCollection:
         return MetricCollection(
