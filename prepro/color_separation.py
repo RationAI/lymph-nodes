@@ -29,7 +29,7 @@ def slide_color_separation(
     with OpenSlide(slide_path) as slide:
         level = closest_level(slide, desired_mpp)
         mpp = slide_resolution(slide, level)
-    slide = vips_read(slide_path, level=0)
+    slide = vips_read(slide_path, level=level)
 
     red, green, blue, *_ = slide.bandsplit()
 

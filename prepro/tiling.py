@@ -19,7 +19,8 @@ class Args(TypedDict):
     slides: Iterable[Path]
     desired_mpp: float
     tissue_threshold: float
-    tile_extent: int
+    tile_crop: int
+    min_roi_area: float
     stride: int
     source_kind: str
     slide_metastazis: bool
@@ -45,7 +46,8 @@ def data_tiler(
     slides: Iterable[Path],
     desired_mpp: float,
     tissue_threshold: float,
-    tile_extent: int,
+    tile_crop: int,
+    min_roi_area: float,
     stride: int,
     source_kind: str,
     slide_metastazis: bool,
@@ -104,31 +106,33 @@ def data_tiler(
 
             return result
 
+    tile_extent = round(tile_crop * (2 - min_roi_area))
+
     source = OpenSlideTileSource(
         mpp=desired_mpp, tile_extent=tile_extent, stride=stride
     )
 
     tissue_mask = TissueMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=256,
+        absolute_roi_extent=tile_crop,
         relative_roi_offset=0,
     )
 
     annotation_mask = MetastazisMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=256,
+        absolute_roi_extent=tile_crop,
         relative_roi_offset=0,
     )
 
     ignore_mask = IgnoreMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=256,
+        absolute_roi_extent=tile_crop,
         relative_roi_offset=0,
     )
 
     color_separation_mask = ColorSeparationMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=256,
+        absolute_roi_extent=tile_crop,
         relative_roi_offset=0,
     )
 

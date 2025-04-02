@@ -8,8 +8,9 @@ seed: ${random_seed:}
 
 metadata:
   tiling:
-    tile_extent: 640 # 512 + 128
-    stride: 256
+    min_roi_area: 0.75
+    tile_crop: 224
+    stride: 112 # 224 / 2
     tissue_threshold: 0.5
     mpp: 0.5
   relative_path_prefix: /mnt/data/Projects/lymph_nodes
@@ -21,6 +22,6 @@ metadata:
   color_separation_mask_dest: data/color_separation_masks
 
   experiment_name: Lymph Nodes
-  experiment_description: DAB datasets ROI 512 - 64
+  experiment_description: DAB datasets ROI ${metada.tiling.tile_crop}
   run_name: DAB datasets
   mlflow_uri: http://mlflow.rationai-mlflow:5000
