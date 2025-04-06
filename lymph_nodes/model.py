@@ -13,9 +13,9 @@ from lymph_nodes.typing import Input
 
 
 class LymphNodesModel(LightningModule, ABC):
-    def __init__(self, model: nn.Module) -> None:
+    def __init__(self, backbone: nn.Module) -> None:
         super().__init__()
-        self.model = model
+        self.model = backbone
 
         self.val_metrics = self.get_val_metrics()
         self.test_metrics = LazyMetricDict(self.val_metrics.clone())

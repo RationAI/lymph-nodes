@@ -1,4 +1,4 @@
-_target_: lymph_nodes.modeling.SwinUMamba
+_target_: lymph_nodes.modeling.backbone.SwinUMamba
 vss_args:
   in_channels: 3
 decoder_args:
