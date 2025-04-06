@@ -2,7 +2,7 @@ defaults:
   - _self_
   - hydra: default
   - logger: mlflow
-  - /model/model: ???
+  - /model: ???
   
 seed: ${random_seed:}
 mode: ???
