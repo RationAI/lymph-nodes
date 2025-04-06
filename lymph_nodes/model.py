@@ -13,9 +13,9 @@ from lymph_nodes.typing import Input
 
 
 class LymphNodesModel(LightningModule, ABC):
-    def __init__(self, backbone: nn.Module) -> None:
+    def __init__(self, model: nn.Module) -> None:
         super().__init__()
-        self.backbone = backbone
+        self.model = model
 
         self.val_metrics = self.get_val_metrics()
         self.test_metrics = LazyMetricDict(self.val_metrics.clone())
@@ -106,7 +106,7 @@ class LymphNodesModel(LightningModule, ABC):
     #     return outputs
 
     def configure_optimizers(self) -> Optimizer:
-        return AdamW(self.parameters(), lr=0.00001, betas=(0.9, 0.95))
+        return AdamW(self.parameters(), lr=0.0001, betas=(0.9, 0.95))
 
     def on_test_epoch_end(self) -> None:
         for key, metrics in self.test_metrics.compute().items():

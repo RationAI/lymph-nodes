@@ -49,16 +49,21 @@ class BaseDataset(MetaTiledSlides[T], ABC):
         self,
         uris: Iterable[str],
         sample_constructor: type[SlideTiles[T]],
+        slide_ids: list[str] | None = None,
         transforms: Any | None = None,
     ) -> None:
         self.transforms = transforms
         self.sample_constructor = sample_constructor
+        self.slide_ids = slide_ids
         super().__init__(uris=uris)
 
     def _prepare_data_hook(self) -> None:
         pass
 
     def generate_datasets(self) -> Iterable[Dataset[T]]:
+        if self.slide_ids is not None:
+            self.slides = self.slides[self.slides["path"].isin(self.slide_ids)]
+
         self.tiles["cancer"] = self.tiles["metastazis"] > 0
 
         self.tiles["gb-kind"] = "normal"

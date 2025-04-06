@@ -2,7 +2,7 @@ defaults:
   - _self_
   - hydra: default
   - logger: mlflow
-  - /model/backbone: ???
+  - /model/model: ???
   
 seed: ${random_seed:}
 mode: ???
@@ -30,7 +30,7 @@ trainer:
 
 data:
   batch_size: 32
-  epoch_size: 2000
+  epoch_size: 500
   positive_batch_split: 0.5
   num_workers: 8
 
