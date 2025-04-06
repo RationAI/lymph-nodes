@@ -8,7 +8,7 @@ from torch import nn
 
 DropPath.__repr__ = lambda self: f"timm.DropPath({self.drop_prob})"
 
-from lymph_nodes.model.blocks import SS2D
+from lymph_nodes.modeling.blocks import SS2D
 
 
 class VSSBlock(nn.Module):
