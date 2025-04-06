@@ -125,10 +125,14 @@ class SegmentationDataset(BaseDataset[Sample]):
     def __init__(
         self,
         uris: Iterable[str],
+        slide_ids: list[str] | None = None,
         transforms: Any | None = None,
     ) -> None:
         super().__init__(
-            uris=uris, sample_constructor=_SegmentationSlideTiles, transforms=transforms
+            uris=uris,
+            sample_constructor=_SegmentationSlideTiles,
+            transforms=transforms,
+            slide_ids=slide_ids,
         )
 
         # Color separation masks
