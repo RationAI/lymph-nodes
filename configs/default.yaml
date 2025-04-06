@@ -36,9 +36,8 @@ data:
 
 metadata:
   experiment_name: Lymph Nodes
-  run_name: "DAB ${mode} | Backbone: ${model.backbone} | Task: ${task} | Dataset: ${kind}"
+  run_name: "DAB ${mode} | Backbone: ${model} | Task: ${task}"
   description: >
     Running a ${mode} mode deep learning model on the Lymph Nodes DAB dataset.
-    This experiment is configured for the ${task} task using the ${kind} dataset and 
-    the ${model.backbone} backbone architecture.
+    This experiment is configured for the ${task} task and the ${model} backbone architecture.
   hyperparams: {}
