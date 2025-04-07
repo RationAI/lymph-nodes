@@ -23,8 +23,8 @@ trainer:
       monitor: validation/loss
       mode: min
       patience: 10
-    - _target_: lymph_nodes.callbacks.ModelUnfreeze
-      patience: 5
+    # - _target_: lymph_nodes.callbacks.ModelUnfreeze
+    #   patience: 5
     # # Predict callbacks
     - _target_: lymph_nodes.callbacks.TileMaskBuilder
 
