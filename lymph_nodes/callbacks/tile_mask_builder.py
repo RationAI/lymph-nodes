@@ -6,7 +6,7 @@ import lightning.pytorch as pl
 import mlflow
 import pandas as pd
 import torch
-from rationai.masks.mask_builders import TileMaskBuilder
+from rationai.masks.mask_builders import TileMaskBuilder as BaseTileMaskBuilder
 from rationai.mlkit.lightning.callbacks import MultiloaderLifecycle
 
 from lymph_nodes.typing import PredictSample, Sample
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from lymph_nodes.data.data_module import DataModule
 
 
-class TileMaskBuilderTest(MultiloaderLifecycle):
+class TileMaskBuilder(MultiloaderLifecycle):
     def __init__(self) -> None:
         super().__init__()
 
@@ -63,7 +63,7 @@ class TileMaskBuilderTest(MultiloaderLifecycle):
         self.slide = cast("pd.Series", datamodule.test.slides.iloc[dataloader_idx])
 
         # Initialize the mask builders for each output
-        self.mask_builder = TileMaskBuilder(
+        self.mask_builder = BaseTileMaskBuilder(
             save_dir=self.tmp_dir.name,
             filename=Path(self.slide.path).stem,
             extent_x=self.slide.extent_x,
