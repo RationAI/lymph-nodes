@@ -5,11 +5,15 @@ import torch
 from dynamic_network_architectures.initialization.weight_init import (
     init_last_bn_before_add_to_0,
 )
+import numpy as np
 
 
 from lymph_nodes.modeling.decoder import UNetResDecoder
 from lymph_nodes.modeling.encoder import VSSMEncoder
 from lymph_nodes.modeling.utils import InitWeights_He
+
+
+torch.serialization.add_safe_globals([np.core.multiarray.scalar])
 
 
 class SwinUMamba(nn.Module):
