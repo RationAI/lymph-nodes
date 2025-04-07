@@ -1,15 +1,18 @@
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 
 
 class ModelUnfreeze(pl.Callback):
-    def __init__(self, monitor="val_loss", patience=3, min_delta=1e-4):
+    def __init__(
+        self, monitor: str = "val_loss", patience: int = 3, min_delta: float = 1e-4
+    ) -> None:
         """
         Args:
             monitor: Metric to monitor.
             patience: Number of validation checks with no improvement after which encoder is unfrozen.
             min_delta: Minimum change in the monitored quantity to qualify as an improvement.
         """
+        super().__init__()
         self.monitor = monitor
         self.patience = patience
         self.min_delta = min_delta
@@ -17,7 +20,9 @@ class ModelUnfreeze(pl.Callback):
         self.best_score = None
         self.frozen = True
 
-    def on_validation_end(self, trainer, pl_module):
+    def on_validation_end(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
         current = trainer.callback_metrics.get(self.monitor)
         if current is None or not self.frozen:
             return
@@ -35,6 +40,6 @@ class ModelUnfreeze(pl.Callback):
             pl_module.unfreeze()
             self.frozen = False
 
-    def on_fit_start(self, trainer, pl_module):
+    def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         # Initially freeze
         pl_module.freeze()

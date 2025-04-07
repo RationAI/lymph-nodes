@@ -25,7 +25,7 @@ trainer:
       patience: 10
     - _target_: lymph_nodes.callbacks.ModelUnfreeze
       patience: 5
-    # Predict callbacks
+    # # Predict callbacks
     - _target_: lymph_nodes.callbacks.TileMaskBuilder
 
 
@@ -38,7 +38,7 @@ data:
 
 metadata:
   experiment_name: Lymph Nodes
-  run_name: "DAB ${mode} | Model: ${model_name: ${model.backbone._target_}} | Task: ${task}"
+  run_name: "DAB ${mode} ${model_name: ${model.backbone._target_}} | Task: ${task}"
   description: >
     Running a ${mode} mode deep learning model on the Lymph Nodes DAB dataset.
     This experiment is configured for the ${task} task and the ${model_name:model.backbone._target_} architecture.
