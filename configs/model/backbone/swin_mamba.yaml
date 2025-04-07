@@ -5,4 +5,4 @@ decoder_args:
   num_classes: 1
   deep_supervision: false
   features_per_stage: [96, 192, 384, 768]
-pretrained: pretrained_models/swin_mamba.pth
+pretrained: pretrained_models/swin_u_mamba_pretrained.pth
