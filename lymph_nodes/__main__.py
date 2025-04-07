@@ -16,6 +16,8 @@ OmegaConf.register_new_resolver(
     "random_seed", lambda: randint(0, 2**31), use_cache=True
 )
 
+OmegaConf.register_new_resolver("model_name", lambda path: path.split(".")[-1])
+
 
 def load_dataset_config(task: str, kind: str) -> DictConfig:
     """Dynamically loads the dataset config file."""
