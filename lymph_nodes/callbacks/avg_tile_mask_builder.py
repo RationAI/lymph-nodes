@@ -59,7 +59,7 @@ class TileMaskBuilder(MaskBuilder):
 
         for tile, x, y in zip(tiles, xs_np, ys_np, strict=True):
             mm_y, mm_x = self.image[y : y + tile.shape[0], x : x + tile.shape[1]].shape
-            self.image[y : y + mm_y, x : x + mm_x] = (
+            self.image[y : y + mm_y, x : x + mm_x] += (
                 self.kernel[:mm_y, :mm_x] * tile[:mm_y, :mm_x]
             )
 
