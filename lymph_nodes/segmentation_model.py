@@ -13,16 +13,19 @@ from torchmetrics import (
 )
 
 from lymph_nodes.model import LymphNodesModel
-from lymph_nodes.modeling.losses.dice_focal_loss import DiceFocalLoss
+# from lymph_nodes.modeling.losses.dice_focal_loss import DiceFocalLoss
 
-# from lymph_nodes.modeling.losses.tversky_focal_loss import TverskyFocalLoss
+from lymph_nodes.modeling.losses.tversky_focal_loss import TverskyFocalLoss
 from lymph_nodes.typing import Outputs
 
 
 class SegmentationModel(LymphNodesModel):
     @cached_property
     def criterion(self) -> nn.Module:
-        return DiceFocalLoss(alpha=0.5, gamma=2, dice_weight=0.5, focal_weight=0.5)
+        # return DiceFocalLoss(alpha=0.5, gamma=2, dice_weight=0.5, focal_weight=0.5)
+        return TverskyFocalLoss(
+            alpha=0.5, gamma=2, tversky_weight=0.5, focal_weight=0.5
+        )
 
     def get_val_metrics(self) -> MetricCollection:
         return MetricCollection(
