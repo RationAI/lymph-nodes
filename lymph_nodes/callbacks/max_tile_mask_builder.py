@@ -16,7 +16,7 @@ from lymph_nodes.typing import PredictSample, Sample
 from prepro.utils import get_relative_dir_path
 
 
-class MaxTileMaskBuilder(MaskBuilder):
+class TileMaskBuilder(MaskBuilder):
     def __init__(
         self,
         save_dir: Path | str,
@@ -63,7 +63,7 @@ if TYPE_CHECKING:
     from lymph_nodes.data.data_module import DataModule
 
 
-class TileMaskBuilderTest(MultiloaderLifecycle):
+class MaxTileMaskBuilder(MultiloaderLifecycle):
     def __init__(self) -> None:
         super().__init__()
 
@@ -109,7 +109,7 @@ class TileMaskBuilderTest(MultiloaderLifecycle):
         self.slide = cast("pd.Series", datamodule.test.slides.iloc[dataloader_idx])
 
         # Initialize the mask builders for each output
-        self.mask_builder = MaxTileMaskBuilder(
+        self.mask_builder = TileMaskBuilder(
             save_dir=self.tmp_dir.name,
             filename=Path(self.slide.path).stem,
             extent_x=self.slide.extent_x,

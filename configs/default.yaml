@@ -26,7 +26,7 @@ trainer:
     # - _target_: lymph_nodes.callbacks.ModelUnfreeze
     #   patience: 5
     # # Predict callbacks
-    - _target_: lymph_nodes.callbacks.TileMaskBuilder
+    - _target_: lymph_nodes.callbacks.MaxTileMaskBuilder
 
 
 
