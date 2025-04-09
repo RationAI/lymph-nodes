@@ -133,8 +133,8 @@ class AvgTileMaskBuilder(MultiloaderLifecycle):
             extent_y=self.slide.extent_y,
             mpp_x=self.slide.mpp_x,
             mpp_y=self.slide.mpp_y,
-            tile_extent_x=self.slide.tile_extent_x,
-            tile_extent_y=self.slide.tile_extent_y,
+            tile_extent_x=512,
+            tile_extent_y=512,
         )
 
     def on_predict_dataloader_end(
