@@ -28,14 +28,9 @@ class MaskSlideTiles(SlideTiles[T]):
         if not os.path.exists(mask_path):
             return None
 
-        with (
-            OpenSlide(mask_path) as slide,
-            OpenSlide(self.slide_metadata.path) as slide_org,
-        ):
-            level = closest_level(
-                slide_org if messed else slide, mpp=self.slide_metadata["mpp_x"]
-            )
-            mpp_x, mpp_y = slide_resolution(slide_org if messed else slide, level)
+        with OpenSlide(mask_path) as slide:
+            level = closest_level(slide, mpp=self.slide_metadata["mpp_x"])
+            mpp_x, mpp_y = slide_resolution(slide, level)
 
             res_factor_x = self.slide_metadata["mpp_x"] / mpp_x
             res_factor_y = self.slide_metadata["mpp_y"] / mpp_y
@@ -46,11 +41,11 @@ class MaskSlideTiles(SlideTiles[T]):
             extent_x = self.slide_metadata["tile_extent_x"] * res_factor_x
             extent_y = self.slide_metadata["tile_extent_y"] * res_factor_y
 
-            mask_x = int(round(x * slide.level_downsamples[level]))
-            mask_y = int(round(y * slide.level_downsamples[level]))
+            mask_x = round(x * slide.level_downsamples[level])
+            mask_y = round(y * slide.level_downsamples[level])
 
-            mask_extent_x = int(round(extent_x))
-            mask_extent_y = int(round(extent_y))
+            mask_extent_x = round(extent_x)
+            mask_extent_y = round(extent_y)
 
             mask = slide.read_region(
                 (mask_x, mask_y), level, (mask_extent_x, mask_extent_y)
@@ -137,19 +132,19 @@ class SegmentationDataset(BaseDataset[Sample]):
 
         # Color separation masks
         mlflow.artifacts.download_artifacts(
-            artifact_uri="mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/color_separation_masks",
+            artifact_uri="mlflow-artifacts:/68/76ab7eda9a3d4a7fb3ff7e7baf904343/artifacts/color_separation_masks",
             dst_path="./data",
         )
 
         # Annotation masks
         mlflow.artifacts.download_artifacts(
-            artifact_uri="mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/annotation_masks",
+            artifact_uri="mlflow-artifacts:/68/76ab7eda9a3d4a7fb3ff7e7baf904343/artifacts/annotation_masks",
             dst_path="./data",
         )
 
         # Cytokeration masks
         mlflow.artifacts.download_artifacts(
-            artifact_uri="mlflow-artifacts:/68/42ff2d1b9b8649bd94a4fe6360db201e/artifacts/cytokeratin_masks",
+            artifact_uri="mlflow-artifacts:/68/76ab7eda9a3d4a7fb3ff7e7baf904343/artifacts/cytokeratin_masks",
             dst_path="./data",
         )
 

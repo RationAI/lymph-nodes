@@ -2,10 +2,10 @@ from torch import Tensor, nn
 
 
 class BinaryClassifier(nn.Module):
-    def __init__(self, features: list[int] = [512, 1], dropout: float = 0.5) -> None:
+    def __init__(
+        self, features: list[int] = [512, 512, 1], dropout: float = 0.5
+    ) -> None:
         super().__init__()
-
-        self.global_pool = nn.AdaptiveAvgPool2d(1)
 
         self.head = nn.Sequential(
             *[
@@ -14,12 +14,12 @@ class BinaryClassifier(nn.Module):
                     nn.ReLU(True),
                     nn.Dropout(p=dropout),
                 )
-                for i in range(len(features) - 1)
+                for i in range(len(features) - 2)
             ],
+            nn.Linear(features[-2], features[-1]),
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        x = self.global_pool(x)  # (B, C, 1, 1)
         x = x.flatten(start_dim=-3, end_dim=-1)  # (B, C)
         x = self.head(x)
         return x.sigmoid()

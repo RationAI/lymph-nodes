@@ -92,8 +92,7 @@ class VSSMEncoder(nn.Module):
         return {"relative_position_bias_table"}
 
     def forward(self, x):
-        x_ret = []
-        x_ret.append(x)
+        x_ret = [x]
 
         x = self.patch_embed(x)
         x = self.pos_drop(x)

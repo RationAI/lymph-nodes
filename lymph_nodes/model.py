@@ -3,11 +3,11 @@ from typing import Any
 
 import torch
 from lightning import LightningModule
+from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from rationai.mlkit.metrics import LazyMetricDict
+from timm.scheduler.cosine_lr import CosineLRScheduler
 from torch import Tensor, nn
 from torchmetrics import MetricCollection
-from lightning.pytorch.utilities.types import OptimizerLRScheduler
-from timm.scheduler.cosine_lr import CosineLRScheduler
 
 from lymph_nodes.modeling import SetCriterion
 from lymph_nodes.typing import Input, PredictInput
@@ -18,6 +18,10 @@ class LymphNodesModel(LightningModule, ABC):
         self, model: nn.Module, criterion: SetCriterion, warmup_epochs: int
     ) -> None:
         super().__init__()
+
+        # It has to be named backbone because of FineTuner
+        self.backbone = model.backbone
+
         self.model = model
         self.criterion = criterion
         self.warmup_epochs = warmup_epochs
@@ -31,7 +35,7 @@ class LymphNodesModel(LightningModule, ABC):
     def get_val_metrics(self) -> MetricCollection: ...
 
     def training_step(self, batch: Input) -> Tensor:
-        inputs, targets, metadata = batch
+        inputs, targets, _ = batch
         outputs = self(inputs)
 
         losses = self.criterion(outputs, targets)

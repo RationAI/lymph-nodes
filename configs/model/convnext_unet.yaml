@@ -1,0 +1,5 @@
+_target_: lymph_nodes.modeling.ConvNeXtUNet
+decoder:
+  _target_: lymph_nodes.modeling.decoder.SimpleDecoder
+  num_classes: 1
+  nun_features: [1024, 512, 256, 128]

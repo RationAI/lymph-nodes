@@ -1,4 +1,3 @@
-from typing import Literal
 import torch
 import torch.nn as nn
 import torchvision.models as models
@@ -7,7 +6,7 @@ import torchvision.models as models
 class VGG16(nn.Module):
     def __init__(
         self,
-        weights: Literal["pretrained"] | None = None,
+        weights: models.VGG16_BN_Weights | None = models.VGG16_BN_Weights.IMAGENET1K_V1,
     ) -> None:
         super().__init__()
         vgg16 = models.vgg16_bn(weights=weights)
@@ -25,10 +24,10 @@ class VGG16(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> list[torch.Tensor]:
-        x_ret = []
-        x_ret.append(x)
+        x_ret = [x]
 
-        for s, layer in enumerate(self.layers):
+        for layer in self.layers:
             x = layer(x)
+            x_ret.append(x)
 
         return x_ret

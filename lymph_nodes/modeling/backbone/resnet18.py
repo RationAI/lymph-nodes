@@ -1,10 +1,11 @@
-import torchvision
+import torchvision.models as model
 from torch import nn
 
 
-def resnet18(weights: str | None = None) -> nn.Module:
-    resnet = torchvision.models.resnet18(weights=weights)
+def resnet18(
+    weights: model.ResNet18_Weights | None = model.ResNet18_Weights.IMAGENET1K_V1,
+) -> nn.Module:
+    resnet = model.resnet18(weights=weights)
     return nn.Sequential(
         *(list(resnet.children())[:-2]),
-        nn.Conv2d(512, 512, kernel_size=1, stride=1),
     )

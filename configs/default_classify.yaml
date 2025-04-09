@@ -6,8 +6,8 @@ defaults:
   - /data/datasets@data.val: classification/val
   - /data/datasets@data.test: classification/test
   - /data/datasets@data.predict: classification/predict
-  - /model/model: ???
-  
+  - /model@model.model: ???
+
 seed: ${random_seed:}
 mode: [fit, test]
 
@@ -31,17 +31,19 @@ trainer:
       monitor: validation/loss
       mode: min
       patience: 10
+    finetuning:
+      _target_: lightning.pytorch.callbacks.BackboneFinetuning
+      unfreeze_backbone_at_epoch: 10
 
 metadata:
   experiment_name: Lymph Nodes
-  run_name: "🏋️‍♂️ ${model_name: ${model.backbone._target_}}"
-  description: Running ${model_name:model.backbone._target_} on the Lymph Nodes DAB dataset.
-
+  run_name: "🏋️‍♂️ ${model_name: ${model.model._target_}}"
+  description: "Running ${model_name: ${model.model._target_}} on the Lymph Nodes DAB dataset."
 
 data:
   _target_: lymph_nodes.data.DataModule
-  batch_size: 32
-  epoch_size: 500
+  batch_size: 64 # auto adjusted
+  epoch_size: 1000
   num_workers: 10
   batch_distribution: [0.4, 0.2, 0.4]
 
@@ -49,5 +51,4 @@ model:
   _target_: lymph_nodes.ClassificationModel
   warmup_epochs: 3
 
-
-tune: {}
+tuner: {}

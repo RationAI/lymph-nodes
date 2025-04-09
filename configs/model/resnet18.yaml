@@ -1,0 +1,9 @@
+_target_: lymph_nodes.modeling.ClsNet
+backbone:
+  _target_: lymph_nodes.modeling.backbone.ResNet18
+bottleneck:
+  - _target_: torch.nn.AdaptiveAvgPool2d
+    output_size: [7, 7]
+head:
+  _target_: lymph_nodes.modeling.blocks.BinaryClassifier
+  features: [25088, 4096, 4096, 1]

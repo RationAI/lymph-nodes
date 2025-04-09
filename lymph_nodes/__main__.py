@@ -1,12 +1,15 @@
 # from functools import reduce
 from random import randint
+from typing import Literal
 
 import hydra
 import torch
-from lightning import seed_everything
+from lightning import LightningDataModule, LightningModule, seed_everything
 from lightning.pytorch.loggers import Logger
-from omegaconf import DictConfig, OmegaConf, ListConfig
+from lightning.pytorch.tuner.tuning import Tuner
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from rationai.mlkit import Trainer, autolog
+
 
 # from lymph_nodes import ClassificationModel, SegmentationModel
 # from lymph_nodes.data import DataModule
@@ -42,6 +45,29 @@ OmegaConf.register_new_resolver("model_name", lambda path: path.split(".")[-1])
 #     )
 
 
+def find_batch_size(
+    tuner: Tuner,
+    model: LightningModule,
+    method: Literal["fit", "validate", "test", "predict"],
+    datamodule: LightningDataModule,
+) -> int:
+    """Finds the optimal batch size for the model."""
+    torch.backends.cudnn.enabled = False
+    batch_size = tuner.scale_batch_size(
+        model,
+        method=method,
+        mode="binsearch",
+        datamodule=datamodule,
+        steps_per_trial=1,
+        max_trials=2,
+    )
+    torch.backends.cudnn.enabled = True
+
+    print(f"Batch size for {method}: {batch_size}")
+
+    return batch_size
+
+
 @hydra.main(config_path="../configs", version_base=None)
 @autolog
 def main(config: DictConfig, logger: Logger | None) -> None:
@@ -52,13 +78,28 @@ def main(config: DictConfig, logger: Logger | None) -> None:
     model = hydra.utils.instantiate(config.model)
 
     trainer = hydra.utils.instantiate(config.trainer, _target_=Trainer, logger=logger)
+    tuner = hydra.utils.instantiate(config.tuner, _target_=Tuner, trainer=trainer)
 
     if isinstance(config.mode, ListConfig):
         for mode in config.mode:
+            data.batch_size = find_batch_size(
+                tuner,
+                model,
+                method=mode,
+                datamodule=data,
+            )
+
             getattr(trainer, mode)(
                 model, datamodule=data, ckpt_path=config.checkpoint.get(mode, None)
             )
     else:
+        data.batch_size = find_batch_size(
+            tuner,
+            model,
+            method=config.mode,
+            datamodule=data,
+        )
+
         getattr(trainer, config.mode)(
             model, datamodule=data, ckpt_path=config.checkpoint
         )

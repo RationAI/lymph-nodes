@@ -1,8 +1,8 @@
-_target_: lymph_nodes.modeling.SwinUMamba
+_target_: lymph_nodes.modeling.SwinUNetMamba
 vss_args:
   in_channels: 3
 decoder_args:
   num_classes: 1
   deep_supervision: false
   features_per_stage: [96, 192, 384, 768]
-# pretrained: pretrained_models/swin_u_mamba_pretrained.pth
+pretrained: pretrained_models/swin_unet_mamba_pretrained.pth
