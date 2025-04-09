@@ -5,6 +5,9 @@ from lymph_nodes.modeling.blocks.vss_layer import VSSLayer
 from lymph_nodes.modeling.blocks.patch_merging_2d import PatchMerging2D
 from lymph_nodes.modeling.blocks.patch_expand import PatchExpand
 from lymph_nodes.modeling.blocks.final_patch_expand_x4 import FinalPatchExpand_X4
+from lymph_nodes.modeling.blocks.basic_conv_block import BasicConvBlock
+from lymph_nodes.modeling.blocks.basic_up_block import BasicUpBlock
+from lymph_nodes.modeling.blocks.binary_classifier import BinaryClassifier
 
 
 __all__ = [
@@ -15,4 +18,7 @@ __all__ = [
     "PatchMerging2D",
     "VSSBlock",
     "VSSLayer",
+    "BasicConvBlock",
+    "BasicUpBlock",
+    "BinaryClassifier",
 ]

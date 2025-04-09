@@ -21,7 +21,7 @@ PredictSample: TypeAlias = tuple[Tensor, Metadata]
 Sample: TypeAlias = tuple[Tensor, Tensor, Metadata]
 
 Input: TypeAlias = Sample
-PredictInput: PredictSample
+PredictInput: TypeAlias = PredictSample
 
 
 Outputs: TypeAlias = Tensor

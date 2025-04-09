@@ -1,30 +1,31 @@
 from abc import ABC, abstractmethod
-from functools import cached_property
+from typing import Any
 
 import torch
 from lightning import LightningModule
 from rationai.mlkit.metrics import LazyMetricDict
 from torch import Tensor, nn
-from torch.optim.adamw import AdamW
-from torch.optim.optimizer import Optimizer
 from torchmetrics import MetricCollection
+from lightning.pytorch.utilities.types import OptimizerLRScheduler
+from timm.scheduler.cosine_lr import CosineLRScheduler
 
-from lymph_nodes.typing import Input
+from lymph_nodes.modeling import SetCriterion
+from lymph_nodes.typing import Input, PredictInput
 
 
 class LymphNodesModel(LightningModule, ABC):
-    def __init__(self, backbone: nn.Module) -> None:
+    def __init__(
+        self, model: nn.Module, criterion: SetCriterion, warmup_epochs: int
+    ) -> None:
         super().__init__()
-        self.model = backbone
+        self.model = model
+        self.criterion = criterion
+        self.warmup_epochs = warmup_epochs
 
         self.val_metrics = self.get_val_metrics()
         self.test_metrics = LazyMetricDict(self.val_metrics.clone())
         self.test_metrics_collection = self.val_metrics.clone()
         self.val_metrics.prefix = "validation/"
-
-    @cached_property
-    @abstractmethod
-    def criterion(self) -> nn.Module: ...
 
     @abstractmethod
     def get_val_metrics(self) -> MetricCollection: ...
@@ -33,43 +34,34 @@ class LymphNodesModel(LightningModule, ABC):
         inputs, targets, metadata = batch
         outputs = self(inputs)
 
-        loss = self.criterion(outputs, targets)
+        losses = self.criterion(outputs, targets)
 
-        if loss > 3:
-            print(
-                inputs,
-                targets,
-                outputs,
-                metadata,
-                targets.view(targets.shape[0], -1).sum(dim=1),
-            )
-
-        self.log(
-            "train/loss", loss, batch_size=len(inputs), on_step=True, prog_bar=True
+        self.log_dict(
+            {f"train/{k}": v for k, v in losses.items()},
+            batch_size=len(inputs),
+            on_step=True,
+            prog_bar=True,
         )
 
-        return loss
+        return losses["loss"]
 
     def validation_step(self, batch: Input) -> None:
         inputs, targets, _ = batch
         outputs = self(inputs)
 
-        loss = self.criterion(outputs, targets)
+        losses = self.criterion(outputs, targets)
 
-        self.log(
-            "validation/loss",
-            loss,
+        self.log_dict(
+            {f"validation/{k}": v for k, v in losses.items()},
             batch_size=len(inputs),
-            on_epoch=True,
+            on_step=True,
             prog_bar=True,
         )
 
         self.val_metrics.update(outputs, targets.to(torch.uint8))
         self.log_dict(self.val_metrics, batch_size=len(inputs), on_epoch=True)
 
-    def test_step(
-        self, batch: Input, batch_idx: int, dataloader_idx: int = 0
-    ) -> torch.Tensor:
+    def test_step(self, batch: Input) -> torch.Tensor:
         inputs, targets, metadata = batch
         outputs = self(inputs)
 
@@ -85,31 +77,33 @@ class LymphNodesModel(LightningModule, ABC):
 
         return outputs
 
-    # def predict_step(
-    #     self, batch: Tensor, batch_idx: int, dataloader_idx: int = 0
-    # ) -> Outputs:
-    #     inputs, metadata = batch
-    #     outputs = self(inputs)
-
-    #     for output, slide_id, x, y in zip(
-    #         outputs, metadata["slide_id"], metadata["x"], metadata["y"], strict=False
-    #     ):
-    #         self.inference_data.append(
-    #             Prediction(
-    #                 slide_id=slide_id,
-    #                 x=x.item(),
-    #                 y=y.item(),
-    #                 probability=output.item(),
-    #             )
-    #         )
-
-    #     return outputs
-
-    def configure_optimizers(self) -> Optimizer:
-        return AdamW(self.parameters(), lr=0.0001, betas=(0.9, 0.95))
+    def predict_step(self, batch: PredictInput) -> torch.Tensor:
+        inputs, metadata = batch
+        return self(inputs)
 
     def on_test_epoch_end(self) -> None:
         for key, metrics in self.test_metrics.compute().items():
             table = {k: v.item() for k, v in metrics.items()}
             self.logger.log_table({"slide": key, **table}, "test_metrics.json")
         self.test_metrics.reset()
+
+    def configure_optimizers(self) -> OptimizerLRScheduler:
+        optimizer = torch.optim.AdamW(
+            filter(lambda p: p.requires_grad, self.parameters()),
+            lr=1e-4,
+            weight_decay=1e-4,
+        )
+
+        scheduler = CosineLRScheduler(
+            optimizer,
+            t_initial=self.trainer.max_epochs,
+            lr_min=1e-6,
+            warmup_lr_init=1e-7,
+            warmup_t=self.warmup_epochs,
+        )
+        return [optimizer], [scheduler]
+
+    def lr_scheduler_step(
+        self, scheduler: CosineLRScheduler, metric: Any | None
+    ) -> None:
+        scheduler.step(epoch=self.current_epoch)
