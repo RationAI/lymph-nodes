@@ -3,10 +3,19 @@ import torch.nn as nn
 
 
 class BasicUpBlock(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, layers: nn.Module) -> None:
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        layers: nn.Module,
+        kernel_size: int = 2,
+        stride: int = 2,
+    ) -> None:
         super().__init__()
 
-        self.up = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
+        self.up = nn.ConvTranspose2d(
+            in_channels, out_channels, kernel_size=kernel_size, stride=stride
+        )
         self.layers = layers
 
     def forward(self, x_1: torch.Tensor, x_2: torch.Tensor) -> torch.Tensor:

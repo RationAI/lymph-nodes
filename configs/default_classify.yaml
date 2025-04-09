@@ -42,7 +42,7 @@ metadata:
 
 data:
   _target_: lymph_nodes.data.DataModule
-  # batch_size: 64 # auto adjusted
+  batch_size: 64 # auto adjusted
   epoch_size: 1000
   num_workers: 10
   batch_distribution: [0.4, 0.2, 0.4]
@@ -52,3 +52,4 @@ model:
   warmup_epochs: 2
 
 tuner: {}
+dynamic_batch_size: True

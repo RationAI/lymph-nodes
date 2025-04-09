@@ -53,7 +53,7 @@ def find_batch_size(
     datamodule: LightningDataModule,
 ) -> int:
     """Finds the optimal batch size for the model."""
-    if config.data.batch_size is not None:
+    if not config.dynamic_batch_size:
         return config.data.batch_size
 
     torch.backends.cudnn.enabled = False
@@ -87,6 +87,7 @@ def main(config: DictConfig, logger: Logger | None) -> None:
     if isinstance(config.mode, ListConfig):
         for mode in config.mode:
             data.batch_size = find_batch_size(
+                config,
                 tuner,
                 model,
                 method=mode,
@@ -98,6 +99,7 @@ def main(config: DictConfig, logger: Logger | None) -> None:
             )
     else:
         data.batch_size = find_batch_size(
+            config,
             tuner,
             model,
             method=config.mode,
