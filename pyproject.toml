@@ -23,19 +23,16 @@ dependencies = [
     "mamba-ssm>=2.2.4",
     "einops>=0.8.1",
     "dynamic-network-architectures>=0.3.1",
+    "report @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/tools/report.git@feature/mirax-support",
 ]
 
 [tool.pdm.dev-dependencies]
 dev = ["mypy", "pre-commit", "ruff"]
 
 [tool.pdm.scripts]
+train-seg = "python -m lymph_nodes --config-name=default_segment"
+train-cls = "python -m lymph_nodes --config-name=default_classify"
 preprocess = "python -m prepro"
-postprocess = "python -m postpro"
-visualize-dataset = "python -m dataset_visualization"
-fit = "python -m lymph_nodes mode=fit"
-validate = "python -m lymph_nodes mode=validate"
-test = "python -m lymph_nodes mode=test"
-predict = "python -m lymph_nodes mode=predict"
 job = "python job.py"
 l = { composite = ["lint", "format", "mypy"] }
 lint = "ruff check --fix"

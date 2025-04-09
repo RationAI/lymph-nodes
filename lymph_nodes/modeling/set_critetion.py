@@ -33,9 +33,7 @@ class SetCriterion(nn.Module):
         # Compute all the requested losses
         losses = {k: v(outputs, targets) for k, v in self.losses.items()}
 
-        losses["loss"] = sum(
-            self.weight_dict[k] * losses[k] for k in self.losses.keys()
-        )
+        losses["loss"] = sum(w * losses[k] for k, w in self.weight_dict.items())
 
         return losses
 

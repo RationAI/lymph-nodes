@@ -1,0 +1,106 @@
+defaults:
+  - _self_
+  - hydra: default
+  - mlflow: kubas_cluster
+
+run_id: ???
+
+reporter:
+  title: Lymph Nodes DAB Segmentation
+  save:
+    _target_: report.save.RunIDMLFlowReportAttacher
+    run_id: fb5c2a17327a4b109857079241f2cf11
+    artifact_path: report.html
+  background:
+    _target_: report.masks.SlideRetriever
+    paths:
+      _target_: report.masks.mlflow_slide_retriever
+      urls:
+        - "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/lymhps-2023/negative-test/slides.parquet"
+        - "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/tmas/test/slides.parquet"
+        - "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/positive-lymph-nodes/slides.parquet"
+        - "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/lymhps-2023/positive-train/slides.parquet"
+        - "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/lymhps-2023/positive-val/slides.parquet"
+      key: path
+    layer_name: background
+  evaluation_runs:
+    ${run_id}:
+      artifact_file: "test_metrics.json"
+      slide_item_key: "slide"
+  mask_retrievers:
+    # Segmentation masks
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: segmentation_masks/annotated_ihc_test
+      run_id: ${run_id}
+      layer_name: Segmentation mask
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#FF0000"
+        opacity: 0.8
+        visible: true
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: segmentation_masks/Cytokeratin_mask_final_scans
+      run_id: ${run_id}
+      layer_name: Segmentation mask
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#FF0000"
+        opacity: 0.8
+        visible: true
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: segmentation_masks/dataset1-ihc-2023
+      run_id: ${run_id}
+      layer_name: Segmentation mask
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#FF0000"
+        opacity: 0.8
+        visible: true
+
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: tissue_masks/annotated_ihc_test
+      run_id: dbc710d7c8714983b3f0571e979bff6f
+      layer_name: Tissue masks
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#00FF00"
+        opacity: 0.2
+        visible: false
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: tissue_masks/Cytokeratin_mask_final_scans
+      run_id: dbc710d7c8714983b3f0571e979bff6f
+      layer_name: Tissue masks
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#00FF00"
+        opacity: 0.2
+        visible: false
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: tissue_masks/dataset1-ihc-2023
+      run_id: dbc710d7c8714983b3f0571e979bff6f
+      layer_name: Tissue masks
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#00FF00"
+        opacity: 0.2
+        visible: false
+        
+  metrics_run_ids:
+    - ${run_id}
+  template_asset_path: report_template.html
+
+# metadata:
+#   user: pekarj
+#   experiment_name: Lymph Nodes
+#   run_name: DAB testing v1 report
+#   description: report
+
+
+mlflow:
+  tracking_uri: http://mlflow.rationai-mlflow:5000/

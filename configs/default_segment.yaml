@@ -1,0 +1,69 @@
+defaults:
+  - _self_
+  - hydra: default
+  - logger: mlflow
+  - /data/datasets@data.train: segmentation/train
+  - /data/datasets@data.val: segmentation/val
+  - /data/datasets@data.test: segmentation/test
+  - /data/datasets@data.predict: segmentation/predict
+  - /model@model.model: swin_u_mamba
+  
+seed: ${random_seed:}
+mode: [fit, test]
+
+checkpoint:
+  test: best
+
+trainer:
+  max_epochs: 100
+  log_every_n_steps: 20
+  enable_checkpointing: true
+  callbacks:
+    model_checkpoint:
+      _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      save_top_k: 1
+      save_last: true
+      auto_insert_metric_name: true
+      monitor: validation/loss
+      mode: min
+    early_stopping:
+      _target_: lightning.pytorch.callbacks.EarlyStopping
+      monitor: validation/loss
+      mode: min
+      patience: 10
+    mask_builder:
+      _target_: lymph_nodes.callbacks.AvgTileMaskBuilder
+
+metadata:
+  experiment_name: Lymph Nodes
+  run_name: "🏋️‍♂️ ${model_name: ${model.model._target_}}"
+  description: Running ${model_name:model.model._target_} on the Lymph Nodes DAB dataset.
+
+
+data:
+  _target_: lymph_nodes.data.DataModule
+  batch_size: 30
+  epoch_size: 500
+  num_workers: 10
+  batch_distribution: [0.4, 0.2, 0.4]
+
+
+model:
+  _target_: lymph_nodes.SegmentationModel
+  criterion:
+    _target_: lymph_nodes.modeling.SetCriterion
+    weight_dict:
+      dice: 0.25
+      focal: 0.5
+      tversky: 0.25
+    losses:
+      dice:
+        _target_: lymph_nodes.modeling.losses.DiceLoss
+      focal:
+        _target_: lymph_nodes.modeling.losses.FocalLoss
+      tversky:
+        _target_: lymph_nodes.modeling.losses.TverskyLoss
+  warmup_epochs: 3
+
+
+# tune: {}

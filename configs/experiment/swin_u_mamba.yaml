@@ -1,0 +1,5 @@
+# @package _global_
+
+defaults:
+  - _self_
+  - /model/model: /model/swin_u_mamba

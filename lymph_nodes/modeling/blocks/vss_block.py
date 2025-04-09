@@ -1,8 +1,9 @@
 from collections.abc import Callable
 from functools import partial
+from typing import Any
 
 import torch
-from timm.models.layers import DropPath
+from timm.layers import DropPath
 from torch import nn
 
 
@@ -19,7 +20,7 @@ class VSSBlock(nn.Module):
         norm_layer: Callable[..., torch.nn.Module] = partial(nn.LayerNorm, eps=1e-6),
         attn_drop_rate: float = 0,
         d_state: int = 16,
-        **kwargs,
+        **kwargs: dict[str, Any],
     ) -> None:
         super().__init__()
         self.ln_1 = norm_layer(hidden_dim)

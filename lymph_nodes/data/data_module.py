@@ -15,14 +15,14 @@ class DataModule(LightningDataModule):
         self,
         batch_size: int,
         epoch_size: int | None,
-        positive_batch_split: float,
+        batch_distribution: list[float],
         num_workers: int = 0,
         **datasets: DictConfig,
     ) -> None:
         super().__init__()
         self.batch_size = batch_size
         self.epoch_size = epoch_size
-        self.positive_batch_split = positive_batch_split
+        self.batch_distribution = batch_distribution
         self.num_workers = num_workers
         self.datasets = datasets
 
@@ -44,7 +44,7 @@ class DataModule(LightningDataModule):
             batch_sampler=PDMulticlassBatchSampler(
                 self.train.tiles,
                 stratify_by="gb-kind",
-                distribution=np.array([0.4, 0.2, 0.4]),
+                distribution=np.array(self.batch_distribution),
                 batch_size=self.batch_size,
                 epoch_size=self.epoch_size,
             ),

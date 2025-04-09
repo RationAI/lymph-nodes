@@ -54,8 +54,7 @@ class LymphNodesModel(LightningModule, ABC):
         self.log_dict(
             {f"validation/{k}": v for k, v in losses.items()},
             batch_size=len(inputs),
-            on_step=True,
-            prog_bar=True,
+            on_epoch=True,
         )
 
         self.val_metrics.update(outputs, targets.to(torch.uint8))

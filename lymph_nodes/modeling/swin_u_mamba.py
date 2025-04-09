@@ -45,18 +45,20 @@ class SwinUMamba(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         skips = self.vssm_encoder(x)
         out = self.decoder(skips)
-        return out
+        return out.sigmoid()
 
-    @torch.no_grad()
+    # @torch.no_grad()
     def freeze(self) -> None:
-        for name, param in self.vssm_encoder.named_parameters():
-            if "patch_embed" not in name:
-                param.requires_grad = False
+        # for name, param in self.vssm_encoder.named_parameters():
+        #     if "patch_embed" not in name:
+        #         param.requires_grad = False
+        pass
 
-    @torch.no_grad()
+    # @torch.no_grad()
     def unfreeze(self) -> None:
-        for param in self.vssm_encoder.parameters():
-            param.requires_grad = True
+        # for param in self.vssm_encoder.parameters():
+        #     param.requires_grad = True
+        pass
 
     def load_pretrained_ckpt(self, num_input_channels: int, ckpt_path: str) -> None:
         print(f"Loading weights from: {ckpt_path}")

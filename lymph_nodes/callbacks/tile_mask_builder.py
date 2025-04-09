@@ -31,7 +31,21 @@ class TileMaskBuilder(MultiloaderLifecycle):
     def on_test_dataloader_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule, dataloader_idx: int
     ) -> None:
-        return self.on_predict_dataloader_start(trainer, pl_module, dataloader_idx)
+        if not hasattr(trainer, "datamodule"):
+            raise ValueError("Trainer should have datamodule attribute")
+
+        datamodule = cast("DataModule", trainer.datamodule)
+        self.slide = cast("pd.Series", datamodule.test.slides.iloc[dataloader_idx])
+
+        # Initialize the mask builders for each output
+        self.mask_builder = BaseTileMaskBuilder(
+            save_dir=self.tmp_dir.name,
+            filename=Path(self.slide.path).stem,
+            extent_x=self.slide.extent_x,
+            extent_y=self.slide.extent_y,
+            mpp_x=self.slide.mpp_x,
+            mpp_y=self.slide.mpp_y,
+        )
 
     def on_test_dataloader_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule, dataloader_idx: int
@@ -60,7 +74,7 @@ class TileMaskBuilder(MultiloaderLifecycle):
             raise ValueError("Trainer should have datamodule attribute")
 
         datamodule = cast("DataModule", trainer.datamodule)
-        self.slide = cast("pd.Series", datamodule.test.slides.iloc[dataloader_idx])
+        self.slide = cast("pd.Series", datamodule.predict.slides.iloc[dataloader_idx])
 
         # Initialize the mask builders for each output
         self.mask_builder = BaseTileMaskBuilder(
@@ -82,7 +96,7 @@ class TileMaskBuilder(MultiloaderLifecycle):
 
         mlflow.log_artifact(
             str(pred_path),
-            artifact_path=f"segmemtation_masks/{get_relative_dir_path(Path(self.slide.path))}",
+            artifact_path=f"segmentation_masks/{get_relative_dir_path(Path(self.slide.path))}",
         )
 
         pred_path.unlink()

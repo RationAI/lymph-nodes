@@ -3,7 +3,7 @@ import math
 from torch import nn
 import torch
 from typing import Any
-from timm.models.layers import trunc_normal_
+from timm.layers import trunc_normal_
 
 from lymph_nodes.modeling.blocks import PatchEmbed2D, VSSLayer, PatchMerging2D
 
