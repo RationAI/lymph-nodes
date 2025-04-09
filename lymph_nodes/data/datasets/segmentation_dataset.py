@@ -20,9 +20,7 @@ T = TypeVar("T", bound=Sample | PredictSample)
 
 
 class MaskSlideTiles(SlideTiles[T]):
-    def _get_mask(
-        self, idx: int, mask_path: Path | str, messed: bool = False
-    ) -> NDArray | None:
+    def _get_mask(self, idx: int, mask_path: Path | str) -> NDArray | None:
         tile = self.slide_tiles.tiles.iloc[idx]
 
         if not os.path.exists(mask_path):
@@ -80,7 +78,7 @@ class _SegmentationSlideTiles(MaskSlideTiles[Sample]):
 
         cyto_mask = self._get_mask(idx, cyto_path)
         annot_mask = self._get_mask(idx, annot_path)
-        color_mask = self._get_mask(idx, color_path, True)
+        color_mask = self._get_mask(idx, color_path)
 
         np_mask = (
             cyto_mask
@@ -131,22 +129,25 @@ class SegmentationDataset(BaseDataset[Sample]):
         )
 
         # Color separation masks
-        mlflow.artifacts.download_artifacts(
-            artifact_uri="mlflow-artifacts:/68/76ab7eda9a3d4a7fb3ff7e7baf904343/artifacts/color_separation_masks",
-            dst_path="./data",
-        )
+        if not os.path.exists("data/color_separation_masks"):
+            mlflow.artifacts.download_artifacts(
+                artifact_uri="mlflow-artifacts:/68/76ab7eda9a3d4a7fb3ff7e7baf904343/artifacts/color_separation_masks",
+                dst_path="./data",
+            )
 
         # Annotation masks
-        mlflow.artifacts.download_artifacts(
-            artifact_uri="mlflow-artifacts:/68/76ab7eda9a3d4a7fb3ff7e7baf904343/artifacts/annotation_masks",
-            dst_path="./data",
-        )
+        if not os.path.exists("data/annotation_masks"):
+            mlflow.artifacts.download_artifacts(
+                artifact_uri="mlflow-artifacts:/68/76ab7eda9a3d4a7fb3ff7e7baf904343/artifacts/annotation_masks",
+                dst_path="./data",
+            )
 
         # Cytokeration masks
-        mlflow.artifacts.download_artifacts(
-            artifact_uri="mlflow-artifacts:/68/76ab7eda9a3d4a7fb3ff7e7baf904343/artifacts/cytokeratin_masks",
-            dst_path="./data",
-        )
+        if not os.path.exists("data/cytokeratin_masks"):
+            mlflow.artifacts.download_artifacts(
+                artifact_uri="mlflow-artifacts:/68/42ff2d1b9b8649bd94a4fe6360db201e/artifacts/cytokeratin_masks",
+                dst_path="./data",
+            )
 
 
 class SegmentationPredictDataset(BaseDataset[PredictSample]):

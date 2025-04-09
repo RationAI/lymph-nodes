@@ -13,7 +13,7 @@ from lymph_nodes.typing import Sample
 class DataModule(LightningDataModule):
     def __init__(
         self,
-        batch_size: int,
+        batch_size: int | None,
         epoch_size: int | None,
         batch_distribution: list[float],
         num_workers: int = 0,

@@ -46,12 +46,16 @@ OmegaConf.register_new_resolver("model_name", lambda path: path.split(".")[-1])
 
 
 def find_batch_size(
+    config: DictConfig,
     tuner: Tuner,
     model: LightningModule,
     method: Literal["fit", "validate", "test", "predict"],
     datamodule: LightningDataModule,
 ) -> int:
     """Finds the optimal batch size for the model."""
+    if config.data.batch_size is not None:
+        return config.data.batch_size
+
     torch.backends.cudnn.enabled = False
     batch_size = tuner.scale_batch_size(
         model,

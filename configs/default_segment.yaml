@@ -30,7 +30,7 @@ trainer:
       _target_: lightning.pytorch.callbacks.EarlyStopping
       monitor: validation/loss
       mode: min
-      patience: 10
+      patience: 15
     mask_builder:
       _target_: lymph_nodes.callbacks.AvgTileMaskBuilder
     finetuning:
@@ -44,7 +44,7 @@ metadata:
 
 data:
   _target_: lymph_nodes.data.DataModule
-  batch_size: 30 # Auto adjusted
+  # batch_size: 30 # Auto adjusted
   epoch_size: 1000
   num_workers: 10
   batch_distribution: [0.4, 0.2, 0.4]
@@ -54,8 +54,8 @@ model:
   criterion:
     _target_: lymph_nodes.modeling.SetCriterion
     weight_dict:
-      dice: 0.3
-      focal: 0.3
+      dice: 0.4
+      focal: 0.2
       tversky: 0.4
     losses:
       dice:
@@ -64,6 +64,6 @@ model:
         _target_: lymph_nodes.modeling.losses.FocalLoss
       tversky:
         _target_: lymph_nodes.modeling.losses.TverskyLoss
-  warmup_epochs: 3
+  warmup_epochs: 2
 
 tuner: {}
