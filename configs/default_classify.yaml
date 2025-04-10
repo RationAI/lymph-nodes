@@ -52,4 +52,4 @@ model:
   warmup_epochs: 2
 
 tuner: {}
-dynamic_batch_size: True
+# dynamic_batch_size: True
