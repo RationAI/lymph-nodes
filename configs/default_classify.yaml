@@ -18,6 +18,7 @@ trainer:
   max_epochs: 100
   log_every_n_steps: 20
   enable_checkpointing: true
+  gradient_clip_val: 0.1
   callbacks:
     model_checkpoint:
       _target_: lightning.pytorch.callbacks.ModelCheckpoint

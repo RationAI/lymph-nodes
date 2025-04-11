@@ -64,7 +64,9 @@ class LymphNodesModel(LightningModule, ABC):
         self.val_metrics.update(outputs, targets.to(torch.uint8))
         self.log_dict(self.val_metrics, batch_size=len(inputs), on_epoch=True)
 
-    def test_step(self, batch: Input) -> torch.Tensor:
+    def test_step(
+        self, batch: Input, batch_idx: int, dataloader_idx: int = 0
+    ) -> torch.Tensor:
         inputs, targets, metadata = batch
         outputs = self(inputs)
 
@@ -80,7 +82,9 @@ class LymphNodesModel(LightningModule, ABC):
 
         return outputs
 
-    def predict_step(self, batch: PredictInput) -> torch.Tensor:
+    def predict_step(
+        self, batch: PredictInput, batch_idx: int, dataloader_idx: int = 0
+    ) -> torch.Tensor:
         inputs, metadata = batch
         return self(inputs)
 
