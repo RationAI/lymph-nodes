@@ -107,7 +107,7 @@ def main(config: DictConfig, logger: Logger | None) -> None:
         )
 
         getattr(trainer, config.mode)(
-            model, datamodule=data, ckpt_path=config.checkpoint
+            model, datamodule=data, ckpt_path=config.checkpoint.get(config.mode, None)
         )
 
     if "test" in config.mode:
