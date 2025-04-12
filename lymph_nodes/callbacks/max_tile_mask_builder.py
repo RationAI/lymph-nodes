@@ -142,7 +142,7 @@ class MaxTileMaskBuilder(MultiloaderLifecycle):
 
         mlflow.log_artifact(
             str(pred_path),
-            artifact_path=f"segmentation_masks/{get_relative_dir_path(Path(self.slide.path))}",
+            artifact_path=f"max_segmentation_masks/{get_relative_dir_path(Path(self.slide.path))}",
         )
 
         pred_path.unlink()

@@ -33,7 +33,11 @@ trainer:
       mode: min
       patience: 15
     mask_builder:
+      _target_: lymph_nodes.callbacks.TileMaskBuilder
+    avg_mask_builder:
       _target_: lymph_nodes.callbacks.AvgTileMaskBuilder
+    max_mask_builder:
+      _target_: lymph_nodes.callbacks.MaxTileMaskBuilder
     finetuning:
       _target_: lightning.pytorch.callbacks.BackboneFinetuning
       unfreeze_backbone_at_epoch: 10
