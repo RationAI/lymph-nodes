@@ -6,10 +6,10 @@ import lightning.pytorch as pl
 import mlflow
 import pandas as pd
 import torch
-from rationai.masks.mask_builders import TileMaskBuilder as BaseTileMaskBuilder
+from rationai.masks.mask_builders import TileMaskBuilder
 from rationai.mlkit.lightning.callbacks import MultiloaderLifecycle
 
-from lymph_nodes.typing import PredictSample, Sample
+from lymph_nodes.typing import Outputs, PredictSample, SegSample
 from prepro.utils import get_relative_dir_path
 
 
@@ -18,8 +18,12 @@ if TYPE_CHECKING:
 
 
 class TileMaskBuilder(MultiloaderLifecycle):
-    def __init__(self) -> None:
+    def __init__(
+        self, artifact_path: str, tile_builder_cstr: type[TileMaskBuilder]
+    ) -> None:
         super().__init__()
+        self.artifact_path = artifact_path
+        self.tile_builder_cstr = tile_builder_cstr
 
         # Create temporary directories for output
         self.tmp_dir = tempfile.TemporaryDirectory()
@@ -27,6 +31,17 @@ class TileMaskBuilder(MultiloaderLifecycle):
     def __del__(self) -> None:
         # Remove the temp dir
         self.tmp_dir.cleanup()
+
+    def init_builder(self) -> None:
+        # Initialize the mask builders for each output
+        self.mask_builder = self.tile_builder_cstr(
+            save_dir=self.tmp_dir.name,
+            filename=Path(self.slide.path).stem,
+            extent_x=self.slide.extent_x,
+            extent_y=self.slide.extent_y,
+            mpp_x=self.slide.mpp_x,
+            mpp_y=self.slide.mpp_y,
+        )
 
     def on_test_dataloader_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule, dataloader_idx: int
@@ -37,15 +52,7 @@ class TileMaskBuilder(MultiloaderLifecycle):
         datamodule = cast("DataModule", trainer.datamodule)
         self.slide = cast("pd.Series", datamodule.test.slides.iloc[dataloader_idx])
 
-        # Initialize the mask builders for each output
-        self.mask_builder = BaseTileMaskBuilder(
-            save_dir=self.tmp_dir.name,
-            filename=Path(self.slide.path).stem,
-            extent_x=self.slide.extent_x,
-            extent_y=self.slide.extent_y,
-            mpp_x=self.slide.mpp_x,
-            mpp_y=self.slide.mpp_y,
-        )
+        self.init_builder()
 
     def on_test_dataloader_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule, dataloader_idx: int
@@ -56,12 +63,12 @@ class TileMaskBuilder(MultiloaderLifecycle):
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
-        outputs: torch.Tensor,
-        batch: Sample,
+        outputs: Outputs,
+        batch: SegSample,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        inputs, targets, metadata = batch
+        inputs, mask_targets, cls_targets, metadata = batch
 
         return self.on_predict_batch_end(
             trainer, pl_module, outputs, (inputs, metadata), batch_idx, dataloader_idx
@@ -76,15 +83,7 @@ class TileMaskBuilder(MultiloaderLifecycle):
         datamodule = cast("DataModule", trainer.datamodule)
         self.slide = cast("pd.Series", datamodule.predict.slides.iloc[dataloader_idx])
 
-        # Initialize the mask builders for each output
-        self.mask_builder = BaseTileMaskBuilder(
-            save_dir=self.tmp_dir.name,
-            filename=Path(self.slide.path).stem,
-            extent_x=self.slide.extent_x,
-            extent_y=self.slide.extent_y,
-            mpp_x=self.slide.mpp_x,
-            mpp_y=self.slide.mpp_y,
-        )
+        self.init_builder()
 
     def on_predict_dataloader_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule, dataloader_idx: int
@@ -96,7 +95,7 @@ class TileMaskBuilder(MultiloaderLifecycle):
 
         mlflow.log_artifact(
             str(pred_path),
-            artifact_path=f"segmentation_masks/{get_relative_dir_path(Path(self.slide.path))}",
+            artifact_path=f"{self.artifact_path}/{get_relative_dir_path(Path(self.slide.path))}",
         )
 
         pred_path.unlink()
@@ -105,7 +104,7 @@ class TileMaskBuilder(MultiloaderLifecycle):
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
-        outputs: torch.Tensor,
+        outputs: Outputs,
         batch: PredictSample,
         batch_idx: int,
         dataloader_idx: int = 0,
@@ -113,7 +112,7 @@ class TileMaskBuilder(MultiloaderLifecycle):
         _, metadata = batch
 
         self.mask_builder.update(
-            outputs,
+            outputs["masks"],
             torch.tensor(metadata["x"]) + 64,
             torch.tensor(metadata["y"]) + 64,
         )

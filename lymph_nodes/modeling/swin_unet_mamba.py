@@ -10,6 +10,7 @@ from torch import nn
 from lymph_nodes.modeling.decoder import UNetResDecoder
 from lymph_nodes.modeling.encoder import VSSMEncoder
 from lymph_nodes.modeling.utils import InitWeights_He
+from lymph_nodes.typing import Outputs
 
 
 torch.serialization.add_safe_globals(
@@ -28,11 +29,13 @@ class SwinUNetMamba(nn.Module):
         vss_args: dict[str, Any],
         decoder_args: dict[str, Any],
         pretrained: str | None = None,
+        cls_head: nn.Module | None = None,
     ) -> None:
         super().__init__()
         # It has  to be named bacbone because of FineTuner
         self.backbone = VSSMEncoder(**vss_args)
         self.decoder = UNetResDecoder(**decoder_args)
+        self.cls_head = cls_head
 
         self.apply(InitWeights_He(1e-2))
         self.apply(init_last_bn_before_add_to_0)
@@ -43,10 +46,13 @@ class SwinUNetMamba(nn.Module):
                 ckpt_path=pretrained,
             )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> Outputs:
         skips = self.backbone(x)
-        out = self.decoder(skips)
-        return out.sigmoid()
+
+        return Outputs(
+            labels=self.cls_head(skips[-1]) if self.cls_head else None,
+            masks=self.decoder(skips).sigmoid().squeeze(1),
+        )
 
     def load_pretrained_ckpt(self, num_input_channels: int, ckpt_path: str) -> None:
         print(f"Loading weights from: {ckpt_path}")

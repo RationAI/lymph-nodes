@@ -10,7 +10,7 @@ from torch import Tensor, nn
 from torchmetrics import MetricCollection
 
 from lymph_nodes.modeling import SetCriterion
-from lymph_nodes.typing import Input, PredictInput
+from lymph_nodes.typing import Input, Metadata, Outputs, PredictInput, Targets
 
 
 class LymphNodesModel(LightningModule, ABC):
@@ -34,8 +34,20 @@ class LymphNodesModel(LightningModule, ABC):
     @abstractmethod
     def get_val_metrics(self) -> MetricCollection: ...
 
+    @abstractmethod
+    def read_batch(self, batch: Input) -> tuple[Tensor, Targets, Metadata]: ...
+
+    @abstractmethod
+    def update_metrics(
+        self,
+        metrics: MetricCollection | LazyMetricDict,
+        outputs: Outputs,
+        targets: Targets,
+        key: str | None = None,
+    ) -> None: ...
+
     def training_step(self, batch: Input) -> Tensor:
-        inputs, targets, _ = batch
+        inputs, targets, _ = self.read_batch(batch)
         outputs = self(inputs)
 
         losses = self.criterion(outputs, targets)
@@ -50,7 +62,7 @@ class LymphNodesModel(LightningModule, ABC):
         return losses["loss"]
 
     def validation_step(self, batch: Input) -> None:
-        inputs, targets, _ = batch
+        inputs, targets, _ = self.read_batch(batch)
         outputs = self(inputs)
 
         losses = self.criterion(outputs, targets)
@@ -61,21 +73,22 @@ class LymphNodesModel(LightningModule, ABC):
             on_epoch=True,
         )
 
-        self.val_metrics.update(outputs, targets.to(torch.uint8))
+        self.update_metrics(self.val_metrics, outputs, targets)
         self.log_dict(self.val_metrics, batch_size=len(inputs), on_epoch=True)
 
     def test_step(
         self, batch: Input, batch_idx: int, dataloader_idx: int = 0
     ) -> torch.Tensor:
-        inputs, targets, metadata = batch
+        inputs, targets, metadata = self.read_batch(batch)
         outputs = self(inputs)
 
         for output, target, slide in zip(
             outputs, targets, metadata["slide"], strict=False
         ):
-            self.test_metrics.update(output, target.to(torch.uint8), key=slide)
+            self.update_metrics(self.test_metrics, output, target, key=slide)
 
-        self.test_metrics_collection.update(outputs, targets.to(torch.uint8))
+        self.update_metrics(self.test_metrics_collection, outputs, targets)
+
         self.log_dict(
             self.test_metrics_collection, batch_size=len(inputs), on_epoch=True
         )

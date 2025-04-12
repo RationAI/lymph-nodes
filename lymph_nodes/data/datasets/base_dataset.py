@@ -7,10 +7,10 @@ from albumentations.pytorch import ToTensorV2
 from rationai.mlkit.data.datasets import MetaTiledSlides, OpenSlideTilesDataset
 from torch.utils.data import Dataset
 
-from lymph_nodes.typing import Metadata, PredictSample, Sample
+from lymph_nodes.typing import ClsSample, Metadata, PredictSample, SegSample
 
 
-T = TypeVar("T", bound=Sample | PredictSample)
+T = TypeVar("T", bound=SegSample | ClsSample | PredictSample)
 
 
 class SlideTiles(Dataset[T]):

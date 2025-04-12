@@ -1,7 +1,7 @@
 import os
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any
 
 import mlflow
 import numpy as np
@@ -13,13 +13,10 @@ from rationai.masks import (
 )
 
 from lymph_nodes.data.datasets.base_dataset import BaseDataset, SlideTiles
-from lymph_nodes.typing import PredictSample, Sample
+from lymph_nodes.typing import PredictSample, SegSample
 
 
-T = TypeVar("T", bound=Sample | PredictSample)
-
-
-class MaskSlideTiles(SlideTiles[T]):
+class MaskSlideTiles(SlideTiles[SegSample]):
     def _get_mask(self, idx: int, mask_path: Path | str) -> NDArray | None:
         tile = self.slide_tiles.tiles.iloc[idx]
 
@@ -68,8 +65,8 @@ class MaskSlideTiles(SlideTiles[T]):
         )
 
 
-class _SegmentationSlideTiles(MaskSlideTiles[Sample]):
-    def __getitem__(self, idx: int) -> Sample:
+class _SegmentationSlideTiles(MaskSlideTiles):
+    def __getitem__(self, idx: int) -> SegSample:
         np_image = self.slide_tiles[idx]
 
         cyto_path = self._get_mask_path("cytokeratin_masks").with_suffix(".tiff")
@@ -97,11 +94,12 @@ class _SegmentationSlideTiles(MaskSlideTiles[Sample]):
 
         image = tensor["image"]
         mask = tensor["mask"]
+        label = self.slide_tiles.tiles.iloc[idx]["cancer"]
 
-        return image, mask, metadata
+        return image, mask, label, metadata
 
 
-class _SegmentationSlideTilesPred(MaskSlideTiles[PredictSample]):
+class _SegmentationSlideTilesPred(SlideTiles[PredictSample]):
     def __getitem__(self, idx: int) -> PredictSample:
         np_image = self.slide_tiles[idx]
         metadata = self._get_metadata(idx)
@@ -114,7 +112,7 @@ class _SegmentationSlideTilesPred(MaskSlideTiles[PredictSample]):
         return image, metadata
 
 
-class SegmentationDataset(BaseDataset[Sample]):
+class SegmentationDataset(BaseDataset[SegSample]):
     def __init__(
         self,
         uris: Iterable[str],
@@ -161,33 +159,3 @@ class SegmentationPredictDataset(BaseDataset[PredictSample]):
             sample_constructor=_SegmentationSlideTilesPred,
             transforms=transforms,
         )
-
-
-# class LymphNodesPredict(MetaTiledSlides[PredictSample]):
-#     def __init__(
-#         self,
-#         uris: Iterable[str],
-#         transforms: Any | None = None,
-#     ) -> None:
-#         self.transforms = transforms
-#         super().__init__(uris=uris)
-
-#     def generate_datasets(self) -> Iterable[Dataset[PredictSample]]:
-#         slides_2023 = self.slides[self.slides["path"].str.contains("2023")]["id"]
-
-#         self.tiles = self.tiles[
-#             np.logical_and(
-#                 self.tiles["slide_id"].isin(slides_2023),
-#                 self.tiles["brownish"] > 0,
-#             )
-#         ].reset_index()
-
-#         return (
-#             _LymphNodesSlideTiles(
-#                 slide,
-#                 tiles=self.filter_tiles_by_slide(slide["id"]),
-#                 include_label=False,
-#                 transforms=self.transforms,
-#             )
-#             for _, slide in self.slides.iterrows()
-#         )

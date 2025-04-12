@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from typing import TypeAlias
 
 import numpy as np
 from hydra.utils import instantiate
@@ -7,7 +8,10 @@ from omegaconf import DictConfig
 from rationai.mlkit.data.samplers import PDMulticlassBatchSampler
 from torch.utils.data import DataLoader
 
-from lymph_nodes.typing import Sample
+from lymph_nodes.typing import ClsSample, PredictSample, SegSample
+
+
+Sample: TypeAlias = SegSample | ClsSample
 
 
 class DataModule(LightningDataModule):
@@ -70,7 +74,7 @@ class DataModule(LightningDataModule):
             for dataset in self.test.datasets
         ]
 
-    def predict_dataloader(self) -> list[Iterable[Sample]]:
+    def predict_dataloader(self) -> list[Iterable[PredictSample]]:
         return [
             DataLoader(
                 dataset, batch_size=self.batch_size, num_workers=self.num_workers

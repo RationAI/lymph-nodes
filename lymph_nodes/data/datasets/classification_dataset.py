@@ -4,11 +4,11 @@ from typing import Any
 import torch
 
 from lymph_nodes.data.datasets.base_dataset import BaseDataset, SlideTiles
-from lymph_nodes.typing import PredictSample, Sample
+from lymph_nodes.typing import ClsSample, PredictSample
 
 
-class _ClassificationSlideTiles(SlideTiles[Sample]):
-    def __getitem__(self, idx: int) -> Sample:
+class _ClassificationSlideTiles(SlideTiles[ClsSample]):
+    def __getitem__(self, idx: int) -> ClsSample:
         np_image = self.slide_tiles[idx]
         metadata = self._get_metadata(idx)
 
@@ -34,7 +34,7 @@ class _ClassificationSlideTilesPred(SlideTiles[PredictSample]):
         return image, metadata
 
 
-class ClassificationDataset(BaseDataset[Sample]):
+class ClassificationDataset(BaseDataset[ClsSample]):
     def __init__(
         self,
         uris: Iterable[str],

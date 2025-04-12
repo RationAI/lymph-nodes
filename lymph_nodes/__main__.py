@@ -124,7 +124,7 @@ def main(config: DictConfig, logger: Logger | None) -> None:
                 "python",
                 "-m",
                 "report",
-                "--config-path=../../../../../configs/report",
+                "--config-path=configs/report",
                 f"run_id={logger.run_id}",
             ],
             capture_output=True,

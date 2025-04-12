@@ -5,3 +5,10 @@ decoder:
   _target_: lymph_nodes.modeling.decoder.SimpleDecoder
   num_classes: 1
   nun_features: [512, 512, 256, 128, 64]
+cls_head:
+  _target_: torch.nn.Sequential
+  _args_:
+    - _target_: torch.nn.AdaptiveAvgPool2d
+      output_size: [7, 7]
+    - _target_: lymph_nodes.modeling.blocks.BinaryClassifier
+      features: [25088, 4096, 4096, 1]

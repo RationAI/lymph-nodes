@@ -34,10 +34,22 @@ trainer:
       patience: 15
     mask_builder:
       _target_: lymph_nodes.callbacks.TileMaskBuilder
-    avg_mask_builder:
-      _target_: lymph_nodes.callbacks.AvgTileMaskBuilder
+      artifact_path: segmentation_masks
+      tile_builder_cstr:
+        _target_: rationai.masks.mask_builders.mask_builder.MaskBuilder
+        _partial_: True
     max_mask_builder:
-      _target_: lymph_nodes.callbacks.MaxTileMaskBuilder
+      _target_: lymph_nodes.callbacks.TileMaskBuilder
+      artifact_path: max_segmentation_masks
+      tile_builder_cstr:
+        _target_: lymph_nodes.callbacks.builders.MaxMaskBuilder
+        _partial_: True
+    average_mask_builder:
+      _target_: lymph_nodes.callbacks.TileMaskBuilder
+      artifact_path: average_segmentation_masks
+      tile_builder_cstr:
+        _target_: lymph_nodes.callbacks.builders.AverageMaskBuilder
+        _partial_: True
     finetuning:
       _target_: lightning.pytorch.callbacks.BackboneFinetuning
       unfreeze_backbone_at_epoch: 10
@@ -58,17 +70,25 @@ model:
   _target_: lymph_nodes.SegmentationModel
   criterion:
     _target_: lymph_nodes.modeling.SetCriterion
-    weight_dict:
-      dice: 0.4
-      focal: 0.2
-      tversky: 0.4
     losses:
-      dice:
-        _target_: lymph_nodes.modeling.losses.DiceLoss
-      focal:
-        _target_: lymph_nodes.modeling.losses.FocalLoss
-      tversky:
-        _target_: lymph_nodes.modeling.losses.TverskyLoss
+      - _target_: lymph_nodes.modeling.set_criterion.Loss
+        name: "dice"
+        weight: 0.4
+        kind: masks
+        loss:
+          _target_: lymph_nodes.modeling.losses.DiceLoss
+      - _target_: lymph_nodes.modeling.set_criterion.Loss
+        name: "focal"
+        weight: 0.2
+        kind: masks
+        loss:
+          _target_: lymph_nodes.modeling.losses.FocalLoss
+      - _target_: lymph_nodes.modeling.set_criterion.Loss
+        name: "tversky"
+        weight: 0.4
+        kind: masks
+        loss:
+          _target_: lymph_nodes.modeling.losses.TverskyLoss
   warmup_epochs: 2
 
 tuner: {}
