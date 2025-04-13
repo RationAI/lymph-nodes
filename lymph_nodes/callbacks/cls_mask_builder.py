@@ -8,7 +8,7 @@ import pandas as pd
 from rationai.masks.mask_builders import ScalarMaskBuilder
 from rationai.mlkit.lightning.callbacks import MultiloaderLifecycle
 
-from lymph_nodes.typing import Outputs, PredictSample, SegSample
+from lymph_nodes.typing import Input, Outputs, PredictSample
 from prepro.utils import get_relative_dir_path
 
 
@@ -62,11 +62,11 @@ class ClsMaskBuilder(MultiloaderLifecycle):
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
         outputs: Outputs,
-        batch: SegSample,
+        batch: Input,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        inputs, mask_targets, cls_targets, metadata = batch
+        inputs, metadata = batch[0], batch[-1]
 
         return self.on_predict_batch_end(
             trainer, pl_module, outputs, (inputs, metadata), batch_idx, dataloader_idx
