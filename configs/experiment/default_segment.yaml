@@ -1,37 +1,12 @@
 defaults:
   - _self_
-  - hydra: default
-  - logger: mlflow
   - /data/datasets@data.train: segmentation/train
   - /data/datasets@data.val: segmentation/val
   - /data/datasets@data.test: segmentation/test
   - /data/datasets@data.predict: segmentation/predict
-  - /model@model.model: ???
-
-seed: ${random_seed:}
-mode: [fit, test]
-
-checkpoint:
-  test: best
 
 trainer:
-  max_epochs: 100
-  log_every_n_steps: 20
-  enable_checkpointing: true
-  gradient_clip_val: 0.1
   callbacks:
-    model_checkpoint:
-      _target_: lightning.pytorch.callbacks.ModelCheckpoint
-      save_top_k: 1
-      save_last: true
-      auto_insert_metric_name: true
-      monitor: validation/loss
-      mode: min
-    early_stopping:
-      _target_: lightning.pytorch.callbacks.EarlyStopping
-      monitor: validation/loss
-      mode: min
-      patience: 5
     mask_builder:
       _target_: lymph_nodes.callbacks.TileMaskBuilder
       artifact_path: segmentation_masks
@@ -44,30 +19,19 @@ trainer:
       tile_builder_cstr:
         _target_: lymph_nodes.callbacks.builders.MaxMaskBuilder
         _partial_: True
-    average_mask_builder:
+    centric_mask_builder:
       _target_: lymph_nodes.callbacks.TileMaskBuilder
-      artifact_path: average_segmentation_masks
+      artifact_path: centric_segmentation_masks
       tile_builder_cstr:
-        _target_: lymph_nodes.callbacks.builders.AverageMaskBuilder
+        _target_: lymph_nodes.callbacks.builders.CentricMaskBuilder
         _partial_: True
-    cls_mask_builder:
-      _target_: lymph_nodes.callbacks.ClsMaskBuilder
-      artifact_path: cls_segmentation_masks
-    finetuning:
-      _target_: lightning.pytorch.callbacks.BackboneFinetuning
-      unfreeze_backbone_at_epoch: 5
 
 metadata:
-  experiment_name: Lymph Nodes
-  run_name: "🏋️‍♂️ ${model_name: ${model.model._target_}}"
-  description: "Running ${model_name: ${model.model._target_}} on the Lymph Nodes DAB dataset."
+  run_name: "🏋️‍♂️ ${model_name: ${model.model._target_}} pre w/ Head"
+  description: "Running segmentatation model ${model_name: ${model.model._target_}} on the Lymph Nodes DAB dataset."
 
 data:
-  _target_: lymph_nodes.data.DataModule
-  batch_size: 30 # Auto adjusted
-  epoch_size: 1000
-  num_workers: 10
-  batch_distribution: [0.4, 0.2, 0.4]
+  batch_size: 24 # Auto adjusted
 
 model:
   _target_: lymph_nodes.SegmentationModel
@@ -99,6 +63,3 @@ model:
         loss:
           _target_: torch.nn.BCELoss
   warmup_epochs: 1
-
-tuner: {}
-# dynamic_batch_size: True

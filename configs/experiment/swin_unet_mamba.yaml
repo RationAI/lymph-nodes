@@ -2,6 +2,5 @@
 
 defaults:
   - _self_
+  - default_segment
   - override /model@model.model: swin_unet_mamba
-
-

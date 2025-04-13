@@ -30,8 +30,9 @@ dependencies = [
 dev = ["mypy", "pre-commit", "ruff"]
 
 [tool.pdm.scripts]
-train-seg = "python -m lymph_nodes --config-name=default_segment"
-train-cls = "python -m lymph_nodes --config-name=default_classify"
+train = "python -m lymph_nodes"
+fit = "python -m lymph_nodes mode=fit"
+test = "python -m lymph_nodes mode=test"
 preprocess = "python -m prepro"
 job = "python job.py"
 l = { composite = ["lint", "format", "mypy"] }

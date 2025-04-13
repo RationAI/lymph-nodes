@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 from lymph_nodes.callbacks.builders.mask_builder import MaskBuilder
 
 
-class AverageMaskBuilder(MaskBuilder):
+class CentricMaskBuilder(MaskBuilder):
     def __init__(
         self,
         save_dir: Path | str,

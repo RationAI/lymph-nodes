@@ -3,4 +3,4 @@
 defaults:
   - _self_
   - default_classify
-  - override /model@model.model: convnext
+  - override /model@model.model: vgg16
