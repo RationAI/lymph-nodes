@@ -9,7 +9,7 @@ reporter:
   title: Lymph Nodes DAB Segmentation
   save:
     _target_: report.save.RunIDMLFlowReportAttacher
-    run_id: fb5c2a17327a4b109857079241f2cf11
+    run_id: ${run_id}
     artifact_path: report.html
   background:
     _target_: report.masks.SlideRetriever
@@ -29,68 +29,198 @@ reporter:
       slide_item_key: "slide"
   mask_retrievers:
     # Segmentation masks
+    ## Default mask
     - _target_: report.masks.RunIDMlflowMaskRetriever
       dir_name: segmentation_masks/annotated_ihc_test
       run_id: ${run_id}
-      layer_name: Segmentation mask
+      layer_name: Default Segmentation mask
       shader_conf:
         type: "heatmap"
         modifiable: true
         color: "#FF0000"
-        opacity: 0.8
+        opacity: 0.7
         visible: true
     - _target_: report.masks.RunIDMlflowMaskRetriever
       dir_name: segmentation_masks/Cytokeratin_mask_final_scans
       run_id: ${run_id}
-      layer_name: Segmentation mask
+      layer_name: Default Segmentation mask
       shader_conf:
         type: "heatmap"
         modifiable: true
         color: "#FF0000"
-        opacity: 0.8
+        opacity: 0.7
         visible: true
     - _target_: report.masks.RunIDMlflowMaskRetriever
       dir_name: segmentation_masks/dataset1-ihc-2023
       run_id: ${run_id}
-      layer_name: Segmentation mask
+      layer_name: Default Segmentation mask
       shader_conf:
         type: "heatmap"
         modifiable: true
         color: "#FF0000"
-        opacity: 0.8
+        opacity: 0.7
         visible: true
 
+    ## Centric mask
     - _target_: report.masks.RunIDMlflowMaskRetriever
-      dir_name: tissue_masks/annotated_ihc_test
-      run_id: dbc710d7c8714983b3f0571e979bff6f
-      layer_name: Tissue masks
+      dir_name: centric_segmentation_masks/annotated_ihc_test
+      run_id: ${run_id}
+      layer_name: Centric Segmentation mask
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#FF007F"
+        opacity: 0.7
+        visible: true
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: centric_segmentation_masks/Cytokeratin_mask_final_scans
+      run_id: ${run_id}
+      layer_name: Centric Segmentation mask
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#FF007F"
+        opacity: 0.7
+        visible: true
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: centric_segmentation_masks/dataset1-ihc-2023
+      run_id: ${run_id}
+      layer_name: Centric Segmentation mask
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#FF007F"
+        opacity: 0.7
+        visible: true
+
+    ## Max mask
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: max_segmentation_masks/annotated_ihc_test
+      run_id: ${run_id}
+      layer_name: Max Segmentation mask
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#FF00FF"
+        opacity: 0.7
+        visible: false
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: max_segmentation_masks/Cytokeratin_mask_final_scans
+      run_id: ${run_id}
+      layer_name: Max Segmentation mask
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#FF00FF"
+        opacity: 0.7
+        visible: false
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: max_segmentation_masks/dataset1-ihc-2023
+      run_id: ${run_id}
+      layer_name: Max Segmentation mask
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#FF00FF"
+        opacity: 0.7
+        visible: false
+
+    # Classification heatmap
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: classifcation_heatmaps/annotated_ihc_test
+      run_id: ${run_id}
+      layer_name: Classification heatmap
       shader_conf:
         type: "heatmap"
         modifiable: true
         color: "#00FF00"
+        opacity: 0.7
+        visible: true
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: classifcation_heatmaps/Cytokeratin_mask_final_scans
+      run_id: ${run_id}
+      layer_name: Classification heatmap
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#00FF00"
+        opacity: 0.7
+        visible: true
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: classifcation_heatmaps/dataset1-ihc-2023
+      run_id: ${run_id}
+      layer_name: Classification heatmap
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#00FF00"
+        opacity: 0.7
+        visible: true
+
+    # Tissue Mask
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: tissue_masks/annotated_ihc_test
+      run_id: 76ab7eda9a3d4a7fb3ff7e7baf904343
+      layer_name: Tissue masks
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#FFFF00"
         opacity: 0.2
         visible: false
     - _target_: report.masks.RunIDMlflowMaskRetriever
       dir_name: tissue_masks/Cytokeratin_mask_final_scans
-      run_id: dbc710d7c8714983b3f0571e979bff6f
+      run_id: 76ab7eda9a3d4a7fb3ff7e7baf904343
       layer_name: Tissue masks
       shader_conf:
         type: "heatmap"
         modifiable: true
-        color: "#00FF00"
+        color: "#FFFF00"
         opacity: 0.2
         visible: false
     - _target_: report.masks.RunIDMlflowMaskRetriever
       dir_name: tissue_masks/dataset1-ihc-2023
-      run_id: dbc710d7c8714983b3f0571e979bff6f
+      run_id: 76ab7eda9a3d4a7fb3ff7e7baf904343
       layer_name: Tissue masks
       shader_conf:
         type: "heatmap"
         modifiable: true
-        color: "#00FF00"
+        color: "#FFFF00"
         opacity: 0.2
         visible: false
-        
+
+    # Annotation Mask
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: annotation_masks/annotated_ihc_test
+      run_id: 76ab7eda9a3d4a7fb3ff7e7baf904343
+      layer_name: Annotation masks
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#80FF00"
+        opacity: 0.5
+        visible: false
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: annotation_masks/Cytokeratin_mask_final_scans
+      run_id: 76ab7eda9a3d4a7fb3ff7e7baf904343
+      layer_name: Annotation masks
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#80FF00"
+        opacity: 0.5
+        visible: false
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: annotation_masks/dataset1-ihc-2023
+      run_id: 76ab7eda9a3d4a7fb3ff7e7baf904343
+      layer_name: Annotation masks
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#80FF00"
+        opacity: 0.5
+        visible: false
+
   metrics_run_ids:
     - ${run_id}
   template_asset_path: report_template.html
@@ -100,7 +230,6 @@ reporter:
 #   experiment_name: Lymph Nodes
 #   run_name: DAB testing v1 report
 #   description: report
-
 
 mlflow:
   tracking_uri: http://mlflow.rationai-mlflow:5000/
