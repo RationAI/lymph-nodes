@@ -18,8 +18,6 @@ class MaskBuilder(BaseMaskBuilder, ABC):
         extent_y: int,
         mpp_x: float,
         mpp_y: float,
-        tile_extent_x: int,
-        tile_extent_y: int,
     ) -> None:
         super().__init__(save_dir, filename, extent_x, extent_y, mpp_x, mpp_y)
 

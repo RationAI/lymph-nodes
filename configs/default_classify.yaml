@@ -31,10 +31,13 @@ trainer:
       _target_: lightning.pytorch.callbacks.EarlyStopping
       monitor: validation/loss
       mode: min
-      patience: 15
+      patience: 5
     finetuning:
       _target_: lightning.pytorch.callbacks.BackboneFinetuning
-      unfreeze_backbone_at_epoch: 10
+      unfreeze_backbone_at_epoch: 5
+    cls_mask_builder:
+      _target_: lymph_nodes.callbacks.ClsMaskBuilder
+      artifact_path: cls_segmentation_masks
 
 metadata:
   experiment_name: Lymph Nodes
@@ -50,7 +53,7 @@ data:
 
 model:
   _target_: lymph_nodes.ClassificationModel
-  warmup_epochs: 2
+  warmup_epochs: 1
 
 tuner: {}
 # dynamic_batch_size: True

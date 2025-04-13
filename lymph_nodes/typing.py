@@ -1,6 +1,7 @@
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from typing import TypeAlias, TypedDict
+from itertools import zip_longest
 
 from torch import Tensor
 
@@ -36,9 +37,10 @@ class Outputs(Iterable["Outputs"]):
         self.masks = masks
 
     def __iter__(self) -> Iterator["Outputs"]:
-        for i in range((self.labels or self.masks).shape[0]):
-            label = self.labels[i] if self.labels else None
-            mask = self.masks[i] if self.masks else None
+        for label, mask in zip_longest(
+            (self.labels if self.labels is not None else []),
+            (self.masks if self.masks is not None else []),
+        ):
             yield Outputs(labels=label, masks=mask)
 
 

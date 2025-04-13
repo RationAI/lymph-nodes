@@ -1,6 +1,7 @@
 import os
 from collections.abc import Iterable
 from pathlib import Path
+import torch
 from typing import Any
 
 import mlflow
@@ -94,7 +95,7 @@ class _SegmentationSlideTiles(MaskSlideTiles):
 
         image = tensor["image"]
         mask = tensor["mask"]
-        label = self.slide_tiles.tiles.iloc[idx]["cancer"]
+        label = torch.tensor([self.slide_tiles.tiles.iloc[idx]["cancer"]]).float()
 
         return image, mask, label, metadata
 

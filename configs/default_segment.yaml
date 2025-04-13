@@ -31,12 +31,12 @@ trainer:
       _target_: lightning.pytorch.callbacks.EarlyStopping
       monitor: validation/loss
       mode: min
-      patience: 15
+      patience: 5
     mask_builder:
       _target_: lymph_nodes.callbacks.TileMaskBuilder
       artifact_path: segmentation_masks
       tile_builder_cstr:
-        _target_: rationai.masks.mask_builders.mask_builder.MaskBuilder
+        _target_: rationai.masks.mask_builders.TileMaskBuilder
         _partial_: True
     max_mask_builder:
       _target_: lymph_nodes.callbacks.TileMaskBuilder
@@ -50,9 +50,12 @@ trainer:
       tile_builder_cstr:
         _target_: lymph_nodes.callbacks.builders.AverageMaskBuilder
         _partial_: True
+    cls_mask_builder:
+      _target_: lymph_nodes.callbacks.ClsMaskBuilder
+      artifact_path: cls_segmentation_masks
     finetuning:
       _target_: lightning.pytorch.callbacks.BackboneFinetuning
-      unfreeze_backbone_at_epoch: 10
+      unfreeze_backbone_at_epoch: 5
 
 metadata:
   experiment_name: Lymph Nodes
@@ -71,25 +74,31 @@ model:
   criterion:
     _target_: lymph_nodes.modeling.SetCriterion
     losses:
-      - _target_: lymph_nodes.modeling.set_criterion.Loss
+      - _target_: lymph_nodes.modeling.CriterionLoss
         name: "dice"
-        weight: 0.4
+        weight: 1
         kind: masks
         loss:
           _target_: lymph_nodes.modeling.losses.DiceLoss
-      - _target_: lymph_nodes.modeling.set_criterion.Loss
+      - _target_: lymph_nodes.modeling.CriterionLoss
         name: "focal"
-        weight: 0.2
+        weight: 20
         kind: masks
         loss:
           _target_: lymph_nodes.modeling.losses.FocalLoss
-      - _target_: lymph_nodes.modeling.set_criterion.Loss
+      - _target_: lymph_nodes.modeling.CriterionLoss
         name: "tversky"
-        weight: 0.4
+        weight: 0.1
         kind: masks
         loss:
           _target_: lymph_nodes.modeling.losses.TverskyLoss
-  warmup_epochs: 2
+      - _target_: lymph_nodes.modeling.CriterionLoss
+        name: "bce"
+        weight: 1
+        kind: labels
+        loss:
+          _target_: torch.nn.BCELoss
+  warmup_epochs: 1
 
 tuner: {}
 # dynamic_batch_size: True

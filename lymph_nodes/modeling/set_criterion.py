@@ -5,10 +5,10 @@ from torch import Tensor, nn
 from lymph_nodes.typing import Outputs, Targets
 
 
-LossKind: TypeAlias = Literal["lables", "masks"]
+LossKind: TypeAlias = Literal["labels", "masks"]
 
 
-class Loss(TypedDict):
+class CriterionLoss(TypedDict):
     weight: float
     name: str
     loss: nn.Module
@@ -16,7 +16,7 @@ class Loss(TypedDict):
 
 
 class SetCriterion(nn.Module):
-    def __init__(self, losses: list[Loss]) -> None:
+    def __init__(self, losses: list[CriterionLoss]) -> None:
         super().__init__()
         self.losses = losses
 

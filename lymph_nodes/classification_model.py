@@ -3,7 +3,7 @@ from torch import Tensor, nn
 from torchmetrics import AUROC, Accuracy, MetricCollection, Precision, Recall
 
 from lymph_nodes.model import LymphNodesModel
-from lymph_nodes.modeling import SetCriterion
+from lymph_nodes.modeling import CriterionLoss, SetCriterion
 from lymph_nodes.typing import ClsSample, Metadata, Outputs, Targets
 
 
@@ -12,8 +12,11 @@ class ClassificationModel(LymphNodesModel):
         super().__init__(
             model,
             criterion=SetCriterion(
-                {"bce": 1},
-                {"bce": nn.BCELoss()},
+                losses=[
+                    CriterionLoss(
+                        weight=1, name="bce", loss=nn.BCELoss(), kind="labels"
+                    )
+                ]
             ),
             warmup_epochs=warmup_epochs,
         )
@@ -40,7 +43,7 @@ class ClassificationModel(LymphNodesModel):
         key: str | None = None,
     ) -> None:
         if isinstance(metrics, LazyMetricDict):
-            metrics.update(outputs.labels, targets.labels, key)
+            metrics.update(outputs.labels, targets.labels, key=key)
         else:
             metrics.update(outputs.labels, targets.labels)
 

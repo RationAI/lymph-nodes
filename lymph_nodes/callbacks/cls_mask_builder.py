@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 import lightning.pytorch as pl
 import mlflow
 import pandas as pd
-from rationai.masks.mask_builders import TileMaskBuilder
+from rationai.masks.mask_builders import ScalarMaskBuilder
 from rationai.mlkit.lightning.callbacks import MultiloaderLifecycle
 
 from lymph_nodes.typing import Outputs, PredictSample, SegSample
@@ -16,13 +16,10 @@ if TYPE_CHECKING:
     from lymph_nodes.data.data_module import DataModule
 
 
-class TileMaskBuilder(MultiloaderLifecycle):
-    def __init__(
-        self, artifact_path: str, tile_builder_cstr: type[TileMaskBuilder]
-    ) -> None:
+class ClsMaskBuilder(MultiloaderLifecycle):
+    def __init__(self, artifact_path: str) -> None:
         super().__init__()
         self.artifact_path = artifact_path
-        self.tile_builder_cstr = tile_builder_cstr
 
         # Create temporary directories for output
         self.tmp_dir = tempfile.TemporaryDirectory()
@@ -33,13 +30,15 @@ class TileMaskBuilder(MultiloaderLifecycle):
 
     def init_builder(self) -> None:
         # Initialize the mask builders for each output
-        self.mask_builder = self.tile_builder_cstr(
+        self.mask_builder = ScalarMaskBuilder(
             save_dir=self.tmp_dir.name,
             filename=Path(self.slide.path).stem,
             extent_x=self.slide.extent_x,
             extent_y=self.slide.extent_y,
             mpp_x=self.slide.mpp_x,
             mpp_y=self.slide.mpp_y,
+            stride=self.slide.stride_x,
+            extent_tile=512,
         )
 
     def on_test_dataloader_start(
@@ -111,7 +110,7 @@ class TileMaskBuilder(MultiloaderLifecycle):
         _, metadata = batch
 
         self.mask_builder.update(
-            outputs.masks,
+            outputs.labels.detach().cpu(),
             metadata["x"].detach() + 64,
             metadata["y"].detach() + 64,
         )

@@ -15,8 +15,8 @@ class AverageMaskBuilder(MaskBuilder):
         extent_y: int,
         mpp_x: float,
         mpp_y: float,
-        tile_extent_x: int,
-        tile_extent_y: int,
+        tile_extent_x: int = 512,
+        tile_extent_y: int = 512,
     ) -> None:
         super().__init__(
             save_dir,
@@ -25,8 +25,6 @@ class AverageMaskBuilder(MaskBuilder):
             extent_y,
             mpp_x,
             mpp_y,
-            tile_extent_x,
-            tile_extent_y,
         )
 
         self.kernel = np.outer(

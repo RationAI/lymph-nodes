@@ -47,7 +47,7 @@ class SegmentationModel(LymphNodesModel):
         key: str | None = None,
     ) -> None:
         if isinstance(metrics, LazyMetricDict):
-            metrics.update(outputs.masks, targets.masks.to(torch.uint8), key)
+            metrics.update(outputs.masks, targets.masks.to(torch.uint8), key=key)
         else:
             metrics.update(outputs.masks, targets.masks.to(torch.uint8))
 
