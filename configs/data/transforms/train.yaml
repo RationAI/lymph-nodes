@@ -10,12 +10,25 @@ transforms:
     p: 0.5
   - _target_: albumentations.VerticalFlip
     p: 0.5
+  - _target_: albumentations.Downscale
+    p: 0.15
+    scale_range: [0.1, 0.1]
+  - _target_: albumentations.Blur
+    p: 0.2
+    blur_limit: 11
+  - _target_: albumentations.GaussNoise
+    p: 0.25
+    std_range: [0, 0.44]
+  - _target_: albumentations.ColorJitter
+    p: 0.5
+    brightness: 0.25
+    contrast: 0.25
+    saturation: 0.1
+    hue: 0.05
   - _target_: albumentations.RandomGamma
     p: 0.5
-  - _target_: albumentations.RandomBrightnessContrast
-    p: 0.5
-  - _target_: albumentations.HueSaturationValue
-    p: 0.5
+  - _target_: albumentations.ZoomBlur
+    p: 0.1
   - _target_: albumentations.Normalize
     mean: [215.6701, 225.0577, 237.1580]
     std: [32.2908, 24.3962, 14.4058]

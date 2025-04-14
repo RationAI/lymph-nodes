@@ -68,7 +68,7 @@ class DataModule(LightningDataModule):
         return [
             DataLoader(
                 dataset,
-                batch_size=self.batch_size,
+                batch_size=self.batch_size * 5,
                 num_workers=self.num_workers,
             )
             for dataset in self.test.datasets
