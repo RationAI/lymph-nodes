@@ -18,6 +18,7 @@ class DataModule(LightningDataModule):
     def __init__(
         self,
         batch_size: int,
+        infer_batch_size: int,
         epoch_size: int | None,
         batch_distribution: list[float],
         num_workers: int = 0,
@@ -25,6 +26,7 @@ class DataModule(LightningDataModule):
     ) -> None:
         super().__init__()
         self.batch_size = batch_size
+        self.infer_batch_size = infer_batch_size
         self.epoch_size = epoch_size
         self.batch_distribution = batch_distribution
         self.num_workers = num_workers
@@ -68,7 +70,7 @@ class DataModule(LightningDataModule):
         return [
             DataLoader(
                 dataset,
-                batch_size=self.batch_size * 5,
+                batch_size=self.infer_batch_size,
                 num_workers=self.num_workers,
             )
             for dataset in self.test.datasets
@@ -77,7 +79,7 @@ class DataModule(LightningDataModule):
     def predict_dataloader(self) -> list[Iterable[PredictSample]]:
         return [
             DataLoader(
-                dataset, batch_size=self.batch_size, num_workers=self.num_workers
+                dataset, batch_size=self.infer_batch_size, num_workers=self.num_workers
             )
             for dataset in self.predict.datasets
         ]

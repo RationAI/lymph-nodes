@@ -32,6 +32,7 @@ metadata:
 
 data:
   batch_size: 24 # Auto adjusted
+  infer_batch_size: 100
 
 model:
   _target_: lymph_nodes.SegmentationModel

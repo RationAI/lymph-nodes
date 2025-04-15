@@ -11,6 +11,7 @@ metadata:
 
 data:
   batch_size: 64 # auto adjusted
+  infer_batch_size: 256
 
 model:
   _target_: lymph_nodes.ClassificationModel
