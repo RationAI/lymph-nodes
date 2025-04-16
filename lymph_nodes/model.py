@@ -90,7 +90,10 @@ class LymphNodesModel(LightningModule, ABC):
         self.update_metrics(self.test_metrics_collection, outputs, targets)
 
         self.log_dict(
-            self.test_metrics_collection, batch_size=len(inputs), on_epoch=True
+            self.test_metrics_collection,
+            batch_size=len(inputs),
+            on_epoch=True,
+            add_dataloader_idx=False,
         )
 
         return outputs
@@ -105,6 +108,7 @@ class LymphNodesModel(LightningModule, ABC):
         for key, metrics in self.test_metrics.compute().items():
             table = {k: v.item() for k, v in metrics.items()}
             self.logger.log_table({"slide": key, **table}, "test_metrics.json")
+
         self.test_metrics.reset()
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
