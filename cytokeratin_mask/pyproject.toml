@@ -13,9 +13,10 @@ dependencies = [
     "pyvips>=2.2.3",
     "ray>=2.40.0",
     "openslide-python>=1.4.1",
-    "rationai-masks @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git@feature/imagebuilder",
+    "rationai-masks @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git",
     "mlflow>=2.18.0",
     "tqdm>=4.67.1",
+    "opencv-python>=4.11.0.86",
 ]
 readme = "README.md"
 license = {text = "MIT"}
