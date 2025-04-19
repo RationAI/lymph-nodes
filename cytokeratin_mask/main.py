@@ -86,6 +86,8 @@ def main() -> None:
             )
             mask[y, x, w + h, x + w] = tma_mask
 
+        mask.flush()
+
         mask = pyvips.Image.new_from_array(mask)
 
         mask_path = Path(
