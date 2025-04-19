@@ -19,7 +19,7 @@ from cytokeratin_mask.cytokeratin_mask import cytokeratin_mask
 
 REFERENCE_PATH = "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/"
 DEST_DIR = "./data/cytokeratin_mask"
-MPP = 0.5
+MPP = 1
 
 
 def main() -> None:
