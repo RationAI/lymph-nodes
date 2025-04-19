@@ -2,7 +2,6 @@ from pathlib import Path
 
 import mlflow
 import pyvips
-import tqdm
 
 # import ray
 from openslide import OpenSlide
@@ -13,6 +12,7 @@ from rationai.masks import (
     write_big_tiff,
 )
 from skimage.color import rgba2rgb
+from tqdm import tqdm
 
 from cytokeratin_mask.cytokeratin_mask import cytokeratin_mask
 
