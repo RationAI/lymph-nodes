@@ -2,11 +2,13 @@ from pathlib import Path
 
 import mlflow
 import pyvips
-import ray
+import tqdm
+
+# import ray
 from openslide import OpenSlide
 from rationai.masks import (
     closest_level,
-    process_items,
+    # process_items,
     slide_resolution,
     write_big_tiff,
 )
@@ -33,7 +35,7 @@ def main() -> None:
         ),
     ]
 
-    @ray.remote
+    # @ray.remote
     def process_item(wsi_path: Path) -> None:
         with OpenSlide(wsi_path) as slide:
             level = closest_level(slide, MPP)
@@ -54,7 +56,9 @@ def main() -> None:
 
         write_big_tiff(mask, mask_path, mpp_x=mpp_x, mpp_y=mpp_y)
 
-    process_items(wsis, process_item, max_concurrent=1)
+    # process_items(wsis, process_item, max_concurrent=1)
+    for item in tqdm(wsis):
+        process_item(item)
 
     mlflow.log_artifacts(DEST_DIR, artifact_path="cytokeratin_masks")
     mlflow.end_run()

@@ -15,6 +15,7 @@ dependencies = [
     "openslide-python>=1.4.1",
     "rationai-masks @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git@feature/imagebuilder",
     "mlflow>=2.18.0",
+    "tqdm>=4.67.1",
 ]
 readme = "README.md"
 license = {text = "MIT"}
