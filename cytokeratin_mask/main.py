@@ -67,6 +67,8 @@ def main() -> None:
         tissue_mask = pyvips.Image.new_from_file(tissue_mask_path, page=MASK_LEVEL)
         slices = tissue_slicer(tissue_mask)
 
+        print(slices)
+
         mask = np.memmap(
             str(wsi_path.name) + ".nmp",
             dtype=np.uint8,
@@ -74,7 +76,8 @@ def main() -> None:
             shape=(image.height, image.width),
         )
 
-        for x, y, w, h, _area in tqdm(slices):
+        for i, (x, y, w, h, _area) in enumerate(slices):
+            print(f"Processing TMA {i + 1}/{len(slices)}")
             # Adjust
             x = round(x * factror_x)
             y = round(y * factor_y)
