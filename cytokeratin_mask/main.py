@@ -7,12 +7,10 @@ import ray
 from openslide import OpenSlide
 from rationai.masks import (
     closest_level,
-    # process_items,
+    process_items,
     slide_resolution,
     write_big_tiff,
 )
-from skimage.color import rgba2rgb
-from tqdm import tqdm
 
 from cytokeratin_mask.cytokeratin_mask import cytokeratin_mask
 from cytokeratin_mask.tissue_slicer import tissue_slicer
@@ -25,6 +23,7 @@ REFERENCE_PATH = "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/"
 DEST_DIR = "./data/cytokeratin_mask"
 MPP = 0.5
 MASK_LEVEL = 3
+DISC_SIZE = 25
 
 
 def main() -> None:
@@ -45,29 +44,34 @@ def main() -> None:
         ),
     ]
 
-    # @ray.remote
+    @ray.remote
     def process_item(wsi_path: Path) -> None:
-        with OpenSlide(wsi_path) as slide:
-            level = closest_level(slide, MPP)
-            mpp_x, mpp_y = slide_resolution(slide, level)
-
-        with OpenSlide(wsi_path) as slide:
-            mask_mpp_x, mask_mpp_y = slide_resolution(slide, level=MASK_LEVEL)
-
-        factror_x, factor_y = mask_mpp_x / mpp_x, mask_mpp_y / mpp_y
-
-        image = pyvips.Image.new_from_file(str(wsi_path), level=level)
-        image = rgba2rgb(image)
-
         tissue_mask_path = Path(
             "data/tissue_masks",
             wsi_path.relative_to(REFERENCE_PATH).parent,
             f"{wsi_path.stem}.tiff",
         )
-        tissue_mask = pyvips.Image.new_from_file(tissue_mask_path, page=MASK_LEVEL)
-        slices = tissue_slicer(tissue_mask)
 
-        print(slices)
+        with OpenSlide(wsi_path) as slide:
+            level = closest_level(slide, MPP)
+            mpp_x, mpp_y = slide_resolution(slide, level)
+
+        with OpenSlide(tissue_mask_path) as slide:
+            mask_mpp_x, mask_mpp_y = slide_resolution(slide, level=MASK_LEVEL)
+
+        factror_x, factor_y = mask_mpp_x / mpp_x, mask_mpp_y / mpp_y
+
+        image = pyvips.Image.new_from_file(str(wsi_path), level=level).flatten()
+        tissue_mask = pyvips.Image.new_from_file(tissue_mask_path, page=MASK_LEVEL)
+
+        disc = (
+            pyvips.Image.black(2 * DISC_SIZE + 1, 2 * DISC_SIZE + 1) + 128
+        ).draw_circle(255, DISC_SIZE, DISC_SIZE, DISC_SIZE, fill=True)
+
+        tissue_mask = tissue_mask.morph(disc, pyvips.enums.OperationMorphology.DILATE)
+        tissue_mask = tissue_mask.morph(disc, pyvips.enums.OperationMorphology.ERODE)
+
+        slices = tissue_slicer(tissue_mask)
 
         mask = np.memmap(
             str(wsi_path.name) + ".nmp",
@@ -76,7 +80,7 @@ def main() -> None:
             shape=(image.height, image.width),
         )
 
-        for i, (x, y, w, h, _area) in enumerate(slices):
+        for i, (x, y, w, h, _area) in enumerate(slices[1:]):
             print(f"Processing TMA {i + 1}/{len(slices)}")
             # Adjust
             x = round(x * factror_x)
@@ -102,10 +106,7 @@ def main() -> None:
 
         write_big_tiff(mask, mask_path, mpp_x=mpp_x, mpp_y=mpp_y)
 
-    for item in tqdm(wsis):
-        process_item(item)
-
-    # process_items(wsis, process_item, max_concurrent=2)
+    process_items(wsis, process_item)
 
     mlflow.log_artifacts(DEST_DIR, artifact_path="cytokeratin_masks")
     mlflow.end_run()
