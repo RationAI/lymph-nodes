@@ -3,14 +3,16 @@ from pathlib import Path
 import mlflow
 import numpy as np
 import pyvips
-import ray
+
+# import ray
 from openslide import OpenSlide
 from rationai.masks import (
     closest_level,
-    process_items,
+    # process_items,
     slide_resolution,
     write_big_tiff,
 )
+from tqdm import tqdm
 
 from cytokeratin_mask.cytokeratin_mask import cytokeratin_mask
 from cytokeratin_mask.tissue_slicer import tissue_slicer
@@ -23,7 +25,7 @@ REFERENCE_PATH = "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/"
 DEST_DIR = "./data/cytokeratin_mask"
 MPP = 0.5
 MASK_LEVEL = 3
-DISC_SIZE = 40
+DISC_SIZE = 30
 
 
 def main() -> None:
@@ -44,7 +46,7 @@ def main() -> None:
         ),
     ]
 
-    @ray.remote
+    # @ray.remote
     def process_item(wsi_path: Path) -> None:
         tissue_mask_path = Path(
             "data/tissue_masks",
@@ -106,7 +108,9 @@ def main() -> None:
 
         write_big_tiff(mask, mask_path, mpp_x=mpp_x, mpp_y=mpp_y)
 
-    process_items(wsis, process_item, max_concurrent=2)
+    # process_items(wsis, process_item, max_concurrent=2)
+    for item in tqdm(wsis):
+        process_item(item)
 
     mlflow.log_artifacts(DEST_DIR, artifact_path="cytokeratin_masks")
     mlflow.end_run()
