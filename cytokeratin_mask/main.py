@@ -106,7 +106,7 @@ def main() -> None:
 
         write_big_tiff(mask, mask_path, mpp_x=mpp_x, mpp_y=mpp_y)
 
-    process_items(wsis, process_item, max_concurrent=5)
+    process_items(wsis, process_item, max_concurrent=2)
 
     mlflow.log_artifacts(DEST_DIR, artifact_path="cytokeratin_masks")
     mlflow.end_run()
