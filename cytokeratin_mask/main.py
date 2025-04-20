@@ -23,7 +23,7 @@ REFERENCE_PATH = "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/"
 DEST_DIR = "./data/cytokeratin_mask"
 MPP = 0.5
 MASK_LEVEL = 3
-DISC_SIZE = 25
+DISC_SIZE = 40
 
 
 def main() -> None:
@@ -106,7 +106,7 @@ def main() -> None:
 
         write_big_tiff(mask, mask_path, mpp_x=mpp_x, mpp_y=mpp_y)
 
-    process_items(wsis, process_item, max_concurrent=2)
+    process_items(wsis, process_item, max_concurrent=5)
 
     mlflow.log_artifacts(DEST_DIR, artifact_path="cytokeratin_masks")
     mlflow.end_run()
