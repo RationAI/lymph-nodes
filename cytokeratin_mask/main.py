@@ -91,7 +91,7 @@ def main() -> None:
             tma_mask = cytokeratin_mask(
                 image.crop(x, y, w, h), mask_min_area=7, holes_min_area=5
             )
-            mask[y, x, w + h, x + w] = tma_mask
+            mask[y : y + h, x : x + w] = tma_mask
 
         mask.flush()
 
