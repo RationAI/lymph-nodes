@@ -3,12 +3,11 @@ from pathlib import Path
 import mlflow
 import numpy as np
 import pyvips
-
-# import ray
+import ray
 from openslide import OpenSlide
 from rationai.masks import (
     closest_level,
-    # process_items,
+    process_items,
     slide_resolution,
     write_big_tiff,
 )
@@ -24,7 +23,7 @@ REFERENCE_PATH = "/mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/"
 DEST_DIR = "./data/cytokeratin_mask"
 MPP = 0.5
 MASK_LEVEL = 3
-DISC_SIZE = 30
+DISC_SIZE = 25
 
 
 def main() -> None:
@@ -45,7 +44,7 @@ def main() -> None:
         ),
     ]
 
-    # @ray.remote
+    @ray.remote
     def process_item(wsi_path: Path) -> None:
         tissue_mask_path = Path(
             "data/tissue_masks",
@@ -69,8 +68,15 @@ def main() -> None:
             pyvips.Image.black(2 * DISC_SIZE + 1, 2 * DISC_SIZE + 1) + 128
         ).draw_circle(255, DISC_SIZE, DISC_SIZE, DISC_SIZE, fill=True)
 
+        disc2 = (
+            pyvips.Image.black(2 * (DISC_SIZE + 10) + 1, 2 * (DISC_SIZE + 10) + 1) + 128
+        ).draw_circle(255, DISC_SIZE + 10, DISC_SIZE + 10, DISC_SIZE + 10, fill=True)
+
         tissue_mask = tissue_mask.morph(disc, pyvips.enums.OperationMorphology.DILATE)
         tissue_mask = tissue_mask.morph(disc, pyvips.enums.OperationMorphology.ERODE)
+
+        tissue_mask = tissue_mask.morph(disc, pyvips.enums.OperationMorphology.ERODE)
+        tissue_mask = tissue_mask.morph(disc2, pyvips.enums.OperationMorphology.DILATE)
 
         slices = tissue_slicer(tissue_mask)
 
@@ -107,10 +113,10 @@ def main() -> None:
 
         write_big_tiff(mask, mask_path, mpp_x=mpp_x, mpp_y=mpp_y)
 
-    # process_items(wsis, process_item, max_concurrent=2)
-    for i, item in enumerate(wsis):
-        print(f"Processing item {i + 1}/{len(wsis)}", flush=True)
-        process_item(item)
+    process_items(wsis, process_item, max_concurrent=5)
+    # for i, item in enumerate(wsis):
+    #     print(f"Processing item {i + 1}/{len(wsis)}", flush=True)
+    #     process_item(item)
 
     mlflow.log_artifacts(DEST_DIR, artifact_path="cytokeratin_masks")
     mlflow.end_run()
