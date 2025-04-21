@@ -12,7 +12,6 @@ from rationai.masks import (
     slide_resolution,
     write_big_tiff,
 )
-from tqdm import tqdm
 
 from cytokeratin_mask.cytokeratin_mask import cytokeratin_mask
 from cytokeratin_mask.tissue_slicer import tissue_slicer
@@ -83,7 +82,7 @@ def main() -> None:
         )
 
         for i, (x, y, w, h, _area) in enumerate(slices[1:]):
-            print(f"Processing TMA {i + 1}/{len(slices)}")
+            print(f"Processing TMA {i + 1}/{len(slices)}", flush=True)
             # Adjust
             x = round(x * factror_x)
             y = round(y * factor_y)
@@ -109,7 +108,8 @@ def main() -> None:
         write_big_tiff(mask, mask_path, mpp_x=mpp_x, mpp_y=mpp_y)
 
     # process_items(wsis, process_item, max_concurrent=2)
-    for item in tqdm(wsis):
+    for i, item in enumerate(wsis):
+        print(f"Processing item {i + 1}/{len(wsis)}", flush=True)
         process_item(item)
 
     mlflow.log_artifacts(DEST_DIR, artifact_path="cytokeratin_masks")
