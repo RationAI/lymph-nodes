@@ -113,6 +113,8 @@ def main() -> None:
 
         write_big_tiff(mask, mask_path, mpp_x=mpp_x, mpp_y=mpp_y)
 
+        mlflow.log_artifacts(DEST_DIR, artifact_path="cytokeratin_masks")
+
     process_items(wsis, process_item, max_concurrent=5)
     # for i, item in enumerate(wsis):
     #     print(f"Processing item {i + 1}/{len(wsis)}", flush=True)
