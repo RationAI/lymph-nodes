@@ -45,8 +45,17 @@ class JSONIgnoreMask(PolygonMask[dict]):
         return zip(regions, [255] * len(regions), strict=False)
 
     def get_region_coordinates(self, region: dict) -> Iterable[tuple[float, float]]:
-        for vertex in region["points"]:
-            yield float(vertex["x"]), float(vertex["y"])
+        if region["type"] == "rect":
+            l = float(region["left"])
+            t = float(region["top"])
+            w = float(region["width"])
+            h = float(region["height"])
+
+            yield from [(l, t), (l, t + h), (l + w, t + h), (l + w, t)]
+
+        else:
+            for vertex in region["points"]:
+                yield float(vertex["x"]), float(vertex["y"])
 
     @property
     def annotation_mpp_x(self) -> float:
