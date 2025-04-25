@@ -28,12 +28,23 @@ class Args(TypedDict):
     cytokeratin_masks_dir: str
     color_separation_mask_dir: str
     ignore_mask_dir: str
+    cyto_ignore_mask_dir: str
     annotation_masks_dir: str
     relative_path_prefix: str
 
 
 @dataclass
-class BrownishTileMetadata(TileMetadata):
+class PathoIgnoreTileMetadata(TileMetadata):
+    patho_ignore: float
+
+
+@dataclass
+class CustomIgnoreTileMetadata(PathoIgnoreTileMetadata):
+    custom_ignore: float
+
+
+@dataclass
+class BrownishTileMetadata(CustomIgnoreTileMetadata):
     brownish: float
 
 
@@ -55,6 +66,7 @@ def data_tiler(
     cytokeratin_masks_dir: str,
     color_separation_mask_dir: str,
     ignore_mask_dir: str,
+    cyto_ignore_mask_dir: str,
     annotation_masks_dir: str,
     relative_path_prefix: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -76,18 +88,27 @@ def data_tiler(
                 **asdict(tile_labels), metastazis=class_overlaps.get(255, 0)
             )
 
-    class IgnoreMask(PyvipsMask[TileMetadata]):
+    class IgnoreMask(PyvipsMask[PathoIgnoreTileMetadata]):
         def forward_tile(
             self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
-        ) -> TileMetadata | None:
-            if class_overlaps.get(255, 0) > 0:
-                return None
+        ) -> PathoIgnoreTileMetadata:
+            return PathoIgnoreTileMetadata(
+                **asdict(tile_labels), patho_ignore=class_overlaps.get(255, 0)
+            )
 
-            return tile_labels
+    class CytoIgnoreMask(PyvipsMask[CustomIgnoreTileMetadata]):
+        def forward_tile(
+            self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
+        ) -> CustomIgnoreTileMetadata | None:
+            return CustomIgnoreTileMetadata(
+                **asdict(tile_labels), custom_ignore=class_overlaps.get(255, 0)
+            )
 
     class ColorSeparationMask(PyvipsMask[BrownishTileMetadata]):
         def forward_tile(
-            self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
+            self,
+            tile_labels: TileMetadata,
+            class_overlaps: dict[int, float],
         ) -> BrownishTileMetadata | None:
             return BrownishTileMetadata(
                 **asdict(tile_labels), brownish=class_overlaps.get(255, 0)
@@ -130,6 +151,12 @@ def data_tiler(
         relative_roi_offset=0,
     )
 
+    cyto_ignore_mask = CytoIgnoreMask(
+        tile_extent=source.tile_extent,
+        absolute_roi_extent=tile_crop,
+        relative_roi_offset=0,
+    )
+
     color_separation_mask = ColorSeparationMask(
         tile_extent=source.tile_extent,
         absolute_roi_extent=tile_crop,
@@ -161,6 +188,12 @@ def data_tiler(
             f"{slide_path.stem}.tiff",
         )
 
+        cyto_ignore_mask_path = Path(
+            cyto_ignore_mask_dir,
+            relative_path,
+            f"{slide_path.stem}.tiff",
+        )
+
         cytokeratin_mask_path = Path(
             cytokeratin_masks_dir,
             relative_path,
@@ -180,6 +213,9 @@ def data_tiler(
 
         if ignore_mask_path.exists():
             tiles = ignore_mask(ignore_mask_path, slide.extent, tiles)
+
+        if cyto_ignore_mask_path.exists():
+            tiles = cyto_ignore_mask(ignore_mask_path, slide.extent, tiles)
 
         if cytokeratin_mask_path.exists():
             tiles = annotation_mask(cytokeratin_mask_path, slide.extent, tiles)

@@ -9,9 +9,9 @@ from omegaconf import DictConfig, OmegaConf
 
 from prepro.annotation_masks import generate_annotation_masks
 from prepro.color_separation import generate_color_separation_masks
+from prepro.cyto_ignore_masks import generate_cyto_ignore_masks
 from prepro.data_source import ChainedDataSources, DataSource
-
-# from prepro.ignore_masks import generate_ignore_masks
+from prepro.ignore_masks import generate_ignore_masks
 from prepro.tiling import Args, tile_dataset
 from prepro.tissue_masks import generate_tissue_masks
 
@@ -45,10 +45,10 @@ def main(config: DictConfig) -> None:
     #     dst_path="./data",
     # )
 
-    mlflow.artifacts.download_artifacts(
-        artifact_uri="mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/ignore_masks",
-        dst_path="./data",
-    )
+    # mlflow.artifacts.download_artifacts(
+    #     artifact_uri="mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/ignore_masks",
+    #     dst_path="./data",
+    # )
 
     # mlflow.artifacts.download_artifacts(
     #     artifact_uri="mlflow-artifacts:/68/b75ae72569654c45891e25a2d58186ce/artifacts/annotation_masks",
@@ -200,6 +200,7 @@ def main(config: DictConfig) -> None:
                         DataSource(
                             "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_colorectal_TMAs",
                             glob_pattern="DAB-*.mrxs",
+                            exclue_pattern=["DAB-CK-KOS04.mrxs"],
                         ),
                     ]
                 ),
@@ -207,9 +208,17 @@ def main(config: DictConfig) -> None:
                 slide_metastazis=True,
             ),
             "val": Dataset(
-                datasource=DataSource(
-                    "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
-                    glob_pattern="TNBC-BF-4-*mrxs",
+                datasource=ChainedDataSources(
+                    [
+                        DataSource(
+                            "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
+                            glob_pattern="TNBC-BF-4-*mrxs",
+                        ),
+                        DataSource(
+                            "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_colorectal_TMAs",
+                            glob_pattern="DAB-CK-KOS04.mrxs",
+                        ),
+                    ]
                 ),
                 source_kind="tma",
                 slide_metastazis=True,
@@ -242,8 +251,8 @@ def main(config: DictConfig) -> None:
     generate_annotation_masks(
         slide_paths=ChainedDataSources(
             [
-                datasets["lymhps-2023"]["positive-train"].datasource,
-                datasets["lymhps-2023"]["positive-val"].datasource,
+                datasets["tmas"]["positive-train"].datasource,
+                datasets["tmas"]["positive-val"].datasource,
                 datasets["positive-lymph-nodes"].datasource,
             ]
         ),
@@ -252,14 +261,35 @@ def main(config: DictConfig) -> None:
         dest=config.metadata.annotation_mask_dest,
     )
 
-    # # Ignore masks
-    # print("Generating ignore masks")
-    # generate_ignore_masks(
-    #     slide_paths=ChainedDataSources([test_tmas, train_tmas, val_tmas]),
-    #     mpp=2,
-    #     reference_path=config.metadata.relative_path_prefix,
-    #     dest=config.metadata.ignore_mask_dest,
-    # )
+    # Ignore masks
+    print("Generating ignore masks")
+    generate_ignore_masks(
+        slide_paths=ChainedDataSources(
+            [
+                datasets["tmas"]["test"].datasource,
+                datasets["tmas"]["train"].datasource,
+                datasets["tmas"]["val"].datasource,
+            ]
+        ),
+        mpp=2,
+        reference_path=config.metadata.relative_path_prefix,
+        dest=config.metadata.ignore_mask_dest,
+    )
+
+    # CytoIgnore masks
+    print("Generating cyto ignore masks")
+    generate_cyto_ignore_masks(
+        slide_paths=ChainedDataSources(
+            [
+                datasets["tmas"]["test"].datasource,
+                datasets["tmas"]["train"].datasource,
+                datasets["tmas"]["val"].datasource,
+            ]
+        ),
+        mpp=2,
+        reference_path=config.metadata.relative_path_prefix,
+        dest=config.metadata.ignore_mask_dest,
+    )
 
     # Color separation masks
     print("Generating color separation masks")
@@ -289,6 +319,7 @@ def main(config: DictConfig) -> None:
             "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
             "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
             "ignore_mask_dir": config.metadata.ignore_mask_dest,
+            "cyto_ignore_mask_dir": config.metadata.cyto_ignore_mask_dest,
             "annotation_masks_dir": config.metadata.annotation_mask_dest,
             "relative_path_prefix": config.metadata.relative_path_prefix,
         }

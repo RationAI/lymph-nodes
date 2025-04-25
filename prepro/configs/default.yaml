@@ -3,22 +3,28 @@ defaults:
   # - logger: mlflow
   - _self_
 
-
 seed: ${random_seed:}
 
 metadata:
+  # tiling:
+  #   min_roi_area: 0.75
+  #   tile_crop: 224
+  #   stride: 112 # 224 / 2
+  #   tissue_threshold: 0.5
+  #   mpp: 0.5
   tiling:
     min_roi_area: 0.75
-    tile_crop: 224
-    stride: 112 # 224 / 2
-    tissue_threshold: 0.5
+    tile_crop: 640
+    stride: 256 # 512 / 2
+    tissue_threshold: 0.25
     mpp: 0.5
   relative_path_prefix: /mnt/data/Projects/lymph_nodes
   tissue_mask_dest: data/tissue_masks
   annotation_mask_dest: data/annotation_masks
   cytokeratin_mask_dest: data/cytokeratin_masks
   ignore_mask_dest: data/ignore_masks
-  cytokeratin_masks_path: mlflow-artifacts:/68/42ff2d1b9b8649bd94a4fe6360db201e/artifacts/cytokeratin_masks
+  cyto_ignore_mask_dest: data/cyto_ignore_masks
+  cytokeratin_masks_path: mlflow-artifacts:/68/8ad173ea482d4db999bee7686d9dc2d5/artifacts/cytokeratin_masks
   color_separation_mask_dest: data/color_separation_masks
 
   experiment_name: Lymph Nodes
