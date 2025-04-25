@@ -251,8 +251,8 @@ def main(config: DictConfig) -> None:
     generate_annotation_masks(
         slide_paths=ChainedDataSources(
             [
-                datasets["tmas"]["positive-train"].datasource,
-                datasets["tmas"]["positive-val"].datasource,
+                datasets["lymhps-2023"]["positive-train"].datasource,
+                datasets["lymhps-2023"]["positive-val"].datasource,
                 datasets["positive-lymph-nodes"].datasource,
             ]
         ),
