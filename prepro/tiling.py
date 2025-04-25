@@ -39,17 +39,17 @@ class PathoIgnoreTileMetadata(TileMetadata):
 
 
 @dataclass
-class CustomIgnoreTileMetadata(PathoIgnoreTileMetadata):
+class CustomIgnoreTileMetadata(TileMetadata):
     custom_ignore: float
 
 
 @dataclass
-class BrownishTileMetadata(CustomIgnoreTileMetadata):
+class BrownishTileMetadata(TileMetadata):
     brownish: float
 
 
 @dataclass
-class MetastazisTileMetadata(BrownishTileMetadata):
+class MetastazisTileMetadata(TileMetadata):
     metastazis: float
 
 
