@@ -58,7 +58,8 @@ class JSONIgnoreMask(PolygonMask[dict]):
 
 def cyto_ignore_mask(slide_path: Path, desired_mpp: float, dest_dir: Path) -> None:
     json_annotation_file = Path(
-        slide_path.parent, f"{slide_path.stem}-2025_04_25-all.json"
+        "/mnt/data/Projects/lymph_nodes/cyto_ignore_annotations/",
+        f"{slide_path.stem}-2025_04_25-all.json",
     )
 
     annot_class = JSONIgnoreMask
