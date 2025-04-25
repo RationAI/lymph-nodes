@@ -17,6 +17,7 @@ dependencies = [
     "mlflow>=2.18.0",
     "tqdm>=4.67.1",
     "opencv-python>=4.11.0.86",
+    "report @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/tools/report.git",
 ]
 readme = "README.md"
 license = {text = "MIT"}

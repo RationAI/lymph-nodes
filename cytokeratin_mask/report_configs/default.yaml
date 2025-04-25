@@ -1,0 +1,97 @@
+defaults:
+  - _self_
+  - hydra: default
+  - mlflow: kubas_cluster
+
+run_id: ???
+
+reporter:
+  title: Epitelium masks
+  save:
+    _target_: report.save.RunIDMLFlowReportAttacher
+    run_id: ${run_id}
+    artifact_path: report.html
+  background:
+    _target_: report.masks.SlideRetriever
+    paths:
+      _target_: report.masks.mlflow_slide_retriever
+      urls:
+        - "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/tmas/test/slides.parquet"
+        - "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/tmas/train/slides.parquet"
+        - "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/tmas/val/slides.parquet"
+      key: path
+    layer_name: background
+  mask_retrievers:
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: cytokeratin_masks/Cytokeratin_mask_colorectal_TMAs
+      run_id: ${run_id}
+      layer_name: Epytelium mask
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#FF0000"
+        opacity: 0.7
+        visible: true
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: cytokeratin_masks/Cytokeratin_mask_final_scans
+      run_id: ${run_id}
+      layer_name: Epytelium mask
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#FF0000"
+        opacity: 0.7
+        visible: true
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: cytokeratin_masks/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae
+      run_id: ${run_id}
+      layer_name: Epytelium mask
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#FF0000"
+        opacity: 0.7
+        visible: true
+
+    # Ignore Mask
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: ignore_masks/Cytokeratin_mask_final_scans
+      run_id: b75ae72569654c45891e25a2d58186ce
+      layer_name: Ignore masks
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#80FF00"
+        opacity: 0.5
+        visible: false
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: ignore_masks/Cytokeratin_mask_colorectal_TMAs
+      run_id: b75ae72569654c45891e25a2d58186ce
+      layer_name: Ignore masks
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#80FF00"
+        opacity: 0.5
+        visible: false
+    - _target_: report.masks.RunIDMlflowMaskRetriever
+      dir_name: ignore_masks/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae
+      run_id: b75ae72569654c45891e25a2d58186ce
+      layer_name: Ignore masks
+      shader_conf:
+        type: "heatmap"
+        modifiable: true
+        color: "#80FF00"
+        opacity: 0.5
+        visible: false
+
+  template_asset_path: report_template.html
+
+# metadata:
+#   user: pekarj
+#   experiment_name: Lymph Nodes
+#   run_name: DAB testing v1 report
+#   description: report
+
+mlflow:
+  tracking_uri: http://mlflow.rationai-mlflow:5000/

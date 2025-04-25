@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 import mlflow
@@ -29,7 +30,7 @@ DISC_SIZE = 25
 def main() -> None:
     mlflow.set_tracking_uri("http://mlflow.rationai-mlflow:5000")
     mlflow.set_experiment("Lymph Nodes")
-    mlflow.start_run(run_name="Cytokeratin Mask")
+    run_id = mlflow.start_run(run_name="Cytokeratin Mask")
 
     # Download tissue masks
     mlflow.artifacts.download_artifacts(
@@ -103,6 +104,7 @@ def main() -> None:
         mask.flush()
 
         mask = pyvips.Image.new_from_array(mask)
+        mask = mask > 0
 
         mask_path = Path(
             DEST_DIR,
@@ -113,14 +115,22 @@ def main() -> None:
 
         write_big_tiff(mask, mask_path, mpp_x=mpp_x, mpp_y=mpp_y)
 
-        mlflow.log_artifacts(DEST_DIR, artifact_path="cytokeratin_masks")
-
     process_items(wsis, process_item, max_concurrent=5)
-    # for i, item in enumerate(wsis):
-    #     print(f"Processing item {i + 1}/{len(wsis)}", flush=True)
-    #     process_item(item)
 
     mlflow.log_artifacts(DEST_DIR, artifact_path="cytokeratin_masks")
+
+    subprocess.run(
+        [
+            "python",
+            "-m",
+            "report",
+            "--config-path=../../../../../report_configs",
+            f"run_id={run_id}",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
     mlflow.end_run()
 
 
