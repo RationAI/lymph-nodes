@@ -35,22 +35,22 @@ class Args(TypedDict):
 
 @dataclass
 class PathoIgnoreTileMetadata(TileMetadata):
-    patho_ignore: float
+    patho_ignore: float | None = None
 
 
 @dataclass
-class CustomIgnoreTileMetadata(TileMetadata):
-    custom_ignore: float
+class CustomIgnoreTileMetadata(PathoIgnoreTileMetadata):
+    custom_ignore: float | None = None
 
 
 @dataclass
-class BrownishTileMetadata(TileMetadata):
-    brownish: float
+class BrownishTileMetadata(CustomIgnoreTileMetadata):
+    brownish: float = 0
 
 
 @dataclass
-class MetastazisTileMetadata(TileMetadata):
-    metastazis: float
+class MetastazisTileMetadata(BrownishTileMetadata):
+    metastazis: float = 0
 
 
 def data_tiler(
