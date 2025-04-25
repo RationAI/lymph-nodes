@@ -1,4 +1,5 @@
 import json
+import os
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -61,6 +62,9 @@ def cyto_ignore_mask(slide_path: Path, desired_mpp: float, dest_dir: Path) -> No
         "/mnt/data/Projects/lymph_nodes/cyto_ignore_annotations/",
         f"{slide_path.stem}-2025_04_25-all.json",
     )
+
+    if not os.path.exists(json_annotation_file):
+        return
 
     annot_class = JSONIgnoreMask
     annotation_file = json_annotation_file
