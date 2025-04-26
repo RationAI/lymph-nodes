@@ -135,7 +135,7 @@ def data_tiler(
 
     tissue_mask = TissueMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=tile_crop,
+        absolute_roi_extent=tile_extent,
         relative_roi_offset=0,
     )
 
@@ -147,13 +147,13 @@ def data_tiler(
 
     ignore_mask = IgnoreMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=tile_crop,
+        absolute_roi_extent=tile_extent,
         relative_roi_offset=0,
     )
 
     cyto_ignore_mask = CytoIgnoreMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=tile_crop,
+        absolute_roi_extent=tile_extent,
         relative_roi_offset=0,
     )
 
@@ -209,13 +209,13 @@ def data_tiler(
         slide, tiles = source(slide_path)
         tiles = tissue_mask(tissue_mask_path, slide.extent, tiles)
 
-        tiles = color_separation_mask(color_separation_mask_path, slide.extent, tiles)
-
         if ignore_mask_path.exists():
             tiles = ignore_mask(ignore_mask_path, slide.extent, tiles)
 
         if cyto_ignore_mask_path.exists():
-            tiles = cyto_ignore_mask(ignore_mask_path, slide.extent, tiles)
+            tiles = cyto_ignore_mask(cyto_ignore_mask_path, slide.extent, tiles)
+
+        tiles = color_separation_mask(color_separation_mask_path, slide.extent, tiles)
 
         if cytokeratin_mask_path.exists():
             tiles = annotation_mask(cytokeratin_mask_path, slide.extent, tiles)
