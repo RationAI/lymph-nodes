@@ -135,7 +135,7 @@ def data_tiler(
 
     tissue_mask = TissueMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=tile_extent,
+        absolute_roi_extent=tile_crop,
         relative_roi_offset=0,
     )
 
