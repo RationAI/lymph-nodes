@@ -128,6 +128,7 @@ def data_tiler(
             return result
 
     tile_extent = round(tile_crop * (2 - min_roi_area))
+    tile_roi_extent = round(2 * tile_crop - tile_extent)
 
     source = OpenSlideTileSource(
         mpp=desired_mpp, tile_extent=tile_extent, stride=stride
@@ -135,13 +136,13 @@ def data_tiler(
 
     tissue_mask = TissueMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=tile_crop,
+        absolute_roi_extent=tile_roi_extent,
         relative_roi_offset=0,
     )
 
     annotation_mask = MetastazisMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=tile_crop,
+        absolute_roi_extent=tile_roi_extent,
         relative_roi_offset=0,
     )
 
@@ -159,7 +160,7 @@ def data_tiler(
 
     color_separation_mask = ColorSeparationMask(
         tile_extent=source.tile_extent,
-        absolute_roi_extent=tile_crop,
+        absolute_roi_extent=tile_roi_extent,
         relative_roi_offset=0,
     )
 

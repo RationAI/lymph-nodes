@@ -5,7 +5,6 @@ from typing import Any
 
 import mlflow
 import numpy as np
-import torch
 from numpy.typing import NDArray
 from openslide import OpenSlide
 from rationai.masks import (

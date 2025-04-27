@@ -10,11 +10,11 @@ metadata:
   #   min_roi_area: 0.75
   #   tile_crop: 224
   #   stride: 112 # 224 / 2
-  #   tissue_threshold: 0.5
+  #   tissue_threshold: 0.25
   #   mpp: 0.5
   tiling:
     min_roi_area: 0.75
-    tile_crop: 640
+    tile_crop: 512
     stride: 256 # 512 / 2
     tissue_threshold: 0.25
     mpp: 0.5
