@@ -6,18 +6,18 @@ defaults:
 seed: ${random_seed:}
 
 metadata:
-  # tiling:
-  #   min_roi_area: 0.75
-  #   tile_crop: 224
-  #   stride: 112 # 224 / 2
-  #   tissue_threshold: 0.25
-  #   mpp: 0.5
   tiling:
     min_roi_area: 0.75
-    tile_crop: 512
-    stride: 256 # 512 / 2
+    tile_crop: 224
+    stride: 112 # 224 / 2
     tissue_threshold: 0.25
     mpp: 0.5
+  # tiling:
+  #   min_roi_area: 0.75
+  #   tile_crop: 512
+  #   stride: 256 # 512 / 2
+  #   tissue_threshold: 0.25
+  #   mpp: 0.5
   relative_path_prefix: /mnt/data/Projects/lymph_nodes
   tissue_mask_dest: data/tissue_masks
   annotation_mask_dest: data/annotation_masks
