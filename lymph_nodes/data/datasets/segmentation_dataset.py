@@ -1,11 +1,11 @@
 import os
 from collections.abc import Iterable
 from pathlib import Path
-import torch
 from typing import Any
 
 import mlflow
 import numpy as np
+import torch
 from numpy.typing import NDArray
 from openslide import OpenSlide
 from rationai.masks import (
@@ -119,32 +119,36 @@ class SegmentationDataset(BaseDataset[SegSample]):
         uris: Iterable[str],
         slide_ids: list[str] | None = None,
         transforms: Any | None = None,
+        no_neg_tma_tiles: bool = False,
+        ignore_annotation: bool = True,
     ) -> None:
         super().__init__(
             uris=uris,
             sample_constructor=_SegmentationSlideTiles,
             transforms=transforms,
             slide_ids=slide_ids,
+            no_neg_tma_tiles=no_neg_tma_tiles,
+            ignore_annotation=ignore_annotation,
         )
 
         # Color separation masks
         if not os.path.exists("data/color_separation_masks"):
             mlflow.artifacts.download_artifacts(
-                artifact_uri="mlflow-artifacts:/68/76ab7eda9a3d4a7fb3ff7e7baf904343/artifacts/color_separation_masks",
+                artifact_uri="mlflow-artifacts:/68/cb899ea3fa2442cd9e2e3986fd417c64/artifacts/color_separation_masks",
                 dst_path="./data",
             )
 
         # Annotation masks
         if not os.path.exists("data/annotation_masks"):
             mlflow.artifacts.download_artifacts(
-                artifact_uri="mlflow-artifacts:/68/76ab7eda9a3d4a7fb3ff7e7baf904343/artifacts/annotation_masks",
+                artifact_uri="mlflow-artifacts:/68/cb899ea3fa2442cd9e2e3986fd417c64/artifacts/annotation_masks",
                 dst_path="./data",
             )
 
         # Cytokeration masks
         if not os.path.exists("data/cytokeratin_masks"):
             mlflow.artifacts.download_artifacts(
-                artifact_uri="mlflow-artifacts:/68/42ff2d1b9b8649bd94a4fe6360db201e/artifacts/cytokeratin_masks",
+                artifact_uri="mlflow-artifacts:/68/8ad173ea482d4db999bee7686d9dc2d5/artifacts/cytokeratin_masks",
                 dst_path="./data",
             )
 

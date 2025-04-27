@@ -39,11 +39,15 @@ class ClassificationDataset(BaseDataset[ClsSample]):
         self,
         uris: Iterable[str],
         transforms: Any | None = None,
+        no_neg_tma_tiles: bool = False,
+        ignore_annotation: bool = True,
     ) -> None:
         super().__init__(
             uris=uris,
             sample_constructor=_ClassificationSlideTiles,
             transforms=transforms,
+            no_neg_tma_tiles=no_neg_tma_tiles,
+            ignore_annotation=ignore_annotation,
         )
 
 

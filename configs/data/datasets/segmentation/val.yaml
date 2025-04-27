@@ -3,16 +3,19 @@ defaults:
   - /data/transforms@transforms: test
 
 _target_: lymph_nodes.data.datasets.SegmentationDataset
-uris: [
-  "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/lymhps-2023/negative-val",
-  "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/tmas/val"
-]
-slide_ids: [
-  '/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_80_SLIDE_3-0.mrxs',
-  '/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_52_SLIDE_1-0.mrxs',
-  '/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_3_SLIDE_3-0.mrxs',
-  '/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_34_SLIDE_2-0.mrxs',
-  '/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_2_SLIDE_5-0.mrxs',
-  '/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_114_SLIDE_3-0.mrxs',
-  '/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae/TNBC-BF-4-PNG.mrxs'
-]
+uris:
+  [
+    "mlflow-artifacts:/68/cb899ea3fa2442cd9e2e3986fd417c64/artifacts/lymhps-2023/negative-val",
+    "mlflow-artifacts:/68/cb899ea3fa2442cd9e2e3986fd417c64/artifacts/tmas/val",
+  ]
+slide_ids:
+  [
+    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_80_SLIDE_3-0.mrxs",
+    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_52_SLIDE_1-0.mrxs",
+    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_3_SLIDE_3-0.mrxs",
+    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_34_SLIDE_2-0.mrxs",
+    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_2_SLIDE_5-0.mrxs",
+    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_114_SLIDE_3-0.mrxs",
+    "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae/TNBC-BF-4-PNG.mrxs",
+    "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_colorectal_TMAs/DAB-CK-KOS04.mrxs",
+  ]

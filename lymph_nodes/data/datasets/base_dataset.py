@@ -51,26 +51,47 @@ class BaseDataset(MetaTiledSlides[T], ABC):
         sample_constructor: type[SlideTiles[T]],
         slide_ids: list[str] | None = None,
         transforms: Any | None = None,
+        no_neg_tma_tiles: bool = False,
+        ignore_annotation: bool = True,
     ) -> None:
         self.transforms = transforms
         self.sample_constructor = sample_constructor
         self.slide_ids = slide_ids
+        self.no_neg_tma_tiles = no_neg_tma_tiles
+        self.ignore_annotation = ignore_annotation
         super().__init__(uris=uris)
 
     def _prepare_data_hook(self) -> None:
         pass
 
     def generate_datasets(self) -> Iterable[Dataset[T]]:
+        total_len_slides = len(self.slides)
+        total_len_tiles = len(self.tiles)
+
+        self.tiles["cancer"] = self.tiles["metastazis"] > 0
+
+        # Filter out slides in case a list of accepted is defined
         if self.slide_ids is not None:
             self.slides = self.slides[self.slides["path"].isin(self.slide_ids)]
 
-        self.tiles["cancer"] = self.tiles["metastazis"] > 0
+        # Filter negative TMA tiles if required
+        if self.no_neg_tma_tiles:
+            tma_slides_ids = self.slides[self.slides["kind"] == "tma"]["id"]
+            self.tiles = self.tiles[
+                ~(self.tiles["slide_id"].isin(tma_slides_ids)) | self.tiles["cancer"]
+            ]
+
+        if self.ignore_annotation:
+            self.tiles = self.tiles[
+                ~(self.tiles["patho_ignore"] > 0) & ~(self.tiles["custom_ignore"] > 0)
+            ]
 
         self.tiles["gb-kind"] = "normal"
         self.tiles.loc[self.tiles["cancer"], "gb-kind"] = "cancer"
         self.tiles.loc[
             ~self.tiles["cancer"] & (self.tiles["brownish"] > 0), "gb-kind"
         ] = "brownish"
+
         # Make sure it is ordered by cateogry when using order by
         self.tiles["gb-kind"] = (
             self.tiles["gb-kind"]
@@ -79,6 +100,10 @@ class BaseDataset(MetaTiledSlides[T], ABC):
         )
 
         self._prepare_data_hook()
+
+        print(
+            f"Total number of slides: {len(self.slides)}/{total_len_slides}, tiles: {len(self.tiles)}/{total_len_tiles}"
+        )
 
         return (
             self.sample_constructor(
