@@ -95,7 +95,8 @@ class _SegmentationSlideTiles(MaskSlideTiles):
 
         image = tensor["image"]
         mask = tensor["mask"]
-        label = torch.tensor([self.slide_tiles.tiles.iloc[idx]["cancer"]]).float()
+        # label = torch.tensor([self.slide_tiles.tiles.iloc[idx]["cancer"]]).float()
+        label = (mask.sum() > 0).float()
 
         return image, mask, label, metadata
 
