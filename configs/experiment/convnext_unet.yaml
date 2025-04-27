@@ -18,5 +18,5 @@ trainer:
       _target_: lightning.pytorch.callbacks.EarlyStopping
       monitor: validation/tversky
       mode: min
-      patience: 20
-      stopping_threshold: 0.5
+      patience: 10
+      stopping_threshold: 0.3

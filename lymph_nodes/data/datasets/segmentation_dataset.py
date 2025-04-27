@@ -134,14 +134,14 @@ class SegmentationDataset(BaseDataset[SegSample]):
         # Color separation masks
         if not os.path.exists("data/color_separation_masks"):
             mlflow.artifacts.download_artifacts(
-                artifact_uri="mlflow-artifacts:/68/cb899ea3fa2442cd9e2e3986fd417c64/artifacts/color_separation_masks",
+                artifact_uri="mlflow-artifacts:/68/c862f7e8ff614c129a38aa83ae796de2/artifacts/color_separation_masks",
                 dst_path="./data",
             )
 
         # Annotation masks
         if not os.path.exists("data/annotation_masks"):
             mlflow.artifacts.download_artifacts(
-                artifact_uri="mlflow-artifacts:/68/cb899ea3fa2442cd9e2e3986fd417c64/artifacts/annotation_masks",
+                artifact_uri="mlflow-artifacts:/68/c862f7e8ff614c129a38aa83ae796de2/artifacts/annotation_masks",
                 dst_path="./data",
             )
 

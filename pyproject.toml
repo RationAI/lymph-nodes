@@ -20,10 +20,10 @@ dependencies = [
     "rationai-masks @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git@feature/modular-tissue-mask",
     "rationai-kube-jobs @ git+ssh://git@gitlab.ics.muni.cz/rationai/digital-pathology/libraries/kube-jobs.git",
     "timm>=1.0.15",
-    "mamba-ssm>=2.2.4",
     "einops>=0.8.1",
     "dynamic-network-architectures>=0.3.1",
     "report @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/tools/report.git@feature/mirax-support",
+    "mamba-ssm>=2.2.4",
 ]
 
 [tool.pdm.dev-dependencies]
