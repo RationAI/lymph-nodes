@@ -19,14 +19,14 @@ transforms:
   - _target_: albumentations.GaussNoise
     p: 0.25
     std_range: [0, 0.44]
-  # - _target_: albumentations.ColorJitter
-  #   p: 0.5
-  #   brightness: 0.25
-  #   contrast: 0.25
-  #   saturation: 0.1
-  #   hue: 0.05
-  # - _target_: albumentations.RandomGamma
-  #   p: 0.5
+  - _target_: albumentations.ColorJitter
+    p: 0.5
+    brightness: 0.25
+    contrast: 0.25
+    saturation: 0.1
+    hue: 0.05
+  - _target_: albumentations.RandomGamma
+    p: 0.5
   - _target_: albumentations.ZoomBlur
     p: 0.1
   - _target_: albumentations.Normalize
