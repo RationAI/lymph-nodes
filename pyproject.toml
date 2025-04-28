@@ -15,19 +15,23 @@ dependencies = [
     "torch>=2.2.2",
     "tqdm>=4.66.5",
     "numpy<2.0",
-    "rationai-tiling @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/tiling.git",
+     "rationai-tiling @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/tiling.git",
     "rationai-mlkit @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/mlkit.git@feature/batch-sampler-new",
     "rationai-masks @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git@feature/modular-tissue-mask",
     "rationai-kube-jobs @ git+ssh://git@gitlab.ics.muni.cz/rationai/digital-pathology/libraries/kube-jobs.git",
     "timm>=1.0.15",
     "einops>=0.8.1",
     "dynamic-network-architectures>=0.3.1",
-    "report @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/tools/report.git@feature/mirax-support",
-    "mamba-ssm>=2.2.4",
+    "report @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/tools/report.git",
+    "mamba-ssm @ https://github.com/state-spaces/mamba/releases/download/v2.2.4/mamba_ssm-2.2.4+cu12torch2.6cxx11abiTRUE-cp312-cp312-linux_x86_64.whl",
 ]
 
 [tool.pdm.dev-dependencies]
 dev = ["mypy", "pre-commit", "ruff"]
+
+[tool.uv.sources]
+mamba-ssm = { url = "https://github.com/state-spaces/mamba/releases/download/v2.2.4/mamba_ssm-2.2.4+cu12torch2.6cxx11abiTRUE-cp312-cp312-linux_x86_64.whl", marker = "sys_platform=='linux'" }
+
 
 [tool.pdm.scripts]
 train = "python -m lymph_nodes"
