@@ -14,5 +14,5 @@ data:
   infer_batch_size: 256
 
 model:
-  _target_: lymph_nodes.ClassificationModel
+  _target_: lymph_nodes.classification_model.ClassificationModel
   warmup_epochs: 1

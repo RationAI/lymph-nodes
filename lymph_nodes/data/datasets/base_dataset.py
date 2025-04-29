@@ -73,6 +73,7 @@ class BaseDataset(MetaTiledSlides[T], ABC):
         # Filter out slides in case a list of accepted is defined
         if self.slide_ids is not None:
             self.slides = self.slides[self.slides["path"].isin(self.slide_ids)]
+            self.tiles = self.tiles[self.tiles["slide_id"].isin(self.slides["id"])]
 
         # Filter negative TMA tiles if required
         if self.no_neg_tma_tiles:
@@ -99,10 +100,13 @@ class BaseDataset(MetaTiledSlides[T], ABC):
             .cat.set_categories(["cancer", "brownish", "normal"], ordered=True)
         )
 
-        self._prepare_data_hook()
+        self.tiles = self.tiles.reset_index()
+        self.slides = self.slides.reset_index()
+
+        groups = [len(x.index) for _, x in self.tiles.groupby(by="gb-kind")]
 
         print(
-            f"Total number of slides: {len(self.slides)}/{total_len_slides}, tiles: {len(self.tiles)}/{total_len_tiles}"
+            f"Total number of slides: {len(self.slides)}/{total_len_slides}, tiles: {len(self.tiles)}/{total_len_tiles}, groups: {groups}"
         )
 
         return (

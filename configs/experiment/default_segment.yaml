@@ -35,7 +35,7 @@ data:
   infer_batch_size: 100
 
 model:
-  _target_: lymph_nodes.SegmentationModel
+  _target_: lymph_nodes.segmentation_model.SegmentationModel
   criterion:
     _target_: lymph_nodes.modeling.SetCriterion
     losses:
