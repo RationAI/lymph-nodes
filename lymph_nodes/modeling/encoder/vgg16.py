@@ -24,7 +24,7 @@ class VGG16(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> list[torch.Tensor]:
-        x_ret = [x]
+        x_ret = []
 
         for layer in self.layers:
             x = layer(x)
