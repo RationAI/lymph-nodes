@@ -1,0 +1,11 @@
+defaults:
+  - _self_
+  - /data/transforms@transforms: test_224
+
+_target_: lymph_nodes.data.datasets.SegmentationPredictDataset
+uris:
+  [
+    "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/lymhps-2023/positive-infer",
+    "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/lymphs-2024/negative",
+    "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/lymphs-2024/positive",
+  ]

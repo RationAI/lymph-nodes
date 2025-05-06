@@ -38,7 +38,7 @@ class ClsMaskBuilder(MultiloaderLifecycle):
             mpp_x=self.slide.mpp_x,
             mpp_y=self.slide.mpp_y,
             stride=self.slide.stride_x,
-            extent_tile=512,
+            extent_tile=self.slide.tile_extent_x // 1.25,
         )
 
     def on_test_dataloader_start(

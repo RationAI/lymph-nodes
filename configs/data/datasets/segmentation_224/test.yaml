@@ -1,0 +1,13 @@
+defaults:
+  - _self_
+  - /data/transforms@transforms: test_224
+
+_target_: lymph_nodes.data.datasets.SegmentationDataset
+uris:
+  [
+    "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/lymhps-2023/negative-test",
+    "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/tmas/test",
+    "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/positive-lymph-nodes",
+    "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/lymhps-2023/positive-train",
+    "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/lymhps-2023/positive-val",
+  ]

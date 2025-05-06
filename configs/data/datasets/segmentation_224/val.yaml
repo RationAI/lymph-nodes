@@ -1,12 +1,12 @@
 defaults:
   - _self_
-  - /data/transforms@transforms: test
+  - /data/transforms@transforms: test_224
 
 _target_: lymph_nodes.data.datasets.SegmentationDataset
 uris:
   [
-    "mlflow-artifacts:/68/c862f7e8ff614c129a38aa83ae796de2/artifacts/lymhps-2023/negative-val",
-    "mlflow-artifacts:/68/c862f7e8ff614c129a38aa83ae796de2/artifacts/tmas/val",
+    "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/lymhps-2023/negative-val",
+    "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/tmas/val",
   ]
 slide_ids:
   [

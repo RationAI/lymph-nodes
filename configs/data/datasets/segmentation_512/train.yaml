@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - /data/transforms@transforms: train
+  - /data/transforms@transforms: train_512
 
 _target_: lymph_nodes.data.datasets.SegmentationDataset
 uris:

@@ -1,0 +1,11 @@
+defaults:
+  - _self_
+  - /data/transforms@transforms: train_224
+
+_target_: lymph_nodes.data.datasets.SegmentationDataset
+uris:
+  [
+    "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/lymhps-2023/negative-train",
+    "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/tmas/train",
+  ]
+no_neg_tma_tiles: True
