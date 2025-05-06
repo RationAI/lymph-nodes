@@ -30,14 +30,16 @@ class GigaPathUnet(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> Outputs:
-        skips = self.backbone(x)
+        embeds = self.backbone(x)
 
         skips = [
             conv_block(skip.permute(0, 2, 1).reshape(skip.shape[0], 1536, 14, 14))
-            for conv_block, skip in zip(self.conv_blocks, skips, strict=True)
+            for conv_block, skip in zip(self.conv_blocks, embeds, strict=True)
         ]
 
+        latent = embeds[-1].permute(0, 2, 1).reshape(embeds[-1].shape[0], 1536, 14, 14)
+
         return Outputs(
-            labels=self.cls_head(skips[-1]) if self.cls_head else None,
+            labels=self.cls_head(latent) if self.cls_head else None,
             masks=self.decoder(skips[::-1]).sigmoid().squeeze(1),
         )
