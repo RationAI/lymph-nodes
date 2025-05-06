@@ -33,7 +33,7 @@ metadata:
   description: "Running segmentatation model ${model_name: ${model.model._target_}} on the Lymph Nodes DAB dataset."
 
 data:
-  batch_size: 24 # Auto adjusted
+  batch_size: 32 # Auto adjusted
   infer_batch_size: 64
   epoch_size: 2000
 
@@ -54,12 +54,12 @@ model:
         kind: masks
         loss:
           _target_: lymph_nodes.modeling.losses.FocalLoss
-      - _target_: lymph_nodes.modeling.CriterionLoss
-        name: "tversky"
-        weight: 0.1
-        kind: masks
-        loss:
-          _target_: lymph_nodes.modeling.losses.TverskyLoss
+      # - _target_: lymph_nodes.modeling.CriterionLoss
+      #   name: "tversky"
+      #   weight: 0.1
+      #   kind: masks
+      #   loss:
+      #     _target_: lymph_nodes.modeling.losses.TverskyLoss
       - _target_: lymph_nodes.modeling.CriterionLoss
         name: "bce"
         weight: 1
