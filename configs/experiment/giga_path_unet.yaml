@@ -3,4 +3,4 @@
 defaults:
   - _self_
   - default_segment_224
-  - override /model@model.model: gigapath_unet
+  - override /model@model.model: giga_path_unet
