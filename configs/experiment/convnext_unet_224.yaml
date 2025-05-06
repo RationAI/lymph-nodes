@@ -1,0 +1,21 @@
+# @package _global_
+
+defaults:
+  - _self_
+  - default_segment_224
+  - override /model@model.model: convnext_unet
+# trainer:
+#   callbacks:
+#     model_checkpoint:
+#       _target_: lightning.pytorch.callbacks.ModelCheckpoint
+#       save_top_k: 3
+#       save_last: true
+#       auto_insert_metric_name: true
+#       monitor: validation/loss
+#       mode: min
+#     early_stopping:
+#       _target_: lightning.pytorch.callbacks.EarlyStopping
+#       monitor: validation/tversky
+#       mode: min
+#       patience: 10
+#       stopping_threshold: 0.3
