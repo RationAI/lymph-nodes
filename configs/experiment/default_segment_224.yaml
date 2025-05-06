@@ -33,8 +33,8 @@ metadata:
   description: "Running segmentatation model ${model_name: ${model.model._target_}} on the Lymph Nodes DAB dataset."
 
 data:
-  batch_size: 64 # Auto adjusted
-  infer_batch_size: 128
+  batch_size: 256 # Auto adjusted
+  infer_batch_size: 512
   epoch_size: 1000
 
 model:
