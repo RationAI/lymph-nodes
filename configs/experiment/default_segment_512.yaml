@@ -13,20 +13,20 @@ trainer:
       tile_builder_cstr:
         _target_: rationai.masks.mask_builders.TileMaskBuilder
         _partial_: True
-    max_mask_builder:
-      _target_: lymph_nodes.callbacks.TileMaskBuilder
-      artifact_path: max_segmentation_masks
-      tile_builder_cstr:
-        _target_: lymph_nodes.callbacks.builders.MaxMaskBuilder
-        _partial_: True
-    centric_mask_builder:
-      _target_: lymph_nodes.callbacks.TileMaskBuilder
-      artifact_path: centric_segmentation_masks
-      tile_builder_cstr:
-        _target_: lymph_nodes.callbacks.builders.CentricMaskBuilder
-        _partial_: True
-        tile_extent_x: 512
-        tile_extent_y: 512
+    # max_mask_builder:
+    #   _target_: lymph_nodes.callbacks.TileMaskBuilder
+    #   artifact_path: max_segmentation_masks
+    #   tile_builder_cstr:
+    #     _target_: lymph_nodes.callbacks.builders.MaxMaskBuilder
+    #     _partial_: True
+    # centric_mask_builder:
+    #   _target_: lymph_nodes.callbacks.TileMaskBuilder
+    #   artifact_path: centric_segmentation_masks
+    #   tile_builder_cstr:
+    #     _target_: lymph_nodes.callbacks.builders.CentricMaskBuilder
+    #     _partial_: True
+    #     tile_extent_x: 512
+    #     tile_extent_y: 512
 
 metadata:
   run_name: "🏋️‍♂️ ${model_name: ${model.model._target_}} 512 pre w/ Head"

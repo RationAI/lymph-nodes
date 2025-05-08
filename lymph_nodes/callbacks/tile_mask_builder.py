@@ -112,6 +112,8 @@ class TileMaskBuilder(MultiloaderLifecycle):
 
         self.mask_builder.update(
             outputs.masks,
-            metadata["x"].detach() + 64,
-            metadata["y"].detach() + 64,
+            metadata["x"].detach()
+            + round(self.slide.tile_extent_x * 0.1),  # assuming 0.75 overlap
+            metadata["y"].detach()
+            + round(self.slide.tile_extent_y * 0.1),  # assuming 0.75 overlap
         )

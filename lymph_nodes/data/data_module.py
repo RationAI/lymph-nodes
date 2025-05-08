@@ -61,7 +61,7 @@ class DataModule(LightningDataModule):
     def val_dataloader(self) -> Iterable[Sample]:
         return DataLoader(
             self.val,
-            batch_size=self.batch_size,
+            batch_size=self.infer_batch_size,
             num_workers=self.num_workers,
             persistent_workers=self.num_workers > 0,
         )

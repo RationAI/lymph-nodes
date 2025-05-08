@@ -111,6 +111,6 @@ class ClsMaskBuilder(MultiloaderLifecycle):
 
         self.mask_builder.update(
             outputs.labels.detach().cpu(),
-            metadata["x"].detach() + 64,
-            metadata["y"].detach() + 64,
+            metadata["x"].detach() + round(self.slide.tile_extent_y * 0.1),
+            metadata["y"].detach() + round(self.slide.tile_extent_y * 0.1),
         )

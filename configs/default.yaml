@@ -33,7 +33,7 @@ trainer:
       artifact_path: classifcation_heatmaps
     finetuning:
       _target_: lightning.pytorch.callbacks.BackboneFinetuning
-      unfreeze_backbone_at_epoch: 100
+      unfreeze_backbone_at_epoch: 5
 
 metadata:
   experiment_name: Lymph Nodes
