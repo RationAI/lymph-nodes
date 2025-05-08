@@ -4,3 +4,6 @@ defaults:
   - _self_
   - default_segment_224
   - override /model@model.model: swin_unet_mamba
+
+data:
+  infer_batch_size: 2048

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+import itertools
 import torch
 from lightning import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
@@ -111,8 +112,22 @@ class LymphNodesModel(LightningModule, ABC):
         self.test_metrics.reset()
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
+        cls_head_params = self.model.cls_head.parameters()
+        model_params = filter(
+            lambda p: p.requires_grad,
+            itertools.chain.from_iterable(
+                x[1].parameters()
+                for x in filter(
+                    lambda x: x[0] != "cls_head", self.model._modules.items()
+                )
+            ),
+        )
+
         optimizer = torch.optim.AdamW(
-            filter(lambda p: p.requires_grad, self.parameters()),
+            [
+                {"params": model_params},
+                {"params": cls_head_params, "lr": 1e-6},
+            ],
             lr=1e-4,
             weight_decay=1e-4,
         )

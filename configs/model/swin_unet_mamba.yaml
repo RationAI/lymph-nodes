@@ -7,13 +7,5 @@ decoder_args:
   features_per_stage: [96, 192, 384, 768]
 pretrained: pretrained_models/swin_unet_mamba_pretrained.pth
 cls_head:
-  _target_: torch.nn.Sequential
-  _args_:
-    - _target_: torch.nn.Conv2d
-      in_channels: 768
-      out_channels: 512
-      kernel_size: 1
-    - _target_: torch.nn.AdaptiveAvgPool2d
-      output_size: [7, 7]
-    - _target_: lymph_nodes.modeling.blocks.BinaryClassifier
-      features: [25088, 4096, 4096, 1]
+  _target_: lymph_nodes.modeling.blocks.BinaryClassifier
+  in_channels: 768
