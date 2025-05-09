@@ -30,6 +30,7 @@ transforms:
   - _target_: albumentations.ZoomBlur
     p: 0.1
   - _target_: albumentations.Normalize
-    mean: [215.6701, 225.0577, 237.1580]
-    std: [32.2908, 24.3962, 14.4058]
-    max_pixel_value: 1
+    # mean: [215.6701, 225.0577, 237.1580]
+    # std: [32.2908, 24.3962, 14.4058]
+    # max_pixel_value: 1
+    # Using defaults
