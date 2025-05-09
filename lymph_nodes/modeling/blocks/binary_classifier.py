@@ -6,7 +6,7 @@ class BinaryClassifier(nn.Module):
         self,
         in_channels: int,
         num_classes: int = 1,
-        features: list[int] = [4096, 4096],
+        features: list[int] = [],
         dropout: float = 0.5,
     ) -> None:
         super().__init__()
