@@ -1,0 +1,11 @@
+_target_: lymph_nodes.modeling.DeepLab
+encoder:
+  _target_: lymph_nodes.modeling.encoder.VGG16
+decoder:
+  _target_: lymph_nodes.modeling.decoder.DeepLabDecoder
+  f1: 256
+  f2: 512
+features: 512
+cls_head:
+  _target_: lymph_nodes.modeling.blocks.BinaryClassifier
+  in_channels: 512

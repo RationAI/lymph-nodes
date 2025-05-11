@@ -1,0 +1,4 @@
+_target_: lymph_nodes.modeling.GigaPathDeepLab
+cls_head:
+  _target_: lymph_nodes.modeling.blocks.BinaryClassifier
+  in_channels: 512

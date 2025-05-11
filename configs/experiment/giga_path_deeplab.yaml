@@ -1,0 +1,9 @@
+# @package _global_
+
+defaults:
+  - _self_
+  - default_segment_224
+  - override /model@model.model: giga_path_deeplab
+
+data:
+  infer_batch_size: 2048
