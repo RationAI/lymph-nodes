@@ -72,26 +72,17 @@ def main(config: DictConfig) -> None:
 
     datasets = {
         "lymhps-2023": {
-            "positive-train": Dataset(
+            "positive-test": Dataset(
                 datasource=DataSource(
                     "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
                     glob_pattern=[
                         "*_1_SLIDE_3-1.mrxs",
+                        "*_2_SLIDE_1-1.mrxs",
+                        "*_3_SLIDE_2-1.mrxs",
                         "*_5_SLIDE_2-1.mrxs",
                         "*_7_SLIDE_2-1.mrxs",
                         "*_8_SLIDE_1-1.mrxs",
                         "*_105_SLIDE_1-1.mrxs",
-                    ],
-                ),
-                source_kind="lymph_node",
-                slide_metastazis=True,
-            ),
-            "positive-val": Dataset(
-                datasource=DataSource(
-                    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
-                    glob_pattern=[
-                        "*_2_SLIDE_1-1.mrxs",
-                        "*_3_SLIDE_2-1.mrxs",
                     ],
                 ),
                 source_kind="lymph_node",
