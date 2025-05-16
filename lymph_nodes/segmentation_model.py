@@ -2,12 +2,15 @@ import torch
 from rationai.mlkit.metrics import LazyMetricDict
 from torch import Tensor, nn
 from torchmetrics import (
-    # AUROC,
-    Accuracy,
-    JaccardIndex,
+    BinaryAccuracy,
+    BinaryCohenKappa,
+    BinaryF1Score,
+    BinaryJaccardIndex,
+    BinaryPrecision,
+    BinaryRecall,
+    BinarySpecificity,
+    MeanIoU,
     MetricCollection,
-    Precision,
-    Recall,
 )
 
 # from torchmetrics.segmentation import DiceScore
@@ -26,12 +29,14 @@ class SegmentationModel(LymphNodesModel):
     def get_val_metrics(self) -> MetricCollection:
         return MetricCollection(
             {
-                # "DICE": DiceScore(num_classes=1),
-                "IOU": JaccardIndex(task="binary"),
-                # "AUC": AUROC("binary"),
-                "accuracy": Accuracy("binary"),
-                "precision": Precision("binary"),
-                "recall": Recall("binary"),
+                "nIOU": MeanIoU(),
+                "IOU": BinaryJaccardIndex(),
+                "F1": BinaryF1Score(),
+                "accuracy": BinaryAccuracy(),
+                "precision": BinaryPrecision(),
+                "recall": BinaryRecall(),
+                "specificity": BinarySpecificity(),
+                "CohensKappa": BinaryCohenKappa(),
             }
         )
 

@@ -1,6 +1,15 @@
 from rationai.mlkit.metrics import LazyMetricDict
 from torch import Tensor, nn
-from torchmetrics import AUROC, Accuracy, MetricCollection, Precision, Recall
+from torchmetrics import (
+    BinaryAccuracy,
+    BinaryAUROC,
+    BinaryCohenKappa,
+    BinaryF1Score,
+    BinaryPrecision,
+    BinaryRecall,
+    BinarySpecificity,
+    MetricCollection,
+)
 
 from lymph_nodes.model import LymphNodesModel
 from lymph_nodes.modeling import CriterionLoss, SetCriterion
@@ -24,10 +33,13 @@ class ClassificationModel(LymphNodesModel):
     def get_val_metrics(self) -> MetricCollection:
         return MetricCollection(
             {
-                "AUC": AUROC("binary"),
-                "accuracy": Accuracy("binary"),
-                "precision": Precision("binary"),
-                "recall": Recall("binary"),
+                "AUC": BinaryAUROC(),
+                "F1": BinaryF1Score(),
+                "accuracy": BinaryAccuracy(),
+                "precision": BinaryPrecision(),
+                "recall": BinaryRecall(),
+                "specificity": BinarySpecificity(),
+                "CohensKappa": BinaryCohenKappa(),
             }
         )
 
