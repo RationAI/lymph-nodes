@@ -14,8 +14,8 @@ trainer:
 
 data:
   batch_size: 32 # auto adjusted
-  infer_batch_size: 128
-  epoch_size: 1000
+  infer_batch_size: 64
+  epoch_size: 500
   num_workers: 12
 
 model:
