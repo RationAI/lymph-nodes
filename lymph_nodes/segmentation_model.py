@@ -1,7 +1,8 @@
 import torch
 from rationai.mlkit.metrics import LazyMetricDict
 from torch import Tensor, nn
-from torchmetrics import (
+from torchmetrics import MetricCollection
+from torchmetrics.classification import (
     BinaryAccuracy,
     BinaryCohenKappa,
     BinaryF1Score,
@@ -9,9 +10,8 @@ from torchmetrics import (
     BinaryPrecision,
     BinaryRecall,
     BinarySpecificity,
-    MeanIoU,
-    MetricCollection,
 )
+from torchmetrics.segmentation import MeanIoU
 
 # from torchmetrics.segmentation import DiceScore
 from lymph_nodes.model import LymphNodesModel
