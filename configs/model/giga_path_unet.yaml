@@ -1,4 +1,4 @@
 _target_: lymph_nodes.modeling.GigaPathUnet
-cls_head:
-  _target_: lymph_nodes.modeling.blocks.BinaryClassifier
-  in_channels: 1536
+# cls_head:
+#   _target_: lymph_nodes.modeling.blocks.BinaryClassifier
+#   in_channels: 1536

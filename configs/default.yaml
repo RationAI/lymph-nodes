@@ -11,7 +11,7 @@ checkpoint:
   test: best
 
 trainer:
-  max_epochs: 50
+  max_epochs: 25
   log_every_n_steps: 100
   enable_checkpointing: true
   gradient_clip_val: 0.1
@@ -23,26 +23,26 @@ trainer:
       auto_insert_metric_name: true
       monitor: validation/loss
       mode: min
-    early_stopping:
-      _target_: lightning.pytorch.callbacks.EarlyStopping
-      monitor: validation/loss
-      mode: min
-      patience: 10
-    cls_mask_builder:
-      _target_: lymph_nodes.callbacks.ClsMaskBuilder
-      artifact_path: classifcation_heatmaps
+    # early_stopping:
+    #   _target_: lightning.pytorch.callbacks.EarlyStopping
+    #   monitor: validation/loss
+    #   mode: min
+    #   patience: 10
+    # cls_mask_builder:
+    #   _target_: lymph_nodes.callbacks.ClsMaskBuilder
+    #   artifact_path: classifcation_heatmaps
     finetuning:
       _target_: lightning.pytorch.callbacks.BackboneFinetuning
-      unfreeze_backbone_at_epoch: 5
+      unfreeze_backbone_at_epoch: 30
 
 metadata:
   experiment_name: Lymph Nodes
 
 data:
   _target_: lymph_nodes.data.DataModule
-  epoch_size: 2000
-  num_workers: 10
-  batch_distribution: [0.5, 0.05, 0.495]
+  epoch_size: 1000
+  num_workers: 12
+  batch_distribution: [0.5, 0.05, 0.45]
 
 tuner: {}
 # dynamic_batch_size: True

@@ -6,6 +6,6 @@ decoder_args:
   deep_supervision: false
   features_per_stage: [96, 192, 384, 768]
 pretrained: pretrained_models/swin_unet_mamba_pretrained.pth
-cls_head:
-  _target_: lymph_nodes.modeling.blocks.BinaryClassifier
-  in_channels: 768
+# cls_head:
+#   _target_: lymph_nodes.modeling.blocks.BinaryClassifier
+#   in_channels: 768

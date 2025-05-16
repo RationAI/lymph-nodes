@@ -3,6 +3,6 @@ decoder:
   _target_: lymph_nodes.modeling.decoder.SimpleDecoder
   num_classes: null
   nun_features: [1024, 512, 256, 128]
-cls_head:
-  _target_: lymph_nodes.modeling.blocks.BinaryClassifier
-  in_channels: 1024
+# cls_head:
+#   _target_: lymph_nodes.modeling.blocks.BinaryClassifier
+#   in_channels: 1024
