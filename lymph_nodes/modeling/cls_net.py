@@ -20,7 +20,4 @@ class ClsNet(nn.Module):
         if isinstance(x, list):
             x = x[-1]
 
-        if self.bottleneck is not None:
-            x = self.bottleneck(x)
-
         return self.head(x)

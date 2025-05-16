@@ -1,0 +1,7 @@
+_target_: lymph_nodes.modeling.SwinMamba
+vss_args:
+  in_channels: 3
+pretrained: pretrained_models/swin_unet_mamba_pretrained.pth
+cls_head:
+  _target_: lymph_nodes.modeling.blocks.BinaryClassifier
+  in_channels: 768

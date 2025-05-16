@@ -1,0 +1,4 @@
+_target_: lymph_nodes.modeling.GigaPath
+cls_head:
+  _target_: lymph_nodes.modeling.blocks.BinaryClassifier
+  in_channels: 1536
