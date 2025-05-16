@@ -11,6 +11,10 @@ metadata:
 
 trainer:
   max_epochs: 10
+  callbacks:
+    cls_mask_builder:
+      _target_: lymph_nodes.callbacks.ClsMaskBuilder
+      artifact_path: classifcation_heatmaps
 
 data:
   batch_size: 32 # auto adjusted
