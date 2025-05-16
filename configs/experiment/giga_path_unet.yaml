@@ -6,4 +6,4 @@ defaults:
   - override /model@model.model: giga_path_unet
 
 data:
-  infer_batch_size: 2048
+  infer_batch_size: 1024

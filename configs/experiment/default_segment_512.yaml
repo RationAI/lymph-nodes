@@ -66,4 +66,4 @@ model:
         kind: labels
         loss:
           _target_: torch.nn.BCELoss
-  warmup_epochs: 1
+  warmup_epochs: 0
