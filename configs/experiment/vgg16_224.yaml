@@ -2,5 +2,5 @@
 
 defaults:
   - _self_
-  - default_classify
+  - default_classify_224
   - override /model@model.model: vgg16

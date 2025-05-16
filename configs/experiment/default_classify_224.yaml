@@ -12,7 +12,9 @@ metadata:
 data:
   batch_size: 64 # auto adjusted
   infer_batch_size: 256
+  epoch_size: 1000
+  num_workers: 12
 
 model:
   _target_: lymph_nodes.classification_model.ClassificationModel
-  warmup_epochs: 1
+  warmup_epochs: 0

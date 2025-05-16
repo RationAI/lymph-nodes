@@ -11,7 +11,6 @@ from torchmetrics.classification import (
     BinaryRecall,
     BinarySpecificity,
 )
-from torchmetrics.segmentation import MeanIoU
 
 # from torchmetrics.segmentation import DiceScore
 from lymph_nodes.model import LymphNodesModel
@@ -29,7 +28,6 @@ class SegmentationModel(LymphNodesModel):
     def get_val_metrics(self) -> MetricCollection:
         return MetricCollection(
             {
-                "nIOU": MeanIoU(),
                 "IOU": BinaryJaccardIndex(),
                 "F1": BinaryF1Score(),
                 "accuracy": BinaryAccuracy(),
