@@ -112,24 +112,30 @@ class LymphNodesModel(LightningModule, ABC):
         self.test_metrics.reset()
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
-        cls_head_params = self.model.cls_head.parameters()
-        model_params = filter(
-            lambda p: p.requires_grad,
-            itertools.chain.from_iterable(
-                x[1].parameters()
-                for x in filter(
-                    lambda x: x[0] != "cls_head", self.model._modules.items()
-                )
-            ),
-        )
+        # cls_head_params = self.model.cls_head.parameters()
+        # model_params = filter(
+        #     lambda p: p.requires_grad,
+        #     itertools.chain.from_iterable(
+        #         x[1].parameters()
+        #         for x in filter(
+        #             lambda x: x[0] != "cls_head", self.model._modules.items()
+        #         )
+        #     ),
+        # )
+
+        # optimizer = torch.optim.AdamW(
+        #     [
+        #         {"params": model_params},
+        #         {"params": cls_head_params, "lr": 1e-6},
+        #     ],
+        #     lr=1e-4,
+        #     weight_decay=1e-4,
+        # )
 
         optimizer = torch.optim.AdamW(
-            [
-                {"params": model_params},
-                {"params": cls_head_params, "lr": 1e-6},
-            ],
+            filter(lambda p: p.requires_grad, self.parameters()),
             lr=1e-4,
-            weight_decay=1e-4,
+            weight_decay=0.05,
         )
 
         scheduler = CosineLRScheduler(
