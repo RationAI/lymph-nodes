@@ -135,7 +135,7 @@ class LymphNodesModel(LightningModule, ABC):
         optimizer = torch.optim.AdamW(
             filter(lambda p: p.requires_grad, self.parameters()),
             lr=1e-4,
-            weight_decay=0.05,
+            weight_decay=1e-4,
         )
 
         scheduler = CosineLRScheduler(
