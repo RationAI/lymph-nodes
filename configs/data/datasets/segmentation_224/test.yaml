@@ -5,8 +5,8 @@ defaults:
 _target_: lymph_nodes.data.datasets.SegmentationDataset
 uris:
   [
-    "mlflow-artifacts:/68/6727f5037cab430c87ca002d8a7a1202/artifacts/lymhps-2023/negative-test",
-    "mlflow-artifacts:/68/6727f5037cab430c87ca002d8a7a1202/artifacts/lymhps-2023/positive-test",
-    "mlflow-artifacts:/68/6727f5037cab430c87ca002d8a7a1202/artifacts/positive-lymph-nodes",
-    "mlflow-artifacts:/68/6727f5037cab430c87ca002d8a7a1202/artifacts/tmas/test",
+    "mlflow-artifacts:/68/76361d500497480ca4b2e3d658fc5212/artifacts/lymhps-2023/negative-test",
+    "mlflow-artifacts:/68/76361d500497480ca4b2e3d658fc5212/artifacts/lymhps-2023/positive-test",
+    "mlflow-artifacts:/68/76361d500497480ca4b2e3d658fc5212/artifacts/positive-lymph-nodes",
+    "mlflow-artifacts:/68/76361d500497480ca4b2e3d658fc5212/artifacts/tmas/test",
   ]

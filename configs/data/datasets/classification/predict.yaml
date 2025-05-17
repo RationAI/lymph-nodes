@@ -5,7 +5,7 @@ defaults:
 _target_: lymph_nodes.data.datasets.ClassificationPredictDataset
 uris:
   [
-    "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/lymhps-2023/positive-infer",
-    "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/lymphs-2024/negative",
-    "mlflow-artifacts:/68/c114214bc8c84b3191680cdbe6bc67d5/artifacts/lymphs-2024/positive",
+    "mlflow-artifacts:/68/76361d500497480ca4b2e3d658fc5212/artifacts/lymhps-2023/positive-infer",
+    "mlflow-artifacts:/68/76361d500497480ca4b2e3d658fc5212/artifacts/lymphs-2024/negative",
+    "mlflow-artifacts:/68/76361d500497480ca4b2e3d658fc5212/artifacts/lymphs-2024/positive",
   ]

@@ -71,17 +71,11 @@ class _SegmentationSlideTiles(MaskSlideTiles):
 
         cyto_path = self._get_mask_path("cytokeratin_masks").with_suffix(".tiff")
         annot_path = self._get_mask_path("annotation_masks").with_suffix(".tiff")
-        color_path = self._get_mask_path("color_separation_masks").with_suffix(".tiff")
 
         cyto_mask = self._get_mask(idx, cyto_path)
         annot_mask = self._get_mask(idx, annot_path)
-        color_mask = self._get_mask(idx, color_path)
 
-        np_mask = (
-            cyto_mask
-            if cyto_mask is not None
-            else ((annot_mask if annot_mask is not None else 0) * color_mask)
-        )
+        np_mask = cyto_mask if cyto_mask is not None else annot_mask
 
         metadata = self._get_metadata(idx)
 
@@ -130,13 +124,6 @@ class SegmentationDataset(BaseDataset[SegSample]):
             no_neg_tma_tiles=no_neg_tma_tiles,
             ignore_annotation=ignore_annotation,
         )
-
-        # Color separation masks
-        if not os.path.exists("data/color_separation_masks"):
-            mlflow.artifacts.download_artifacts(
-                artifact_uri="mlflow-artifacts:/68/c862f7e8ff614c129a38aa83ae796de2/artifacts/color_separation_masks",
-                dst_path="./data",
-            )
 
         # Annotation masks
         if not os.path.exists("data/annotation_masks"):

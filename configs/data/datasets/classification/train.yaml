@@ -5,7 +5,7 @@ defaults:
 _target_: lymph_nodes.data.datasets.ClassificationDataset
 uris:
   [
-    "mlflow-artifacts:/68/6727f5037cab430c87ca002d8a7a1202/artifacts/lymhps-2023/negative-train",
-    "mlflow-artifacts:/68/6727f5037cab430c87ca002d8a7a1202/artifacts/tmas/train",
+    "mlflow-artifacts:/68/76361d500497480ca4b2e3d658fc5212/artifacts/lymhps-2023/negative-train",
+    "mlflow-artifacts:/68/76361d500497480ca4b2e3d658fc5212/artifacts/tmas/train",
   ]
 no_neg_tma_tiles: True

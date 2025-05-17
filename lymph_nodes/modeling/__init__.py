@@ -10,6 +10,7 @@ from lymph_nodes.modeling.set_criterion import CriterionLoss, SetCriterion
 from lymph_nodes.modeling.swin_mamba import SwinMamba
 from lymph_nodes.modeling.swin_unet_mamba import SwinUNetMamba
 from lymph_nodes.modeling.unet import UNet
+from lymph_nodes.modeling.vgg16_deep_lab import VGG16DeepLab
 
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "SwinMamba",
     "SwinUNetMamba",
     "UNet",
+    "VGG16DeepLab",
 ]

@@ -1,3 +1,5 @@
+from abc import ABC, abstractmethod
+
 import torch
 import torch.nn as nn
 
@@ -6,28 +8,31 @@ from lymph_nodes.modeling.decoder import DeepLabDecoder
 from lymph_nodes.typing import Outputs
 
 
-class DeepLab(nn.Module):
+class DeepLab(nn.Module, ABC):
     def __init__(
         self,
         encoder: nn.Module,
-        decoder: DeepLabDecoder,
-        features: int,
+        features: tuple[int, int, int],
         cls_head: nn.Module | None = None,
     ) -> None:
         super().__init__()
         # It has  to be named bacbone because of FineTuner
         self.backbone = encoder
-        self.decoder = decoder
-        self.aspp = ASPP(features, 512)
+        self.decoder = DeepLabDecoder(512, features[0])
+        self.aspp = ASPP(features[1], features[-1], 512)
         self.cls_head = cls_head
 
+    @abstractmethod
+    def _get_skips(
+        self, x: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]: ...
+
     def forward(self, x: torch.Tensor) -> Outputs:
-        skips = self.backbone(x)
+        h, m, l = self._get_skips(x)
 
-        x1, x2 = skips[2], skips[-1]
-        x_aspp = self.aspp(x2)
+        x_aspp = self.aspp(m, l)
 
-        mask_pred = self.decoder.interpolate(self.decoder(x_aspp, x1), x.shape[2:])
+        mask_pred = self.decoder.interpolate(self.decoder(x_aspp, h), x.shape[2:])
 
         return Outputs(
             labels=self.cls_head(x_aspp) if self.cls_head else None,

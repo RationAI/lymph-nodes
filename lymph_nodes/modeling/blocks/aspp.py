@@ -4,24 +4,28 @@ import torch.nn.functional as F
 
 
 class ASPP(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int) -> None:
+    def __init__(
+        self, m_in_channels: int, l_in_channels: int, out_channels: int
+    ) -> None:
         super().__init__()
 
         self.atrous_block1 = nn.Conv2d(
-            in_channels, out_channels, 1, padding=0, dilation=1
+            m_in_channels, out_channels, 1, padding=0, dilation=1
         )
         self.atrous_block6 = nn.Conv2d(
-            in_channels, out_channels, 3, padding=6, dilation=6
+            m_in_channels, out_channels, 3, padding=6, dilation=6
         )
         self.atrous_block12 = nn.Conv2d(
-            in_channels, out_channels, 3, padding=12, dilation=12
+            m_in_channels, out_channels, 3, padding=12, dilation=12
         )
         self.atrous_block18 = nn.Conv2d(
-            in_channels, out_channels, 3, padding=18, dilation=18
+            m_in_channels, out_channels, 3, padding=18, dilation=18
         )
 
         self.global_avg_pool = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1), nn.Conv2d(in_channels, out_channels, 1), nn.ReLU()
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(l_in_channels, out_channels, 1),
+            nn.ReLU(),
         )
 
         self.merge = nn.Sequential(
@@ -30,7 +34,7 @@ class ASPP(nn.Module):
             nn.ReLU(),
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, low_features: torch.Tensor) -> torch.Tensor:
         size = x.shape[2:]
 
         out1 = self.atrous_block1(x)
@@ -39,7 +43,10 @@ class ASPP(nn.Module):
         out4 = self.atrous_block18(x)
 
         out5 = F.interpolate(
-            self.global_avg_pool(x), size=size, mode="bilinear", align_corners=False
+            self.global_avg_pool(low_features),
+            size=size,
+            mode="bilinear",
+            align_corners=False,
         )
 
         return self.merge(torch.cat([out1, out2, out3, out4, out5], dim=1))
