@@ -4,6 +4,3 @@ defaults:
   - _self_
   - default_segment_224
   - override /model@model.model: giga_path
-
-data:
-  infer_batch_size: 32
