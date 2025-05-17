@@ -13,6 +13,6 @@ class GigaPath(nn.Module):
         self.cls_head = cls_head
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        latent = self.backbone(x).permute(0, 2, 1).reshape(-1, 1536, 14, 14)
+        embed = self.backbone(x)
 
-        return self.cls_head(latent)
+        return self.cls_head(embed)
