@@ -295,7 +295,7 @@ def main(config: DictConfig) -> None:
     print("Generating color separation masks")
     generate_color_separation_masks(
         slide_paths=ChainedDataSources(list(map_datasets(datasets))),
-        mpp=0.5,
+        mpp=1,
         reference_path=config.metadata.relative_path_prefix,
         dest=config.metadata.color_separation_mask_dest,
     )
