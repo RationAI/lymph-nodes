@@ -8,7 +8,8 @@ import mlflow
 from omegaconf import DictConfig, OmegaConf
 
 # from prepro.annotation_masks import generate_annotation_masks
-# from prepro.color_separation import generate_color_separation_masks
+from prepro.color_separation import generate_color_separation_masks
+
 # from prepro.cyto_ignore_masks import generate_cyto_ignore_masks
 from prepro.data_source import ChainedDataSources, DataSource
 
@@ -63,10 +64,10 @@ def main(config: DictConfig) -> None:
         dst_path="./data",
     )
 
-    mlflow.artifacts.download_artifacts(
-        artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/color_separation_masks",
-        dst_path="./data",
-    )
+    # mlflow.artifacts.download_artifacts(
+    #     artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/color_separation_masks",
+    #     dst_path="./data",
+    # )
 
     print("Prepare datasources")
 
@@ -88,23 +89,23 @@ def main(config: DictConfig) -> None:
                 source_kind="lymph_node",
                 slide_metastazis=True,
             ),
-            "positive-infer": Dataset(
-                datasource=DataSource(
-                    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
-                    glob_pattern="*-1.mrxs",
-                    exclue_pattern=[
-                        "*_1_SLIDE_3-1.mrxs",
-                        "*_2_SLIDE_1-1.mrxs",
-                        "*_3_SLIDE_2-1.mrxs",
-                        "*_5_SLIDE_2-1.mrxs",
-                        "*_7_SLIDE_2-1.mrxs",
-                        "*_8_SLIDE_1-1.mrxs",
-                        "*_105_SLIDE_1-1.mrxs",
-                    ],
-                ),
-                source_kind="lymph_node",
-                slide_metastazis=True,
-            ),
+            # "positive-infer": Dataset(
+            #     datasource=DataSource(
+            #         "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
+            #         glob_pattern="*-1.mrxs",
+            #         exclue_pattern=[
+            #             "*_1_SLIDE_3-1.mrxs",
+            #             "*_2_SLIDE_1-1.mrxs",
+            #             "*_3_SLIDE_2-1.mrxs",
+            #             "*_5_SLIDE_2-1.mrxs",
+            #             "*_7_SLIDE_2-1.mrxs",
+            #             "*_8_SLIDE_1-1.mrxs",
+            #             "*_105_SLIDE_1-1.mrxs",
+            #         ],
+            #     ),
+            #     source_kind="lymph_node",
+            #     slide_metastazis=True,
+            # ),
             "negative-test": Dataset(
                 datasource=DataSource(
                     "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
@@ -291,13 +292,13 @@ def main(config: DictConfig) -> None:
     # )
 
     # Color separation masks
-    # print("Generating color separation masks")
-    # generate_color_separation_masks(
-    #     slide_paths=ChainedDataSources(list(map_datasets(datasets))),
-    #     mpp=2,
-    #     reference_path=config.metadata.relative_path_prefix,
-    #     dest=config.metadata.color_separation_mask_dest,
-    # )
+    print("Generating color separation masks")
+    generate_color_separation_masks(
+        slide_paths=ChainedDataSources(list(map_datasets(datasets))),
+        mpp=0.5,
+        reference_path=config.metadata.relative_path_prefix,
+        dest=config.metadata.color_separation_mask_dest,
+    )
 
     # Tiling
     print("Tiling")

@@ -15,10 +15,12 @@ from rationai.masks.vips_filters import VipsClosing, VipsCompose, VipsOpening
 from prepro.utils import vips_read
 
 
+DISC_FACTOR = 5
+
 morph_filters = VipsCompose(
     [
-        VipsOpening(),
-        VipsClosing(),
+        VipsOpening(DISC_FACTOR),
+        VipsClosing(DISC_FACTOR),
     ]
 )
 
