@@ -2,6 +2,7 @@ defaults:
   - _self_
   - /data/transforms@transforms: test_224
 
+_target_: lymph_nodes.data.datasets.ClassificationDataset
 uris:
   [
     "mlflow-artifacts:/68/6727f5037cab430c87ca002d8a7a1202/artifacts/lymhps-2023/negative-val",
