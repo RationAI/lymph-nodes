@@ -32,6 +32,8 @@ def process_tiles(tiles, slide) -> None:
         torch.tensor(tiles["y"].to_numpy() + round(slide.tile_extent_y * 0.1)),
     )
 
+    mask_builder.save()
+
     pred_path = mask_builder.filename.with_suffix(".tiff")
 
     mlflow.log_artifact(
@@ -44,6 +46,7 @@ def process_tiles(tiles, slide) -> None:
 
 
 def main(uris: list[str]) -> None:
+    mlflow.set_experiment("Lymph Nodes")
     mlflow.start_run(run_name="CLS eval GT mask")
 
     artifacts_paths = [download_artifacts(artifact_uri=uri) for uri in uris]
@@ -61,15 +64,12 @@ def main(uris: list[str]) -> None:
     slides = pd.concat(slides_dfs)
     tiles = pd.concat(tiles_dfs)
 
-    # @ray.remote
+    @ray.remote
     def process_slide(slide) -> None:
         slide_tiles = tiles[tiles["slide_id"] == slide.id]
         process_tiles(slide_tiles, slide)
 
-    for slide in slides.itertuples():
-        process_slide(slide)
-
-    # process_items(slides.itertuples(), process_item=process_slide)
+    process_items(slides.itertuples(), process_item=process_slide)
 
 
 if __name__ == "__main__":
