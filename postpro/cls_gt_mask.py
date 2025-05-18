@@ -27,9 +27,9 @@ def process_tiles(tiles, slide) -> None:
     )
 
     mask_builder.update(
-        torch.tensor((tiles["metastazis"] > 0) * 1),
-        torch.tensor(tiles["x"] + round(slide.tile_extent_y * 0.1)),
-        torch.tensor(tiles["y"] + round(slide.tile_extent_y * 0.1)),
+        torch.tensor((tiles["metastazis"] > 0).to_numpy() * 1),
+        torch.tensor(tiles["x"].to_numpy() + round(slide.tile_extent_y * 0.1)),
+        torch.tensor(tiles["y"].to_numpy() + round(slide.tile_extent_y * 0.1)),
     )
 
     pred_path = mask_builder.filename.with_suffix(".tiff")
