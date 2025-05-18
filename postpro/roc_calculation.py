@@ -17,6 +17,17 @@ from rationai.masks import (
 from sklearn.metrics import auc
 
 
+def extract_hist(image: pyvips.Image) -> NDArray:
+    hist = image.hist_find().numpy()
+
+    if len(hist.shape) == 0:
+        empty = np.zeros(256)
+        empty[0] = hist
+        return empty
+
+    return hist[0]
+
+
 def save_roc(path: str | Path, tpr: NDArray, fpr: NDArray) -> None:
     roc_auc = auc(fpr, tpr)
 
@@ -59,11 +70,11 @@ def process_prediction(
         pred = pyvips.Image.new_from_file(pred_path, page=level)
         gt = pyvips.Image.new_from_file(pred_path, page=0) > 0
 
-        gt_hist = gt.hist_find().numpy()[0]
+        gt_hist = extract_hist(gt)
         n, p = gt_hist[0], gt_hist[-1]
 
-        tps = vec_from_hist((pred * gt).hist_find().numpy()[0])
-        fps = vec_from_hist((pred * (~gt)).hist_find().numpy()[0])
+        tps = vec_from_hist(extract_hist(pred * gt))
+        fps = vec_from_hist(extract_hist(pred * (~gt)))
 
         tpr = tps / p if p > 0 else 0
         fpr = fps / n if n > 0 else 0
@@ -71,7 +82,7 @@ def process_prediction(
     else:
         pred = pyvips.Image.new_from_file(pred_path, page=0)
         n = pred.width * pred.height
-        fps = vec_from_hist(pred.hist_find().numpy()[0])
+        fps = vec_from_hist(extract_hist(pred))
 
         tpr = 0
         fpr = fps / n
