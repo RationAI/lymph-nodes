@@ -75,7 +75,13 @@ class _SegmentationSlideTiles(MaskSlideTiles):
         cyto_mask = self._get_mask(idx, cyto_path)
         annot_mask = self._get_mask(idx, annot_path)
 
-        np_mask = cyto_mask if cyto_mask is not None else annot_mask
+        np_mask = (
+            cyto_mask
+            if cyto_mask is not None
+            else (
+                annot_mask if annot_mask is not None else np.zeros(np.image.shape[:2])
+            )
+        )
 
         metadata = self._get_metadata(idx)
 

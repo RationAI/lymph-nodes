@@ -16,10 +16,10 @@ reporter:
     paths:
       _target_: report.masks.mlflow_slide_retriever
       urls:
-        - "mlflow-artifacts:/68/6727f5037cab430c87ca002d8a7a1202/artifacts/lymhps-2023/negative-test/slides.parquet"
-        - "mlflow-artifacts:/68/6727f5037cab430c87ca002d8a7a1202/artifacts/tmas/test/slides.parquet"
-        - "mlflow-artifacts:/68/6727f5037cab430c87ca002d8a7a1202/artifacts/positive-lymph-nodes/slides.parquet"
-        - "mlflow-artifacts:/68/6727f5037cab430c87ca002d8a7a1202/artifacts/lymhps-2023/positive-test/slides.parquet"
+        - "mlflow-artifacts:/68/5b263d24d75c4c138ffa33752a46e47c/artifacts/lymhps-2023/negative-test/slides.parquet"
+        - "mlflow-artifacts:/68/5b263d24d75c4c138ffa33752a46e47c/artifacts/tmas/test/slides.parquet"
+        - "mlflow-artifacts:/68/5b263d24d75c4c138ffa33752a46e47c/artifacts/positive-lymph-nodes/slides.parquet"
+        - "mlflow-artifacts:/68/5b263d24d75c4c138ffa33752a46e47c/artifacts/lymhps-2023/positive-test/slides.parquet"
       key: path
     layer_name: background
   evaluation_runs:
