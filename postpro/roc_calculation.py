@@ -65,6 +65,8 @@ def process_prediction(
         tps = vec_from_hist((pred * gt).hist_find().numpy())
         fps = vec_from_hist((pred * (~gt)).hist_find().numpy())
 
+        print(n, p, tps, fps, flush=True)
+
         tpr = tps / p if p > 0 else 0
         fpr = fps / n if n > 0 else 0
 
