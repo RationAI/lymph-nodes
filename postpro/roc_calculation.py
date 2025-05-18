@@ -59,13 +59,11 @@ def process_prediction(
         pred = pyvips.Image.new_from_file(pred_path, page=level)
         gt = pyvips.Image.new_from_file(pred_path, page=0) > 0
 
-        gt_hist = gt.hist_find().numpy()
+        gt_hist = gt.hist_find().numpy()[0]
         n, p = gt_hist[0], gt_hist[-1]
 
-        tps = vec_from_hist((pred * gt).hist_find().numpy())
-        fps = vec_from_hist((pred * (~gt)).hist_find().numpy())
-
-        print(n, p, tps, fps, flush=True)
+        tps = vec_from_hist((pred * gt).hist_find().numpy()[0])
+        fps = vec_from_hist((pred * (~gt)).hist_find().numpy()[0])
 
         tpr = tps / p if p > 0 else 0
         fpr = fps / n if n > 0 else 0
@@ -73,7 +71,7 @@ def process_prediction(
     else:
         pred = pyvips.Image.new_from_file(pred_path, page=0)
         n = pred.width * pred.height
-        fps = vec_from_hist(pred.hist_find().numpy())
+        fps = vec_from_hist(pred.hist_find().numpy()[0])
 
         tpr = 0
         fpr = fps / n
