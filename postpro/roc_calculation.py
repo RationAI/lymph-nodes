@@ -209,7 +209,7 @@ def main(seg_run_ids: list[str], cls_run_ids: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    main(["a2d577f56700457fabacfdda7c4f6b87"], [])  # pylint: disable=no-value-for-parameter
+    main([], ["a2d577f56700457fabacfdda7c4f6b87"])  # pylint: disable=no-value-for-parameter
 
 
 # 964a7353a2cd42a19db85cbcea45207b
