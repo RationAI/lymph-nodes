@@ -61,12 +61,15 @@ def main(uris: list[str]) -> None:
     slides = pd.concat(slides_dfs)
     tiles = pd.concat(tiles_dfs)
 
-    @ray.remote
+    # @ray.remote
     def process_slide(slide) -> None:
         slide_tiles = tiles[tiles["slide_id"] == slide.id]
         process_tiles(slide_tiles, slide)
 
-    process_items(slides.itertuples(), process_item=process_slide)
+    for slide in slides.itertuples():
+        process_slide(slide)
+
+    # process_items(slides.itertuples(), process_item=process_slide)
 
 
 if __name__ == "__main__":
