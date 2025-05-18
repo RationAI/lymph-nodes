@@ -18,7 +18,7 @@ class DeepLab(nn.Module, ABC):
         super().__init__()
         # It has  to be named bacbone because of FineTuner
         self.backbone = encoder
-        self.decoder = DeepLabDecoder(512, features[0])
+        self.decoder = DeepLabDecoder(features[0], 512)
         self.aspp = ASPP(features[1], features[-1], 512)
         self.cls_head = cls_head
 
