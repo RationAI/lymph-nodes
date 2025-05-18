@@ -1,13 +1,15 @@
 import tempfile
 from pathlib import Path
+
 import mlflow
 import pandas as pd
-from rationai.masks.mask_builders import ScalarMaskBuilder
-from mlflow.artifacts import download_artifacts
 import ray
+import torch
+from mlflow.artifacts import download_artifacts
 from rationai.masks import (
     process_items,
 )
+from rationai.masks.mask_builders import ScalarMaskBuilder
 
 
 def process_tiles(tiles, slide) -> None:
@@ -25,9 +27,9 @@ def process_tiles(tiles, slide) -> None:
     )
 
     mask_builder.update(
-        (tiles["metastazis"] > 0) * 1,
-        tiles["x"] + round(slide.tile_extent_y * 0.1),
-        tiles["y"] + round(slide.tile_extent_y * 0.1),
+        torch.tensor((tiles["metastazis"] > 0) * 1),
+        torch.tensor(tiles["x"] + round(slide.tile_extent_y * 0.1)),
+        torch.tensor(tiles["y"] + round(slide.tile_extent_y * 0.1)),
     )
 
     pred_path = mask_builder.filename.with_suffix(".tiff")
