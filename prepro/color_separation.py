@@ -43,7 +43,8 @@ def slide_color_separation(
         & (red < 175)
     )
 
-    mask, (mpp_x, mpp_y) = morph_filters(mask, mpp)
+    # mask, (mpp_x, mpp_y) = morph_filters(mask, mpp)
+    mpp_x, mpp_y = mpp
 
     mask_path = Path(dest_dir, f"{Path(slide_path).stem}.tiff")
     mask_path.parent.mkdir(exist_ok=True, parents=True)
