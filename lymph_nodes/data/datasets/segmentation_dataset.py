@@ -79,7 +79,9 @@ class _SegmentationSlideTiles(MaskSlideTiles):
             cyto_mask
             if cyto_mask is not None
             else (
-                annot_mask if annot_mask is not None else np.zeros(np_image.shape[:2])
+                annot_mask
+                if annot_mask is not None
+                else np.zeros(np_image.shape[:2], dtype=np.float32)
             )
         )
 
