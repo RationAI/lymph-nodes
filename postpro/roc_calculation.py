@@ -87,8 +87,13 @@ def process_prediction(
         tpr = np.zeros(256)
         fpr = fps / n
 
+    roc_path = Path(
+        f"./data/{run_id}/roc/{prefix}", rel_path, f"{Path(pred_path).stem}.txt"
+    )
+    roc_path.parent.mkdir(exist_ok=True, parents=True)
+
     np.savetxt(
-        Path(f"./data/{run_id}/roc/{prefix}", rel_path, f"{Path(pred_path).stem}.txt"),
+        roc_path,
         np.array([tpr, fpr]),
         fmt="%.5f",
     )
