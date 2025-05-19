@@ -69,7 +69,7 @@ class JSONIgnoreMask(PolygonMask[dict]):
 def custom_ignore_mask(slide_path: Path, desired_mpp: float, dest_dir: Path) -> None:
     json_annotation_file = Path(
         "/mnt/data/Projects/lymph_nodes/custom_ignore_annotations/",
-        f"{slide_path.stem}-2025_04_25-all.json",
+        f"{slide_path.stem}.json",
     )
 
     if not os.path.exists(json_annotation_file):
