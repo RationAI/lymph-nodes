@@ -169,7 +169,7 @@ def process_sections(run_id: str, prefix: str) -> None:
     for section in os.listdir(f"./data/{run_id}/{prefix}"):
         section_tps = np.zeros(256)
         section_fps = np.zeros(256)
-        section_tps = np.zeros(256)
+        section_tns = np.zeros(256)
         section_fns = np.zeros(256)
 
         paths = Path(f"./data/{run_id}/{prefix}", section).rglob("*.tiff")
