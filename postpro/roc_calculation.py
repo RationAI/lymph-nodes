@@ -90,7 +90,10 @@ def extract_hist(image: pyvips.Image) -> NDArray:
         empty[0] = hist
         return empty
 
-    return hist[0]
+    hist = hist[0]
+    hist[0] = 0  # remove background
+
+    return hist
 
 
 def save_hist(path: str | Path, y: NDArray, fps: NDArray, label: str) -> None:
