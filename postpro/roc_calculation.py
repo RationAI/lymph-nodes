@@ -104,11 +104,14 @@ def process_sections(run_id: str, prefix: str) -> None:
     total_tprs = np.zeros(256)
     total_fprs = np.zeros(256)
 
+    total_counter = 0
+
     for section in os.listdir(f"./data/{run_id}/{prefix}"):
         print("Processing section: ", section)
 
         tprs = np.zeros(256)
         fprs = np.zeros(256)
+        section_counter = 0
 
         paths = Path(f"./data/{run_id}/{prefix}", section).rglob("*.tiff")
 
@@ -116,6 +119,14 @@ def process_sections(run_id: str, prefix: str) -> None:
             tpr, fpr = process_prediction(path, run_id, prefix)
             tprs += tpr
             fprs += fpr
+            section_counter += 1
+
+        total_tprs += tprs
+        total_fprs += fprs
+        total_counter += section_counter
+
+        tprs = tprs / section_counter
+        fprs = fprs / section_counter
 
         np.savetxt(
             Path(f"./data/{run_id}/roc/{prefix}", f"{section}.txt"),
@@ -127,6 +138,10 @@ def process_sections(run_id: str, prefix: str) -> None:
 
         total_tprs += tprs
         total_fprs += fprs
+        total_counter += section_counter
+
+    total_tprs = total_tprs / total_counter
+    total_fprs = total_tprs / total_counter
 
     np.savetxt(
         f"./data/{run_id}/roc/{prefix}/total_roc.txt",
@@ -239,3 +254,4 @@ if __name__ == "__main__":
 # 6b5be7163a7e42a88a8fe7d4773af6f0
 # 6bd8a2b178ca40e4af7df32213c52378
 # a2d577f56700457fabacfdda7c4f6b87
+# 65a81f3aab9b4ac4813e900153ef308f
