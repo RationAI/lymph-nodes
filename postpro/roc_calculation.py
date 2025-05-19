@@ -53,6 +53,7 @@ def compute_metrics(tps, fps, fns, tns, idx, epsilon=1e-8):
 
 def find_best_threshold(tps, fps, fns, beta=1.0):
     f_scores = weighted_f_score(tps, fps, fns, beta=beta)
+    print(f_scores)
     best_idx = np.argmax(f_scores)
     best_score = f_scores[best_idx]
     return best_idx, best_score
@@ -199,13 +200,7 @@ def process_prediction(
         if scale != 1:
             gt = gt.resize(mpp, kernel="nearest")
 
-        print("GT 1", extract_hist(gt), flush=True)
-        print("TISSUE 1", extract_hist(tissue_mask), flush=True)
-
         gt = gt & tissue_mask
-
-        print("GT 2", extract_hist(gt), flush=True)
-        print("TISSUE 2", extract_hist(tissue_mask), flush=True)
 
         n = extract_hist(tissue_mask & (~gt))[-1]
         p = extract_hist(gt)[-1]
@@ -213,12 +208,8 @@ def process_prediction(
         tps = np.cumsum(extract_hist(pred & gt)[::-1])[::-1]
         fps = np.cumsum(extract_hist(pred & ((~gt) & tissue_mask))[::-1])[::-1]
 
-    print(n, p, fps, tps, flush=True)
-
     tns = n - fps
     fns = p - tps
-
-    print(tns, fns, flush=True)
 
     hist_path = Path(
         f"./data/{run_id}/roc/{prefix}", rel_path, f"{Path(pred_path).stem}.txt"
