@@ -204,8 +204,12 @@ def process_prediction(
         tps = np.cumsum(extract_hist(pred & gt))[::-1]
         fps = np.cumsum(extract_hist(pred & ((~gt) & tissue_mask)))[::-1]
 
+    print(n, p, fps, tps, flush=True)
+
     tns = n - fps
     fns = p - tps
+
+    print(tns, fns, flush=True)
 
     hist_path = Path(
         f"./data/{run_id}/roc/{prefix}", rel_path, f"{Path(pred_path).stem}.txt"
