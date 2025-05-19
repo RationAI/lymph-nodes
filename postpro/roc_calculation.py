@@ -76,15 +76,15 @@ def process_prediction(
         tps = vec_from_hist(extract_hist(pred * gt))
         fps = vec_from_hist(extract_hist(pred * (~gt)))
 
-        tpr = tps / p if p > 0 else 0
-        fpr = fps / n if n > 0 else 0
+        tpr = tps / p if p > 0 else np.zeros(256)
+        fpr = fps / n if n > 0 else np.zeros(256)
 
     else:
         pred = pyvips.Image.new_from_file(pred_path, page=0)
         n = pred.width * pred.height
         fps = vec_from_hist(extract_hist(pred))
 
-        tpr = 0
+        tpr = np.zeros(256)
         fpr = fps / n
 
     np.savetxt(
