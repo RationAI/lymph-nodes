@@ -217,6 +217,8 @@ def process_prediction(
     )
     hist_path.parent.mkdir(exist_ok=True, parents=True)
 
+    print(n, p, tns.shape, fns.shape, tps.shape, fps.shape, flush=True)
+
     np.savetxt(
         hist_path,
         np.array([tps, fps, tns, fns]),
