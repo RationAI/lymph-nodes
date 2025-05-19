@@ -96,7 +96,7 @@ def extract_hist(image: pyvips.Image) -> NDArray:
         return empty
 
     hist = hist[0]
-    if len(hist == 255):
+    if len(hist) == 255:
         return np.insert(hist, 0, 0)
     return hist
 
