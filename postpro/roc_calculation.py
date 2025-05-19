@@ -178,7 +178,7 @@ def process_prediction(
     pred = pyvips.Image.new_from_file(pred_path, page=1)  # MPP=1
 
     if not os.path.exists(gt_path):
-        fps = np.cumsum(extract_hist(pred & tissue_mask))[::-1]
+        fps = np.cumsum(extract_hist(pred & tissue_mask)[::-1])[::-1]
         tps = np.zeros(256)
 
         n = extract_hist(tissue_mask)[-1]
@@ -204,8 +204,12 @@ def process_prediction(
         n = extract_hist(tissue_mask & (~gt))[-1]
         p = extract_hist(gt)[-1]
 
-        tps = np.cumsum(extract_hist(pred & gt))[::-1]
-        fps = np.cumsum(extract_hist(pred & ((~gt) & tissue_mask)))[::-1]
+        print("ORG", extract_hist(tissue_mask & (~gt)), extract_hist(gt))
+
+        print("G", extract_hist(pred & gt), extract_hist(pred & ((~gt) & tissue_mask)))
+
+        tps = np.cumsum(extract_hist(pred & gt)[::-1])[::-1]
+        fps = np.cumsum(extract_hist(pred & ((~gt) & tissue_mask))[::-1])[::-1]
 
     print(n, p, fps, tps, flush=True)
 
