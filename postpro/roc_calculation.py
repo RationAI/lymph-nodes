@@ -195,7 +195,7 @@ def process_prediction(
                 level = 0
                 scale = round(mpp)
 
-        gt = pyvips.Image.new_from_file(gt_path, page=level)
+        gt = pyvips.Image.new_from_file(gt_path, page=level) > 0
         if scale != 1:
             gt = gt.resize(mpp, kernel="nearest")
 
