@@ -69,11 +69,6 @@ def evaluate_and_save(tps, fps, fns, tns, filename, beta=1.0):
     Returns:
     - dict with keys: best_idx, best_score, best_threshold (if thresholds given), metrics tuple
     """
-    tps = np.cumsum(tps[::-1])
-    fps = np.cumsum(fps[::-1])
-    fns = np.cumsum(fns[::-1])
-    tns = np.cumsum(tns[::-1])
-
     best_idx, best_score = find_best_threshold(tps, fps, fns, beta=beta)
     metrics = compute_metrics(tps, fps, fns, tns, best_idx)
 
@@ -95,10 +90,7 @@ def extract_hist(image: pyvips.Image) -> NDArray:
         empty[0] = hist
         return empty
 
-    hist = hist[0]
-    if len(hist) == 255:
-        return np.insert(hist, 0, 0)
-    return hist
+    return hist[0]
 
 
 def save_hist(path: str | Path, y: NDArray, fps: NDArray, label: str) -> None:
@@ -119,12 +111,12 @@ def save_hist(path: str | Path, y: NDArray, fps: NDArray, label: str) -> None:
 
 
 def save_roc(path: str | Path, tps: NDArray, fps: NDArray) -> None:
-    if not tps.sum() or not fps.sum():
+    if not tps[0] or not fps[0]:
         # There is nothing to plot
         return
 
-    tpr = np.cumsum(tps[::-1])[::-1] / tps.sum()
-    fpr = np.cumsum(fps[::-1])[::-1] / fps.sum()
+    tpr = tps[::-1] / tps[0]
+    fpr = fps[::-1] / fps[0]
 
     roc_auc = auc(fpr, tpr)
 
@@ -183,7 +175,7 @@ def process_prediction(
     pred = pyvips.Image.new_from_file(pred_path, page=1)  # MPP=1
 
     if not os.path.exists(gt_path):
-        fps = extract_hist(pred & tissue_mask)
+        fps = np.cumsum(extract_hist(pred & tissue_mask)[::-1])
         tps = np.zeros(256)
 
         n = extract_hist(tissue_mask)[-1]
@@ -209,8 +201,8 @@ def process_prediction(
         n = extract_hist(tissue_mask & (~gt))[-1]
         p = extract_hist(gt)[-1]
 
-        tps = extract_hist(pred & gt)
-        fps = extract_hist(pred & ((~gt) & tissue_mask))
+        tps = np.cumsum(extract_hist(pred & gt)[::-1])
+        fps = np.cumsum(extract_hist(pred & ((~gt) & tissue_mask))[::-1])
 
     tns = n - fps
     fns = p - tps
@@ -219,8 +211,6 @@ def process_prediction(
         f"./data/{run_id}/roc/{prefix}", rel_path, f"{Path(pred_path).stem}.txt"
     )
     hist_path.parent.mkdir(exist_ok=True, parents=True)
-
-    print(n, p, tns.shape, fns.shape, tps.shape, fps.shape, flush=True)
 
     np.savetxt(
         hist_path,
