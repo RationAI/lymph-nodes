@@ -67,27 +67,26 @@ def process_prediction(
         with OpenSlide(pred_path) as slide:
             level = closest_level(slide, mpp[0])
 
-        pred = pyvips.Image.new_from_file(pred_path, page=level + 3)
-        gt = pyvips.Image.new_from_file(pred_path, page=3) > 0
+        pred = pyvips.Image.new_from_file(pred_path, page=level + 1)
+        gt = pyvips.Image.new_from_file(pred_path, page=1) > 0
 
         gt_hist = extract_hist(gt)
         n, p = gt_hist[0], gt_hist[-1]
 
-        tps = vec_from_hist(extract_hist(pred * gt))
-        fps = vec_from_hist(extract_hist(pred * (~gt)))
+        tps = vec_from_hist(extract_hist(pred & gt))
+        fps = vec_from_hist(extract_hist(pred & (~gt)))
 
         tpr = tps / p if p > 0 else np.zeros(256)
         fpr = fps / n if n > 0 else np.zeros(256)
 
     else:
-        pred = pyvips.Image.new_from_file(pred_path, page=3)
+        pred = pyvips.Image.new_from_file(pred_path, page=1)
         n = pred.width * pred.height
         fps = vec_from_hist(extract_hist(pred))
 
         tpr = np.zeros(256)
         fpr = fps / n
 
-    print(tpr.shape, fpr.shape, flush=True)
     np.savetxt(
         Path(f"./data/{run_id}/roc/{prefix}", rel_path, f"{Path(pred_path).stem}.txt"),
         np.array([tpr, fpr]),
