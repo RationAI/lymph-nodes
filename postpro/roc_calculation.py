@@ -204,6 +204,8 @@ def process_prediction(
         n = extract_hist(tissue_mask & (~gt))[-1]
         p = extract_hist(gt)[-1]
 
+        print("T", extract_hist(tissue_mask), flush=True)
+
         print("ORG", extract_hist(tissue_mask & (~gt)), extract_hist(gt))
 
         print("G", extract_hist(pred & gt), extract_hist(pred & ((~gt) & tissue_mask)))
