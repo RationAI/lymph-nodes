@@ -87,7 +87,7 @@ def process_prediction(
         tpr = np.zeros(256)
         fpr = fps / n
 
-    print(tpr, fpr, flush=True)
+    print(tpr.shape, fpr.shape, flush=True)
     np.savetxt(
         Path(f"./data/{run_id}/roc/{prefix}", rel_path, f"{Path(pred_path).stem}.txt"),
         np.array([tpr, fpr]),
