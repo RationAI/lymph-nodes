@@ -29,7 +29,7 @@ def extract_hist(image: pyvips.Image) -> NDArray:
 
 
 def save_hist(path: str | Path, y: NDArray, fps: NDArray, label: str) -> None:
-    x = np.linspace(1, 100, 100)
+    x = np.linspace(0, 255, 256)
     plt.plot(x, y, label=label)
     plt.plot(x, fps, label="FPS")
 
@@ -71,7 +71,7 @@ def vec_from_hist(hist: NDArray) -> NDArray:
 
 def process_prediction(
     pred_path: str | Path, run_id: str, prefix: str
-) -> tuple[NDArray, NDArray, NDArray]:
+) -> tuple[NDArray, NDArray, NDArray, NDArray]:
     rel_path = Path(pred_path).relative_to(f"./data/{run_id}/{prefix}").parent
 
     tissue_mask_path = Path(
@@ -116,7 +116,9 @@ def process_prediction(
     if not os.path.exists(gt_path):
         fps = vec_from_hist(extract_hist(pred & tissue_mask))
         tps = np.zeros(256)
-        fns = np.zeros(256)
+
+        n = extract_hist(tissue_mask)[-1]
+        p = 0
 
     else:
         with OpenSlide(gt_path) as slide:
@@ -136,11 +138,14 @@ def process_prediction(
         gt = gt > 0
         tissue_mask = gt | tissue_mask
 
+        n = extract_hist(tissue_mask & (~gt))[-1]
         p = extract_hist(gt)[-1]
 
         tps = vec_from_hist(extract_hist(pred & gt))
         fps = vec_from_hist(extract_hist(pred & ((~gt) & tissue_mask)))
-        fns = p - tps
+
+    tns = n - fps
+    fns = p - tps
 
     roc_path = Path(
         f"./data/{run_id}/roc/{prefix}", rel_path, f"{Path(pred_path).stem}.txt"
@@ -149,33 +154,36 @@ def process_prediction(
 
     np.savetxt(
         roc_path,
-        np.array([tps, fps, fns]),
+        np.array([tps, fps, tns, fns]),
         fmt="%.5f",
     )
-    return tps, fps, fns
+    return tps, fps, tns, fns
 
 
 def process_sections(run_id: str, prefix: str) -> None:
     total_tps = np.zeros(256)
     total_fps = np.zeros(256)
+    total_tns = np.zeros(256)
     total_fns = np.zeros(256)
 
     for section in os.listdir(f"./data/{run_id}/{prefix}"):
         section_tps = np.zeros(256)
         section_fps = np.zeros(256)
+        section_tps = np.zeros(256)
         section_fns = np.zeros(256)
 
         paths = Path(f"./data/{run_id}/{prefix}", section).rglob("*.tiff")
 
         for path in paths:
-            tps, fps, fns = process_prediction(path, run_id, prefix)
+            tps, fps, tns, fns = process_prediction(path, run_id, prefix)
             section_tps += tps
             section_fps += fps
+            section_tns += tns
             section_fns += fns
 
         np.savetxt(
             Path(f"./data/{run_id}/roc/{prefix}", f"{section}.txt"),
-            np.array([section_tps, section_fps, section_fns]),
+            np.array([section_tps, section_fps, section_fns, section_tns]),
             fmt="%.5f",
         )
 
@@ -199,11 +207,12 @@ def process_sections(run_id: str, prefix: str) -> None:
 
         total_tps += section_tps
         total_fps += section_fps
+        total_tns += section_tns
         total_fns += section_fns
 
     np.savetxt(
         f"./data/{run_id}/roc/{prefix}/total.txt",
-        np.array([total_tps, total_fps, total_fns]),
+        np.array([total_tps, total_fps, total_tns, total_fns]),
         fmt="%.5f",
     )
 
