@@ -7,17 +7,13 @@ import hydra
 import mlflow
 from omegaconf import DictConfig, OmegaConf
 
-# from prepro.annotation_masks import generate_annotation_masks
+from prepro.annotation_masks import generate_annotation_masks
 from prepro.color_separation import generate_color_separation_masks
-
-# from prepro.cyto_ignore_masks import generate_cyto_ignore_masks
+from prepro.custom_ignore_masks import generate_custom_ignore_masks
 from prepro.data_source import ChainedDataSources, DataSource
-
-# from prepro.ignore_masks import generate_ignore_masks
+from prepro.ignore_masks import generate_ignore_masks
 from prepro.tiling import Args, tile_dataset
-
-
-# from prepro.tissue_masks import generate_tissue_masks
+from prepro.tissue_masks import generate_tissue_masks
 
 
 @dataclass
@@ -37,32 +33,32 @@ def main(config: DictConfig) -> None:
     mlflow.set_tracking_uri(config.metadata.mlflow_uri)
     mlflow.set_experiment(config.metadata.experiment_name)
 
-    active_run = mlflow.start_run(run_name=config.metadata.run_name)
+    active_run = mlflow.start_run(run_name="Custom ignore masks")
 
-    print("Donwloading cytokeratin masks")
-    mlflow.artifacts.download_artifacts(
-        artifact_uri=config.metadata.cytokeratin_masks_path, dst_path="./data"
-    )
+    # print("Donwloading cytokeratin masks")
+    # mlflow.artifacts.download_artifacts(
+    #     artifact_uri=config.metadata.cytokeratin_masks_path, dst_path="./data"
+    # )
 
-    mlflow.artifacts.download_artifacts(
-        artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/tissue_masks",
-        dst_path="./data",
-    )
+    # mlflow.artifacts.download_artifacts(
+    #     artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/tissue_masks",
+    #     dst_path="./data",
+    # )
 
-    mlflow.artifacts.download_artifacts(
-        artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/ignore_masks",
-        dst_path="./data",
-    )
+    # mlflow.artifacts.download_artifacts(
+    #     artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/ignore_masks",
+    #     dst_path="./data",
+    # )
 
-    mlflow.artifacts.download_artifacts(
-        artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/annotation_masks",
-        dst_path="./data",
-    )
+    # mlflow.artifacts.download_artifacts(
+    #     artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/annotation_masks",
+    #     dst_path="./data",
+    # )
 
-    mlflow.artifacts.download_artifacts(
-        artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/cyto_ignore_masks",
-        dst_path="./data",
-    )
+    # mlflow.artifacts.download_artifacts(
+    #     artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/custom_ignore_masks",
+    #     dst_path="./data",
+    # )
 
     # mlflow.artifacts.download_artifacts(
     #     artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/color_separation_masks",
@@ -246,13 +242,12 @@ def main(config: DictConfig) -> None:
     #     dest=config.metadata.tissue_mask_dest,
     # )
 
-    # Annotation masks
+    # # Annotation masks
     # print("Generating annotation masks")
     # generate_annotation_masks(
     #     slide_paths=ChainedDataSources(
     #         [
-    #             datasets["lymhps-2023"]["positive-train"].datasource,
-    #             datasets["lymhps-2023"]["positive-val"].datasource,
+    #             datasets["lymhps-2023"]["positive-test"].datasource,
     #             datasets["positive-lymph-nodes"].datasource,
     #         ]
     #     ),
@@ -261,7 +256,7 @@ def main(config: DictConfig) -> None:
     #     dest=config.metadata.annotation_mask_dest,
     # )
 
-    # Ignore masks
+    # # Ignore masks
     # print("Generating ignore masks")
     # generate_ignore_masks(
     #     slide_paths=ChainedDataSources(
@@ -276,73 +271,75 @@ def main(config: DictConfig) -> None:
     #     dest=config.metadata.ignore_mask_dest,
     # )
 
-    # CytoIgnore masks
-    # print("Generating cyto ignore masks")
-    # generate_cyto_ignore_masks(
-    #     slide_paths=ChainedDataSources(
-    #         [
-    #             datasets["tmas"]["test"].datasource,
-    #             datasets["tmas"]["train"].datasource,
-    #             datasets["tmas"]["val"].datasource,
-    #         ]
-    #     ),
-    #     mpp=2,
-    #     reference_path=config.metadata.relative_path_prefix,
-    #     dest=config.metadata.ignore_mask_dest,
-    # )
-
-    # Color separation masks
-    print("Generating color separation masks")
-    generate_color_separation_masks(
-        slide_paths=ChainedDataSources(list(map_datasets(datasets))),
-        mpp=1,
+    # CustomIgnore masks
+    print("Generating custom ignore masks")
+    generate_custom_ignore_masks(
+        slide_paths=ChainedDataSources(
+            [
+                datasets["tmas"]["test"].datasource,
+                datasets["tmas"]["train"].datasource,
+                datasets["tmas"]["val"].datasource,
+                datasets["lymhps-2023"]["negative-test"].datasource,
+                datasets["lymhps-2023"]["positive-test"].datasource,
+            ]
+        ),
+        mpp=2,
         reference_path=config.metadata.relative_path_prefix,
-        dest=config.metadata.color_separation_mask_dest,
+        dest=config.metadata.ignore_mask_dest,
     )
 
-    # Tiling
-    print("Tiling")
+    # # Color separation masks
+    # print("Generating color separation masks")
+    # generate_color_separation_masks(
+    #     slide_paths=ChainedDataSources(list(map_datasets(datasets))),
+    #     mpp=1,
+    #     reference_path=config.metadata.relative_path_prefix,
+    #     dest=config.metadata.color_separation_mask_dest,
+    # )
 
-    def tile_config(
-        dataset: DataSource, source_kind: str, slide_metastazis: bool
-    ) -> Args:
-        return {
-            "slides": dataset,
-            "source_kind": source_kind,
-            "slide_metastazis": slide_metastazis,
-            "desired_mpp": config.metadata.tiling.mpp,
-            "tissue_threshold": config.metadata.tiling.tissue_threshold,
-            "tile_crop": config.metadata.tiling.tile_crop,
-            "min_roi_area": config.metadata.tiling.min_roi_area,
-            "stride": config.metadata.tiling.stride,
-            "tissue_masks_dir": config.metadata.tissue_mask_dest,
-            "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
-            "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
-            "ignore_mask_dir": config.metadata.ignore_mask_dest,
-            "cyto_ignore_mask_dir": config.metadata.cyto_ignore_mask_dest,
-            "annotation_masks_dir": config.metadata.annotation_mask_dest,
-            "relative_path_prefix": config.metadata.relative_path_prefix,
-        }
+    # # Tiling
+    # print("Tiling")
 
-    def process_dataset(dataset: dict[str, Any], prefix: str = "") -> None:
-        for key in dataset:
-            name: str = f"{prefix}/{key}" if prefix else key
+    # def tile_config(
+    #     dataset: DataSource, source_kind: str, slide_metastazis: bool
+    # ) -> Args:
+    #     return {
+    #         "slides": dataset,
+    #         "source_kind": source_kind,
+    #         "slide_metastazis": slide_metastazis,
+    #         "desired_mpp": config.metadata.tiling.mpp,
+    #         "tissue_threshold": config.metadata.tiling.tissue_threshold,
+    #         "tile_crop": config.metadata.tiling.tile_crop,
+    #         "min_roi_area": config.metadata.tiling.min_roi_area,
+    #         "stride": config.metadata.tiling.stride,
+    #         "tissue_masks_dir": config.metadata.tissue_mask_dest,
+    #         "cytokeratin_masks_dir": config.metadata.cytokeratin_mask_dest,
+    #         "color_separation_mask_dir": config.metadata.color_separation_mask_dest,
+    #         "ignore_mask_dir": config.metadata.ignore_mask_dest,
+    #         "custom_ignore_mask_dir": config.metadata.custom_ignore_mask_dest,
+    #         "annotation_masks_dir": config.metadata.annotation_mask_dest,
+    #         "relative_path_prefix": config.metadata.relative_path_prefix,
+    #     }
 
-            if isinstance(dataset[key], Dataset):
-                data = dataset[key]
-                tile_dataset(
-                    [
-                        tile_config(
-                            data.datasource, data.source_kind, data.slide_metastazis
-                        )
-                    ],
-                    dataset_name=name,
-                )
+    # def process_dataset(dataset: dict[str, Any], prefix: str = "") -> None:
+    #     for key in dataset:
+    #         name: str = f"{prefix}/{key}" if prefix else key
 
-            else:
-                process_dataset(dataset[key], name)
+    #         if isinstance(dataset[key], Dataset):
+    #             data = dataset[key]
+    #             tile_dataset(
+    #                 [
+    #                     tile_config(
+    #                         data.datasource, data.source_kind, data.slide_metastazis
+    #                     )
+    #                 ],
+    #                 dataset_name=name,
+    #             )
 
-    process_dataset(datasets)
+    #         else:
+    #             process_dataset(dataset[key], name)
+
+    # process_dataset(datasets)
     mlflow.end_run()
 
 

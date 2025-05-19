@@ -28,7 +28,7 @@ class Args(TypedDict):
     cytokeratin_masks_dir: str
     color_separation_mask_dir: str
     ignore_mask_dir: str
-    cyto_ignore_mask_dir: str
+    custom_ignore_mask_dir: str
     annotation_masks_dir: str
     relative_path_prefix: str
 
@@ -66,7 +66,7 @@ def data_tiler(
     cytokeratin_masks_dir: str,
     color_separation_mask_dir: str,
     ignore_mask_dir: str,
-    cyto_ignore_mask_dir: str,
+    custom_ignore_mask_dir: str,
     annotation_masks_dir: str,
     relative_path_prefix: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -96,7 +96,7 @@ def data_tiler(
                 **asdict(tile_labels), patho_ignore=class_overlaps.get(255, 0)
             )
 
-    class CytoIgnoreMask(PyvipsMask[CustomIgnoreTileMetadata]):
+    class CustomIgnoreMask(PyvipsMask[CustomIgnoreTileMetadata]):
         def forward_tile(
             self, tile_labels: TileMetadata, class_overlaps: dict[int, float]
         ) -> CustomIgnoreTileMetadata | None:
@@ -152,7 +152,7 @@ def data_tiler(
         relative_roi_offset=0,
     )
 
-    cyto_ignore_mask = CytoIgnoreMask(
+    custom_ignore_mask = CustomIgnoreMask(
         tile_extent=source.tile_extent,
         absolute_roi_extent=tile_extent,
         relative_roi_offset=0,
@@ -189,8 +189,8 @@ def data_tiler(
             f"{slide_path.stem}.tiff",
         )
 
-        cyto_ignore_mask_path = Path(
-            cyto_ignore_mask_dir,
+        custom_ignore_mask_path = Path(
+            custom_ignore_mask_dir,
             relative_path,
             f"{slide_path.stem}.tiff",
         )
@@ -213,8 +213,8 @@ def data_tiler(
         if ignore_mask_path.exists():
             tiles = ignore_mask(ignore_mask_path, slide.extent, tiles)
 
-        if cyto_ignore_mask_path.exists():
-            tiles = cyto_ignore_mask(cyto_ignore_mask_path, slide.extent, tiles)
+        if custom_ignore_mask_path.exists():
+            tiles = custom_ignore_mask(custom_ignore_mask_path, slide.extent, tiles)
 
         tiles = color_separation_mask(color_separation_mask_path, slide.extent, tiles)
 

@@ -23,7 +23,7 @@ metadata:
   annotation_mask_dest: data/annotation_masks
   cytokeratin_mask_dest: data/cytokeratin_masks
   ignore_mask_dest: data/ignore_masks
-  cyto_ignore_mask_dest: data/cyto_ignore_masks
+  custom_ignore_mask_dest: data/custom_ignore_masks
   cytokeratin_masks_path: mlflow-artifacts:/68/8ad173ea482d4db999bee7686d9dc2d5/artifacts/cytokeratin_masks
   color_separation_mask_dest: data/color_separation_masks
 

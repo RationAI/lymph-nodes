@@ -66,9 +66,9 @@ class JSONIgnoreMask(PolygonMask[dict]):
         return self.annotation_mpp[1]
 
 
-def cyto_ignore_mask(slide_path: Path, desired_mpp: float, dest_dir: Path) -> None:
+def custom_ignore_mask(slide_path: Path, desired_mpp: float, dest_dir: Path) -> None:
     json_annotation_file = Path(
-        "/mnt/data/Projects/lymph_nodes/cyto_ignore_annotations/",
+        "/mnt/data/Projects/lymph_nodes/custom_ignore_annotations/",
         f"{slide_path.stem}-2025_04_25-all.json",
     )
 
@@ -110,7 +110,7 @@ def cyto_ignore_mask(slide_path: Path, desired_mpp: float, dest_dir: Path) -> No
     )
 
 
-def generate_cyto_ignore_masks(
+def generate_custom_ignore_masks(
     slide_paths: Iterable[Path], mpp: float, reference_path: str, dest: str
 ) -> None:
     @ray.remote
@@ -118,8 +118,8 @@ def generate_cyto_ignore_masks(
         dest_dir = Path(
             dest, get_relative_dir_path(slide_path, Path(reference_path))
         )  # keep last level
-        cyto_ignore_mask(slide_path, mpp, dest_dir)
+        custom_ignore_mask(slide_path, mpp, dest_dir)
 
     process_items(slide_paths, process_item=process_slide)
 
-    mlflow.log_artifacts(dest, artifact_path="cyto_ignore_masks")
+    mlflow.log_artifacts(dest, artifact_path="custom_ignore_masks")
