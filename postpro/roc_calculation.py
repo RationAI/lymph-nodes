@@ -206,8 +206,14 @@ def process_prediction(
 
         tissue_mask = gt | tissue_mask
 
+        print("T", tissue_mask, flush=True)
+
         n = extract_hist(tissue_mask & (~gt))[-1]
         p = extract_hist(gt)[-1]
+
+        print("G", (gt > 0).ifthenelse(1, 0), flush=True)
+        print(pred * (gt > 0).ifthenelse(1, 0), flush=True)
+        print((pred * (gt > 0).ifthenelse(1, 0)).hist_find().numpy().shape, flush=True)
 
         tps = extract_hist(pred * (gt > 0).ifthenelse(1, 0))
         fps = extract_hist(pred * (((~gt) & tissue_mask) > 0).ifthenelse(1, 0))
