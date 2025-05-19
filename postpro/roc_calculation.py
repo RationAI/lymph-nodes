@@ -199,19 +199,16 @@ def process_prediction(
         if scale != 1:
             gt = gt.resize(mpp, kernel="nearest")
 
+        print("GT 1", extract_hist(gt), flush=True)
+        print("TISSUE 1", extract_hist(tissue_mask), flush=True)
+
         gt = gt & tissue_mask
 
-        print("G1", extract_hist(gt), flush=True)
-        print("G1", tissue_mask(gt), flush=True)
+        print("GT 2", extract_hist(gt), flush=True)
+        print("TISSUE 2", extract_hist(tissue_mask), flush=True)
 
         n = extract_hist(tissue_mask & (~gt))[-1]
         p = extract_hist(gt)[-1]
-
-        print("T", extract_hist(tissue_mask), flush=True)
-
-        print("ORG", extract_hist(tissue_mask & (~gt)), extract_hist(gt))
-
-        print("G", extract_hist(pred & gt), extract_hist(pred & ((~gt) & tissue_mask)))
 
         tps = np.cumsum(extract_hist(pred & gt)[::-1])[::-1]
         fps = np.cumsum(extract_hist(pred & ((~gt) & tissue_mask))[::-1])[::-1]
