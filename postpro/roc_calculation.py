@@ -17,6 +17,76 @@ from rationai.masks import (
 from sklearn.metrics import auc
 
 
+## METRICS ##
+def weighted_f_score(tp, fp, fn, beta=1.0, epsilon=1e-8):
+    precision = tp / (tp + fp + epsilon)
+    recall = tp / (tp + fn + epsilon)
+    beta_sq = beta**2
+    numerator = (1 + beta_sq) * precision * recall
+    denominator = beta_sq * precision + recall + epsilon
+    f_beta = numerator / denominator
+    return f_beta
+
+
+def compute_metrics(tps, fps, fns, tns, idx, epsilon=1e-8):
+    TP = tps[idx]
+    FP = fps[idx]
+    FN = fns[idx]
+    TN = tns[idx]
+
+    precision = TP / (TP + FP + epsilon)
+    recall = TP / (TP + FN + epsilon)
+    f1 = 2 * precision * recall / (precision + recall + epsilon)
+    iou = TP / (TP + FP + FN + epsilon)
+    accuracy = (TP + TN) / (TP + TN + FP + FN + epsilon)
+    specificity = TN / (TN + FP + epsilon)
+
+    total = TP + FP + FN + TN
+    po = accuracy
+    p_yes = ((TP + FP) / total) * ((TP + FN) / total)
+    p_no = ((TN + FN) / total) * ((TN + FP) / total)
+    pe = p_yes + p_no
+    kappa = (po - pe) / (1 - pe + epsilon)
+
+    return iou, f1, kappa, accuracy, precision, recall, specificity
+
+
+def find_best_threshold(tps, fps, fns, beta=1.0):
+    f_scores = weighted_f_score(tps, fps, fns, beta=beta)
+    best_idx = np.argmax(f_scores)
+    best_score = f_scores[best_idx]
+    return best_idx, best_score
+
+
+def evaluate_and_save(tps, fps, fns, tns, filename, beta=1.0):
+    """Find best threshold by weighted F-score, compute metrics, save with header.
+
+    Params:
+    - tps, fps, fns, tns: arrays of ints
+    - filename: output file path (string)
+    - beta: float, beta for weighted F-score (default=1.0)
+
+    Returns:
+    - dict with keys: best_idx, best_score, best_threshold (if thresholds given), metrics tuple
+    """
+    tps = np.cumsum(tps[::-1])
+    fps = np.cumsum(fps[::-1])
+    fns = np.cumsum(fns[::-1])
+    tns = np.cumsum(tns[::-1])
+
+    best_idx, best_score = find_best_threshold(tps, fps, fns, beta=beta)
+    metrics = compute_metrics(tps, fps, fns, tns, best_idx)
+
+    header = "IoU & F1 & Cohen's Kappa & Accuracy & Precision & Recall & Specificity"
+    line = " & ".join(f"{m:.3f}" for m in metrics)
+
+    with open(filename, "w") as f:
+        f.write(f"Score: {best_score}\n")
+        f.write(f"Index: {best_idx}\n")
+        f.write(header + "\n")
+        f.write(line + "\n")
+
+
 def extract_hist(image: pyvips.Image) -> NDArray:
     hist = image.hist_find().numpy()
 
@@ -50,8 +120,8 @@ def save_roc(path: str | Path, tps: NDArray, fps: NDArray) -> None:
         # There is nothing to plot
         return
 
-    tpr = tps[::-1] / tps.sum()
-    fpr = fps[::-1] / fps.sum()
+    tpr = np.cumsum(tps[::-1])[::-1] / tps.sum()
+    fpr = np.cumsum(fps[::-1])[::-1] / fps.sum()
 
     roc_auc = auc(fpr, tpr)
 
@@ -63,10 +133,6 @@ def save_roc(path: str | Path, tps: NDArray, fps: NDArray) -> None:
     plt.grid(True)
     plt.savefig(path)
     plt.close()
-
-
-def vec_from_hist(hist: NDArray) -> NDArray:
-    return np.cumsum(hist[::-1])
 
 
 def process_prediction(
@@ -110,11 +176,11 @@ def process_prediction(
         )  # MPP=2
         tissue_mask = tissue_mask & (~ignore_mask)
 
-    tissue_mask = tissue_mask.resize(2, kernel="nearest") > 0  # MPP=2 => MPP=
+    tissue_mask = tissue_mask.resize(2, kernel="nearest")  # MPP=2 => MPP=
     pred = pyvips.Image.new_from_file(pred_path, page=1)  # MPP=1
 
     if not os.path.exists(gt_path):
-        fps = vec_from_hist(extract_hist(pred & tissue_mask))
+        fps = extract_hist(pred * (tissue_mask > 0).ifthenelse(1, 0))
         tps = np.zeros(256)
 
         n = extract_hist(tissue_mask)[-1]
@@ -135,25 +201,24 @@ def process_prediction(
         if scale != 1:
             gt = gt.resize(mpp, kernel="nearest")
 
-        gt = gt > 0
         tissue_mask = gt | tissue_mask
 
         n = extract_hist(tissue_mask & (~gt))[-1]
         p = extract_hist(gt)[-1]
 
-        tps = vec_from_hist(extract_hist(pred & gt))
-        fps = vec_from_hist(extract_hist(pred & ((~gt) & tissue_mask)))
+        tps = extract_hist(pred * (gt > 0).ifthenelse(1, 0))
+        fps = extract_hist(pred * (((~gt) & tissue_mask) > 0).ifthenelse(1, 0))
 
     tns = n - fps
     fns = p - tps
 
-    roc_path = Path(
+    hist_path = Path(
         f"./data/{run_id}/roc/{prefix}", rel_path, f"{Path(pred_path).stem}.txt"
     )
-    roc_path.parent.mkdir(exist_ok=True, parents=True)
+    hist_path.parent.mkdir(exist_ok=True, parents=True)
 
     np.savetxt(
-        roc_path,
+        hist_path,
         np.array([tps, fps, tns, fns]),
         fmt="%.5f",
     )
@@ -205,6 +270,14 @@ def process_sections(run_id: str, prefix: str) -> None:
             "FNS",
         )
 
+        evaluate_and_save(
+            section_tps,
+            section_fps,
+            section_tns,
+            section_fns,
+            Path(f"./data/{run_id}/roc/{prefix}", f"{section}-metrics.txt"),
+        )
+
         total_tps += section_tps
         total_fps += section_fps
         total_tns += section_tns
@@ -222,6 +295,14 @@ def process_sections(run_id: str, prefix: str) -> None:
     )
     save_hist(
         f"./data/{run_id}/roc/{prefix}/total_hist-fn.png", total_fns, total_fps, "FNS"
+    )
+
+    evaluate_and_save(
+        total_tps,
+        total_fps,
+        total_tns,
+        total_fns,
+        f"./data/{run_id}/roc/{prefix}/total_metrics.txt",
     )
 
 
