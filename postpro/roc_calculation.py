@@ -44,7 +44,7 @@ def save_roc(path: str | Path, tpr: NDArray, fpr: NDArray) -> None:
 
 def vec_from_hist(hist: NDArray) -> NDArray:
     s = hist.sum()
-    return np.roll(s - hist, 1)
+    return s - np.cumsum(hist)
 
 
 def process_prediction(
