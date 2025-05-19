@@ -188,11 +188,13 @@ def process_sections(run_id: str, prefix: str) -> None:
             Path(f"./data/{run_id}/roc/{prefix}", f"{section}-hist-tp.png"),
             section_tps,
             section_fps,
+            "TPS",
         )
         save_hist(
             Path(f"./data/{run_id}/roc/{prefix}", f"{section}-hist-fn.png"),
             section_fns,
             section_fps,
+            "FNS",
         )
 
         total_tps += section_tps
@@ -206,8 +208,12 @@ def process_sections(run_id: str, prefix: str) -> None:
     )
 
     save_roc(f"./data/{run_id}/roc/{prefix}/total_roc.png", total_tps, total_fps)
-    save_hist(f"./data/{run_id}/roc/{prefix}/total_hist-tp.png", total_tps, total_fps)
-    save_hist(f"./data/{run_id}/roc/{prefix}/total_hist-fn.png", total_fns, total_fps)
+    save_hist(
+        f"./data/{run_id}/roc/{prefix}/total_hist-tp.png", total_tps, total_fps, "TPS"
+    )
+    save_hist(
+        f"./data/{run_id}/roc/{prefix}/total_hist-fn.png", total_fns, total_fps, "FNS"
+    )
 
 
 @ray.remote
