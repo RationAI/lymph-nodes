@@ -197,16 +197,12 @@ def process_prediction(
 
         gt = pyvips.Image.new_from_file(gt_path, page=level)
         if scale != 1:
-            print("RESIZING", flush=True)
             gt = gt.resize(mpp, kernel="nearest")
 
-        print("G1", extract_hist(gt), flush=True)
-        gt = gt > 0
+        gt = gt & tissue_mask
 
-        print("T1", extract_hist(tissue_mask), flush=True)
         print("G1", extract_hist(gt), flush=True)
-
-        tissue_mask = gt | tissue_mask
+        print("G1", tissue_mask(gt), flush=True)
 
         n = extract_hist(tissue_mask & (~gt))[-1]
         p = extract_hist(gt)[-1]
