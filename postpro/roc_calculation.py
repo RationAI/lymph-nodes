@@ -200,7 +200,11 @@ def process_prediction(
             print("RESIZING", flush=True)
             gt = gt.resize(mpp, kernel="nearest")
 
+        print("G1", extract_hist(gt), flush=True)
+        gt = gt > 0
+
         print("T1", extract_hist(tissue_mask), flush=True)
+        print("G1", extract_hist(gt), flush=True)
 
         tissue_mask = gt | tissue_mask
 
