@@ -95,7 +95,10 @@ def extract_hist(image: pyvips.Image) -> NDArray:
         empty[0] = hist
         return empty
 
-    return hist[0]
+    hist = hist[0]
+    if len(hist == 255):
+        return np.insert(hist, 0, 0)
+    return hist
 
 
 def save_hist(path: str | Path, y: NDArray, fps: NDArray, label: str) -> None:
@@ -425,6 +428,7 @@ if __name__ == "__main__":
 # 3608dfa17ece4f8ea6dfac8f9bb1fe9f
 # 1ba95fe6ab2b4215a9faba764ba4d78a
 # 64637a53dbe44a47bc36844c98659b61
+# 7b6fed8ff0c94b90a1c159a87f21295f
 
 
 # db0b05671f824fe083ca8d884e68ce61
