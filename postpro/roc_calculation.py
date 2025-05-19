@@ -28,14 +28,37 @@ def extract_hist(image: pyvips.Image) -> NDArray:
     return hist[0]
 
 
-def save_roc(path: str | Path, tpr: NDArray, fpr: NDArray) -> None:
+def save_hist(path: str | Path, y: NDArray, fps: NDArray, label: str) -> None:
+    x = np.linspace(1, 100, 100)
+    plt.plot(x, y, label=label)
+    plt.plot(x, fps, label="FPS")
+
+    # Set y-axis to logarithmic scale
+    plt.yscale("log")
+
+    # Labels and formatting
+    plt.xlabel("thresholds")
+    plt.title(f"{label} vs FPS")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(path)
+    plt.close()
+
+
+def save_roc(path: str | Path, tps: NDArray, fps: NDArray) -> None:
+    if not tps.sum() or not fps.sum():
+        # There is nothing to plot
+        return
+
+    tpr = tps[::-1] / tps.sum()
+    fpr = fps[::-1] / fps.sum()
+
     roc_auc = auc(fpr, tpr)
 
     plt.plot(fpr, tpr, label=f"AUROC = {roc_auc:.3f}")
-    plt.plot([0, 1], [0, 1], "k--", label="Random")
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    plt.title("Binned ROC Curve")
+    plt.title("ROC Curve")
     plt.legend()
     plt.grid(True)
     plt.savefig(path)
@@ -43,16 +66,31 @@ def save_roc(path: str | Path, tpr: NDArray, fpr: NDArray) -> None:
 
 
 def vec_from_hist(hist: NDArray) -> NDArray:
-    s = hist.sum()
-    return s - np.cumsum(hist)
+    return np.cumsum(hist[::-1])
 
 
 def process_prediction(
     pred_path: str | Path, run_id: str, prefix: str
-) -> tuple[NDArray, NDArray]:
-    print("Processing slide: ", Path(pred_path).stem)
-
+) -> tuple[NDArray, NDArray, NDArray]:
     rel_path = Path(pred_path).relative_to(f"./data/{run_id}/{prefix}").parent
+
+    tissue_mask_path = Path(
+        "./data/gt/tissue_masks",
+        rel_path,
+        f"{Path(pred_path).stem}.tiff",
+    )
+
+    custom_ignore_mask_path = Path(
+        "./data/gt/custom_ignore_masks",
+        rel_path,
+        f"{Path(pred_path).stem}.tiff",
+    )
+
+    ignore_mask_path = Path(
+        "./data/gt/ignore_masks",
+        rel_path,
+        f"{Path(pred_path).stem}.tiff",
+    )
 
     gt_path = Path(
         f"./data/gt/{prefix}",
@@ -60,32 +98,49 @@ def process_prediction(
         f"{Path(pred_path).stem}.tiff",
     )
 
-    if os.path.exists(gt_path):
-        with OpenSlide(gt_path) as slide:
-            mpp = slide_resolution(slide, 0)
+    tissue_mask = pyvips.Image.new_from_file(tissue_mask_path, page=0)  # MPP=2
 
-        with OpenSlide(pred_path) as slide:
-            level = closest_level(slide, mpp[0])
+    if os.path.exists(ignore_mask_path):
+        ignore_mask = pyvips.Image.new_from_file(ignore_mask_path, page=0)  # MPP=2
+        tissue_mask = tissue_mask & (~ignore_mask)
 
-        pred = pyvips.Image.new_from_file(pred_path, page=level + 1)
-        gt = pyvips.Image.new_from_file(pred_path, page=1) > 0
+    if os.path.exists(custom_ignore_mask_path):
+        ignore_mask = pyvips.Image.new_from_file(
+            custom_ignore_mask_path, page=0
+        )  # MPP=2
+        tissue_mask = tissue_mask & (~ignore_mask)
 
-        gt_hist = extract_hist(gt)
-        n, p = gt_hist[0], gt_hist[-1]
+    tissue_mask = tissue_mask.resize(2, kernel="nearest") > 0  # MPP=2 => MPP=
+    pred = pyvips.Image.new_from_file(pred_path, page=1)  # MPP=1
 
-        tps = vec_from_hist(extract_hist(pred & gt))
-        fps = vec_from_hist(extract_hist(pred & (~gt)))
-
-        tpr = tps / p if p > 0 else np.zeros(256)
-        fpr = fps / n if n > 0 else np.zeros(256)
+    if not os.path.exists(gt_path):
+        fps = vec_from_hist(extract_hist(pred & tissue_mask))
+        tps = np.zeros(256)
+        fns = np.zeros(256)
 
     else:
-        pred = pyvips.Image.new_from_file(pred_path, page=1)
-        n = pred.width * pred.height
-        fps = vec_from_hist(extract_hist(pred))
+        with OpenSlide(gt_path) as slide:
+            mpp = slide_resolution(slide, 0)[0]
 
-        tpr = np.zeros(256)
-        fpr = fps / n
+            if mpp < 1.5:
+                level = closest_level(slide, 1)
+                scale = 1
+            else:
+                level = 0
+                scale = round(mpp)
+
+        gt = pyvips.Image.new_from_file(pred_path, page=level)
+        if scale != 1:
+            gt = gt.resize(mpp, kernel="nearest")
+
+        gt = gt > 0
+        tissue_mask = gt | tissue_mask
+
+        p = extract_hist(gt)[-1]
+
+        tps = vec_from_hist(extract_hist(pred & gt))
+        fps = vec_from_hist(extract_hist(pred & ((~gt) & tissue_mask)))
+        fns = p - tps
 
     roc_path = Path(
         f"./data/{run_id}/roc/{prefix}", rel_path, f"{Path(pred_path).stem}.txt"
@@ -94,62 +149,65 @@ def process_prediction(
 
     np.savetxt(
         roc_path,
-        np.array([tpr, fpr]),
+        np.array([tps, fps, fns]),
         fmt="%.5f",
     )
-    return tpr, fpr
+    return tps, fps, fns
 
 
 def process_sections(run_id: str, prefix: str) -> None:
-    total_tprs = np.zeros(256)
-    total_fprs = np.zeros(256)
-
-    total_counter = 0
+    total_tps = np.zeros(256)
+    total_fps = np.zeros(256)
+    total_fns = np.zeros(256)
 
     for section in os.listdir(f"./data/{run_id}/{prefix}"):
-        print("Processing section: ", section)
-
-        tprs = np.zeros(256)
-        fprs = np.zeros(256)
-        section_counter = 0
+        section_tps = np.zeros(256)
+        section_fps = np.zeros(256)
+        section_fns = np.zeros(256)
 
         paths = Path(f"./data/{run_id}/{prefix}", section).rglob("*.tiff")
 
         for path in paths:
-            tpr, fpr = process_prediction(path, run_id, prefix)
-            tprs += tpr
-            fprs += fpr
-            section_counter += 1
-
-        total_tprs += tprs
-        total_fprs += fprs
-        total_counter += section_counter
-
-        tprs = tprs / section_counter
-        fprs = fprs / section_counter
+            tps, fps, fns = process_prediction(path, run_id, prefix)
+            section_tps += tps
+            section_fps += fps
+            section_fns += fns
 
         np.savetxt(
             Path(f"./data/{run_id}/roc/{prefix}", f"{section}.txt"),
-            np.array([tprs, fprs]),
+            np.array([section_tps, section_fps, section_fns]),
             fmt="%.5f",
         )
 
-        save_roc(Path(f"./data/{run_id}/roc/{prefix}", f"{section}.png"), tprs, fprs)
+        save_roc(
+            Path(f"./data/{run_id}/roc/{prefix}", f"{section}-roc.png"),
+            section_tps,
+            section_fps,
+        )
+        save_hist(
+            Path(f"./data/{run_id}/roc/{prefix}", f"{section}-hist-tp.png"),
+            section_tps,
+            section_fps,
+        )
+        save_hist(
+            Path(f"./data/{run_id}/roc/{prefix}", f"{section}-hist-fn.png"),
+            section_fns,
+            section_fps,
+        )
 
-        total_tprs += tprs
-        total_fprs += fprs
-        total_counter += section_counter
-
-    total_tprs = total_tprs / total_counter
-    total_fprs = total_tprs / total_counter
+        total_tps += section_tps
+        total_fps += section_fps
+        total_fns += section_fns
 
     np.savetxt(
-        f"./data/{run_id}/roc/{prefix}/total_roc.txt",
-        np.array([total_tprs, total_fprs]),
+        f"./data/{run_id}/roc/{prefix}/total.txt",
+        np.array([total_tps, total_fps, total_fns]),
         fmt="%.5f",
     )
 
-    save_roc(f"./data/{run_id}/roc/{prefix}/total_roc.png", total_tprs, total_fprs)
+    save_roc(f"./data/{run_id}/roc/{prefix}/total_roc.png", total_tps, total_fps)
+    save_hist(f"./data/{run_id}/roc/{prefix}/total_hist-tp.png", total_tps, total_fps)
+    save_hist(f"./data/{run_id}/roc/{prefix}/total_hist-fn.png", total_fns, total_fps)
 
 
 @ray.remote
@@ -235,6 +293,24 @@ def main(seg_run_ids: list[str], cls_run_ids: list[str]) -> None:
     )
     print(result)
 
+    # Cusom ignore masks
+    mlflow.artifacts.download_artifacts(
+        artifact_uri="mlflow-artifacts:/68/4b2f46aba7ec4ed7a54437181fca5718/artifacts/custom_ignore_masks",
+        dst_path="./data/gt",
+    )
+
+    # ignore masks
+    mlflow.artifacts.download_artifacts(
+        artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/ignore_masks",
+        dst_path="./data/gt",
+    )
+
+    # ignore masks
+    mlflow.artifacts.download_artifacts(
+        artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/tissue_masks",
+        dst_path="./data/gt",
+    )
+
     process_items(seg_run_ids, process_item=process_seg_run)
     process_items(cls_run_ids, process_item=process_cls_run)
 
@@ -246,6 +322,11 @@ if __name__ == "__main__":
 # 964a7353a2cd42a19db85cbcea45207b
 # 1d7a0316f4ef43039009667906095e30
 # ead47eb59ad8420c8eab094ec43b6333
+# 8411fbb4697e4a55b1dc7d1b69a42aff
+# 710bd45e63234f89b6e2c80830417c1e
+# 3608dfa17ece4f8ea6dfac8f9bb1fe9f
+# 1ba95fe6ab2b4215a9faba764ba4d78a
+# 64637a53dbe44a47bc36844c98659b61
 
 
 # db0b05671f824fe083ca8d884e68ce61
@@ -255,3 +336,4 @@ if __name__ == "__main__":
 # 6bd8a2b178ca40e4af7df32213c52378
 # a2d577f56700457fabacfdda7c4f6b87
 # 65a81f3aab9b4ac4813e900153ef308f
+# 4fa33159b0db42d4a14eb4a15a0e5010
