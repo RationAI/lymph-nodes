@@ -58,7 +58,7 @@ def find_best_threshold(tps, fps, fns, beta=1.0):
     return best_idx, best_score
 
 
-def evaluate_and_save(tps, fps, fns, tns, filename, beta=0.5):
+def evaluate_and_save(tps, fps, fns, tns, filename, beta=2):
     """Find best threshold by weighted F-score, compute metrics, save with header.
 
     Params:
