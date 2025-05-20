@@ -58,7 +58,7 @@ def find_best_threshold(tps, fps, fns, beta=1.0):
     return best_idx, best_score
 
 
-def evaluate_and_save(tps, fps, fns, tns, filename, beta=2, idx=None):
+def evaluate_and_save(tps, fps, fns, tns, filename, beta=0.5, idx=None):
     """Find best threshold by weighted F-score, compute metrics, save with header.
 
     Params:
@@ -328,7 +328,9 @@ def process_seg_run(run_id: str) -> None:
     process_sections(run_id, "segmentation_masks")
 
     with mlflow.start_run(run_id=run_id):
-        mlflow.log_artifacts(f"./data/{run_id}/evaluation", artifact_path="evaluation")
+        mlflow.log_artifacts(
+            f"./data/{run_id}/evaluation", artifact_path="evaluation-b=0.5"
+        )
 
 
 @ray.remote
@@ -341,7 +343,9 @@ def process_cls_run(run_id: str) -> None:
     process_sections(run_id, "classifcation_heatmaps")
 
     with mlflow.start_run(run_id=run_id):
-        mlflow.log_artifacts(f"./data/{run_id}/evaluation", artifact_path="evaluation")
+        mlflow.log_artifacts(
+            f"./data/{run_id}/evaluation", artifact_path="evaluation-b=0.5"
+        )
 
 
 def main(seg_run_ids: list[str], cls_run_ids: list[str]) -> None:
