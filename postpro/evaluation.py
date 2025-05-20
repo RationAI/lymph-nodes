@@ -59,7 +59,7 @@ def find_best_threshold(tps, fps, fns, beta=1.0):
     return best_idx, best_score
 
 
-def evaluate_and_save(tps, fps, fns, tns, filename, beta=1.0):
+def evaluate_and_save(tps, fps, fns, tns, filename, beta=0.5):
     """Find best threshold by weighted F-score, compute metrics, save with header.
 
     Params:
@@ -211,16 +211,6 @@ def process_prediction(
     tns = n - fps
     fns = p - tps
 
-    hist_path = Path(
-        f"./data/{run_id}/roc/{prefix}", rel_path, f"{Path(pred_path).stem}.txt"
-    )
-    hist_path.parent.mkdir(exist_ok=True, parents=True)
-
-    np.savetxt(
-        hist_path,
-        np.array([tps, fps, tns, fns]),
-        fmt="%.5f",
-    )
     return tps, fps, tns, fns
 
 
@@ -245,25 +235,28 @@ def process_sections(run_id: str, prefix: str) -> None:
             section_tns += tns
             section_fns += fns
 
+        dest_path = Path(f"./data/{run_id}/evaluation/{prefix}/")
+        dest_path.mkdir(exist_ok=True, parents=True)
+
         np.savetxt(
-            Path(f"./data/{run_id}/roc/{prefix}", f"{section}.txt"),
+            Path(dest_path, f"{section}.txt"),
             np.array([section_tps, section_fps, section_fns, section_tns]),
             fmt="%.5f",
         )
 
         save_roc(
-            Path(f"./data/{run_id}/roc/{prefix}", f"{section}-roc.png"),
+            Path(dest_path, f"{section}-roc.png"),
             section_tps,
             section_fps,
         )
         save_hist(
-            Path(f"./data/{run_id}/roc/{prefix}", f"{section}-hist-tp.png"),
+            Path(dest_path, f"{section}-hist-tp.png"),
             section_tps,
             section_fps,
             "TPS",
         )
         save_hist(
-            Path(f"./data/{run_id}/roc/{prefix}", f"{section}-hist-fn.png"),
+            Path(dest_path, f"{section}-hist-fn.png"),
             section_fns,
             section_fps,
             "FNS",
@@ -274,7 +267,7 @@ def process_sections(run_id: str, prefix: str) -> None:
             section_fps,
             section_fns,
             section_tns,
-            Path(f"./data/{run_id}/roc/{prefix}", f"{section}-metrics.txt"),
+            Path(dest_path, f"{section}-metrics.txt"),
         )
 
         total_tps += section_tps
@@ -282,26 +275,24 @@ def process_sections(run_id: str, prefix: str) -> None:
         total_tns += section_tns
         total_fns += section_fns
 
+    dest_path = Path(f"./data/{run_id}/evaluation/{prefix}/")
+
     np.savetxt(
-        f"./data/{run_id}/roc/{prefix}/total.txt",
+        Path(dest_path, "total.txt"),
         np.array([total_tps, total_fps, total_tns, total_fns]),
         fmt="%.5f",
     )
 
-    save_roc(f"./data/{run_id}/roc/{prefix}/total_roc.png", total_tps, total_fps)
-    save_hist(
-        f"./data/{run_id}/roc/{prefix}/total_hist-tp.png", total_tps, total_fps, "TPS"
-    )
-    save_hist(
-        f"./data/{run_id}/roc/{prefix}/total_hist-fn.png", total_fns, total_fps, "FNS"
-    )
+    save_roc(Path(dest_path, "total-roc.png"), total_tps, total_fps)
+    save_hist(Path(dest_path, "total-hist-pt.png"), total_tps, total_fps, "TPS")
+    save_hist(Path(dest_path, "total-hist-fn.png"), total_fns, total_fps, "FNS")
 
     evaluate_and_save(
         total_tps,
         total_fps,
         total_fns,
         total_tns,
-        f"./data/{run_id}/roc/{prefix}/total_metrics.txt",
+        Path(dest_path, "total_metrics.txt"),
     )
 
 
@@ -315,7 +306,7 @@ def process_seg_run(run_id: str) -> None:
     process_sections(run_id, "segmentation_masks")
 
     with mlflow.start_run(run_id=run_id):
-        mlflow.log_artifacts(f"./data/{run_id}/roc", artifact_path="roc")
+        mlflow.log_artifacts(f"./data/{run_id}/evaluation", artifact_path="evaluation")
 
 
 @ray.remote
@@ -328,7 +319,7 @@ def process_cls_run(run_id: str) -> None:
     process_sections(run_id, "classifcation_heatmaps")
 
     with mlflow.start_run(run_id=run_id):
-        mlflow.log_artifacts(f"./data/{run_id}/roc", artifact_path="roc")
+        mlflow.log_artifacts(f"./data/{run_id}/evaluation", artifact_path="evaluation")
 
 
 def main(seg_run_ids: list[str], cls_run_ids: list[str]) -> None:
@@ -411,26 +402,27 @@ def main(seg_run_ids: list[str], cls_run_ids: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    main([], ["a2d577f56700457fabacfdda7c4f6b87"])  # pylint: disable=no-value-for-parameter
-
-
-# 964a7353a2cd42a19db85cbcea45207b
-# 1d7a0316f4ef43039009667906095e30
-# ead47eb59ad8420c8eab094ec43b6333
-# 8411fbb4697e4a55b1dc7d1b69a42aff
-# 710bd45e63234f89b6e2c80830417c1e
-# 3608dfa17ece4f8ea6dfac8f9bb1fe9f
-# 1ba95fe6ab2b4215a9faba764ba4d78a
-# 64637a53dbe44a47bc36844c98659b61
-# 7b6fed8ff0c94b90a1c159a87f21295f
-# 9b278a8eda6549709119231ad474f041
-
-
-# db0b05671f824fe083ca8d884e68ce61
-# 8dceedbb49844ccc9f5b4a2f30578d2e
-# 5d55e75a0fc446a095cfa8282fac467c
-# 6b5be7163a7e42a88a8fe7d4773af6f0
-# 6bd8a2b178ca40e4af7df32213c52378
-# a2d577f56700457fabacfdda7c4f6b87
-# 65a81f3aab9b4ac4813e900153ef308f
-# 4fa33159b0db42d4a14eb4a15a0e5010
+    main(
+        [
+            "964a7353a2cd42a19db85cbcea45207b",
+            "1d7a0316f4ef43039009667906095e30",
+            "ead47eb59ad8420c8eab094ec43b6333",
+            "8411fbb4697e4a55b1dc7d1b69a42aff",
+            "710bd45e63234f89b6e2c80830417c1e",
+            "3608dfa17ece4f8ea6dfac8f9bb1fe9f",
+            "1ba95fe6ab2b4215a9faba764ba4d78a",
+            "64637a53dbe44a47bc36844c98659b61",
+            "7b6fed8ff0c94b90a1c159a87f21295f",
+            "9b278a8eda6549709119231ad474f041",
+        ],
+        [
+            "db0b05671f824fe083ca8d884e68ce61",
+            "8dceedbb49844ccc9f5b4a2f30578d2e",
+            "5d55e75a0fc446a095cfa8282fac467c",
+            "6b5be7163a7e42a88a8fe7d4773af6f0",
+            "6bd8a2b178ca40e4af7df32213c52378",
+            "a2d577f56700457fabacfdda7c4f6b87",
+            "65a81f3aab9b4ac4813e900153ef308f",
+            "4fa33159b0db42d4a14eb4a15a0e5010",
+        ],
+    )  # pylint: disable=no-value-for-parameter
