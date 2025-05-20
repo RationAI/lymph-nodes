@@ -272,8 +272,8 @@ def process_sections(run_id: str, prefix: str) -> None:
         evaluate_and_save(
             section_tps,
             section_fps,
-            section_tns,
             section_fns,
+            section_tns,
             Path(f"./data/{run_id}/roc/{prefix}", f"{section}-metrics.txt"),
         )
 
@@ -299,8 +299,8 @@ def process_sections(run_id: str, prefix: str) -> None:
     evaluate_and_save(
         total_tps,
         total_fps,
-        total_tns,
         total_fns,
+        total_tns,
         f"./data/{run_id}/roc/{prefix}/total_metrics.txt",
     )
 
