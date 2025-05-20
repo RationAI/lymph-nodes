@@ -53,7 +53,6 @@ def compute_metrics(tps, fps, fns, tns, idx, epsilon=1e-8):
 
 def find_best_threshold(tps, fps, fns, beta=1.0):
     f_scores = weighted_f_score(tps, fps, fns, beta=beta)
-    print(f_scores)
     best_idx = np.argmax(f_scores)
     best_score = f_scores[best_idx]
     return best_idx, best_score
@@ -198,7 +197,7 @@ def process_prediction(
 
         gt = pyvips.Image.new_from_file(gt_path, page=level) > 0
         if scale != 1:
-            gt = gt.resize(mpp, kernel="nearest")
+            gt = gt.resize(scale, kernel="nearest")
 
         gt = gt & tissue_mask
 
@@ -414,6 +413,7 @@ if __name__ == "__main__":
             "64637a53dbe44a47bc36844c98659b61",
             "7b6fed8ff0c94b90a1c159a87f21295f",
             "9b278a8eda6549709119231ad474f041",
+            # d968a3c5704e4cdea41e1a19cd02a0f8
         ],
         [
             "db0b05671f824fe083ca8d884e68ce61",
