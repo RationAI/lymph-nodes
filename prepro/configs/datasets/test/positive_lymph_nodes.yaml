@@ -1,3 +1,0 @@
-__target__: prepro.data_source.DataSource
-src_dir: /mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/Annotated_IHC_for_test
-glob_pattern: '*.mrxs'

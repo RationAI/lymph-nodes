@@ -1,9 +1,0 @@
-__target__: prepro.data_source.ChainedDataSources
-sources:
-  - __target__: prepro.data_source.DataSource
-    src_dir: /mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/tma-registration/dab/Cytokeratin_mask_new_breast_TNBC-TMAS
-    glob_pattern: '*.tiff'
-  - __target__: prepro.data_source.DataSource
-    src_dir: /mnt/data/Projects/Lymph_nodes/MMCI/Immunohistochemistry/tma-registration/dab/Cytokeratin_mask_colorectal_TMAs
-    glob_pattern: '*.tiff'
-    exclue_pattern: 'TNBC-BF-4-*'

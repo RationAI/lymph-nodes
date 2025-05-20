@@ -1,8 +1,0 @@
-defaults:
-  - _self_@slide_paths: /datasets/test/positive_lymph_nodes
-
-
-__target__: prepro.annotation_masks.generate_annotation_masks
-mpp: 2
-reference_path: ${metadata.relative_path_prefix}
-dest: {metadata.annotation_mask_dest}

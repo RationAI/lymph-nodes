@@ -68,26 +68,3 @@ def generate_color_separation_masks(
 ) -> None:
     color_separation(slide_paths, mpp, reference_path, dest)
     mlflow.log_artifacts(dest, artifact_path="color_separation_masks")
-
-
-if __name__ == "__main__":
-    # Testing setup (to define suitable thresholds for brownish (eg metastazis) color separation)
-
-    TEST_MPP = 2
-
-    # Testing WSIs
-    test_wsis = [
-        # Annotated image
-        "/mnt/data/Projects/lymph_nodes/annotated_ihc_test/SNB_IHC_TEST_CASE-2024_1011-15.mrxs",
-        # Positive samples
-        "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_1_SLIDE_3-1.tiff",
-        "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_2_SLIDE_1-1.tiff",
-        # negative samples
-        "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_3_SLIDE_1-0.tiff",
-        "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_4_SLIDE_3-0.mrxs",
-    ]
-
-    reference_path = "/mnt/data/Projects/lymph_nodes"
-    destination = "/mnt/data/Projects/lymph_nodes/dev/baseline-v2/color_separation"
-
-    color_separation(list(map(Path, test_wsis)), TEST_MPP, reference_path, destination)
