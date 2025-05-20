@@ -38,11 +38,7 @@ def main() -> None:
     )
 
     wsis = [
-        *Path(REFERENCE_PATH, "Cytokeratin_mask_colorectal_TMAs").glob("DAB-CK-*.mrxs"),
-        *Path(REFERENCE_PATH, "Cytokeratin_mask_final_scans").glob("FIN-CK-*.mrxs"),
-        *Path(REFERENCE_PATH, "Cytokeratin_mask_new_breast_TNBC-TMAS/ckae").glob(
-            "*.mrxs"
-        ),
+        # HIDDEN
     ]
 
     @ray.remote
