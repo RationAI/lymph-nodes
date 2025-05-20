@@ -58,7 +58,7 @@ def find_best_threshold(tps, fps, fns, beta=1.0):
     return best_idx, best_score
 
 
-def evaluate_and_save(tps, fps, fns, tns, filename, beta=2):
+def evaluate_and_save(tps, fps, fns, tns, filename, beta=2, idx=None):
     """Find best threshold by weighted F-score, compute metrics, save with header.
 
     Params:
@@ -69,7 +69,12 @@ def evaluate_and_save(tps, fps, fns, tns, filename, beta=2):
     Returns:
     - dict with keys: best_idx, best_score, best_threshold (if thresholds given), metrics tuple
     """
-    best_idx, best_score = find_best_threshold(tps, fps, fns, beta=beta)
+    if idx:
+        best_idx = idx
+        best_score = weighted_f_score(tps[idx], fps[idx], fns[idx], beta=beta)
+    else:
+        best_idx, best_score = find_best_threshold(tps, fps, fns, beta=beta)
+
     metrics = compute_metrics(tps, fps, fns, tns, best_idx)
 
     header = "IoU & F1 & Cohen's Kappa & Accuracy & Precision & Recall & Specificity"
@@ -269,6 +274,15 @@ def process_sections(run_id: str, prefix: str) -> None:
             Path(dest_path, f"{section}-metrics.txt"),
         )
 
+        evaluate_and_save(
+            section_tps,
+            section_fps,
+            section_fns,
+            section_tns,
+            Path(dest_path, f"{section}-metrics-0.5.txt"),
+            idx=127,
+        )
+
         total_tps += section_tps
         total_fps += section_fps
         total_tns += section_tns
@@ -292,6 +306,15 @@ def process_sections(run_id: str, prefix: str) -> None:
         total_fns,
         total_tns,
         Path(dest_path, "total_metrics.txt"),
+    )
+
+    evaluate_and_save(
+        total_tps,
+        total_fps,
+        total_fns,
+        total_tns,
+        Path(dest_path, "total_metrics.txt"),
+        idx=127,
     )
 
 
@@ -414,6 +437,8 @@ if __name__ == "__main__":
             "7b6fed8ff0c94b90a1c159a87f21295f",
             "9b278a8eda6549709119231ad474f041",
             "d968a3c5704e4cdea41e1a19cd02a0f8",
+            "83093d44f2b941a0afd1544ee042a352",
+            "012c92b61847445fbe131e880a37bc4d",
         ],
         [
             "db0b05671f824fe083ca8d884e68ce61",
