@@ -313,7 +313,7 @@ def process_sections(run_id: str, prefix: str) -> None:
         total_fps,
         total_fns,
         total_tns,
-        Path(dest_path, "total_metrics.txt"),
+        Path(dest_path, "total_metrics-0.5.txt"),
         idx=127,
     )
 
