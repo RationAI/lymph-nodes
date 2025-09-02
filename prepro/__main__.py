@@ -35,10 +35,11 @@ def main(config: DictConfig) -> None:
 
     active_run = mlflow.start_run(run_name=config.metadata.run_name)
 
-    print("Donwloading cytokeratin masks")
-    mlflow.artifacts.download_artifacts(
-        artifact_uri=config.metadata.cytokeratin_masks_path, dst_path="./data"
-    )
+    if config.metadata.cytokeratin_masks_path:
+        print("Donwloading cytokeratin masks")
+        mlflow.artifacts.download_artifacts(
+            artifact_uri=config.metadata.cytokeratin_masks_path, dst_path="./data"
+        )
 
     # mlflow.artifacts.download_artifacts(
     #     artifact_uri="mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/tissue_masks",
@@ -68,158 +69,25 @@ def main(config: DictConfig) -> None:
     print("Prepare datasources")
 
     datasets = {
-        "lymhps-2023": {
-            "positive-test": Dataset(
-                datasource=DataSource(
-                    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
-                    glob_pattern=[
-                        "*_1_SLIDE_3-1.mrxs",
-                        "*_2_SLIDE_1-1.mrxs",
-                        "*_3_SLIDE_2-1.mrxs",
-                        "*_5_SLIDE_2-1.mrxs",
-                        "*_7_SLIDE_2-1.mrxs",
-                        "*_8_SLIDE_1-1.mrxs",
-                        "*_105_SLIDE_1-1.mrxs",
-                    ],
-                ),
-                source_kind="lymph_node",
-                slide_metastazis=True,
-            ),
-            # "positive-infer": Dataset(
-            #     datasource=DataSource(
-            #         "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
-            #         glob_pattern="*-1.mrxs",
-            #         exclue_pattern=[
-            #             "*_1_SLIDE_3-1.mrxs",
-            #             "*_2_SLIDE_1-1.mrxs",
-            #             "*_3_SLIDE_2-1.mrxs",
-            #             "*_5_SLIDE_2-1.mrxs",
-            #             "*_7_SLIDE_2-1.mrxs",
-            #             "*_8_SLIDE_1-1.mrxs",
-            #             "*_105_SLIDE_1-1.mrxs",
-            #         ],
-            #     ),
-            #     source_kind="lymph_node",
-            #     slide_metastazis=True,
-            # ),
-            "negative-test": Dataset(
-                datasource=DataSource(
-                    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
-                    glob_pattern=[
-                        "*_1_SLIDE_[0-9]*-0.mrxs",
-                        "*_5_SLIDE_[0-9]*-0.mrxs",
-                        "*_7_SLIDE_[0-9]*-0.mrxs",
-                        "*_8_SLIDE_[0-9]*-0.mrxs",
-                        "*_105_SLIDE_[0-9]*-0.mrxs",
-                    ],
-                ),
-                source_kind="lymph_node",
-                slide_metastazis=False,
-            ),
-            "negative-train": Dataset(
-                datasource=DataSource(
-                    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
-                    glob_pattern="*-0.mrxs",
-                    exclue_pattern=[
-                        "*_1_SLIDE_[0-9]*-0.mrxs",  # test
-                        "*_2_SLIDE_[0-9]*-0.mrxs",  # val
-                        "*_3_SLIDE_[0-9]*-0.mrxs",  # val
-                        "*_5_SLIDE_[0-9]*-0.mrxs",  # test
-                        "*_7_SLIDE_[0-9]*-0.mrxs",  # test
-                        "*_8_SLIDE_[0-9]*-0.mrxs",  # test
-                        "*_52_SLIDE_[0-9]*-0.mrxs",  # val
-                        "*_105_SLIDE_[0-9]*-0.mrxs",  # test
-                        # Faulty files
-                        "SNB_IHC_CASE_81_SLIDE_1-0.mrxs",
-                        "SNB_IHC_CASE_82_SLIDE_1-0.mrxs",
-                    ],
-                ),
-                source_kind="lymph_node",
-                slide_metastazis=False,
-            ),
-            "negative-val": Dataset(
-                datasource=DataSource(
-                    "/mnt/data/Projects/lymph_nodes/dataset1-ihc-2023",
-                    glob_pattern=[
-                        "*_2_SLIDE_[0-9]*-0.mrxs",
-                        "*_3_SLIDE_[0-9]*-0.mrxs",
-                        "*_52_SLIDE_[0-9]*-0.mrxs",
-                    ],
-                ),
-                source_kind="lymph_node",
-                slide_metastazis=False,
-            ),
-        },
-        "positive-lymph-nodes": Dataset(
+        "fnbrno": Dataset(
             datasource=DataSource(
-                "/mnt/data/Projects/lymph_nodes/annotated_ihc_test",
-                glob_pattern=["*.mrxs"],
+                "/mnt/data/Projects/Data/FNBrno/lymph_nodes/maternity_hospital_dataset",
+                glob_pattern=[
+                    "*B-4008-24-6-2-AE-1.czi",
+                    "*B209-23-9-6-CK19-1.czi",
+                    "*B977-24-2-2-AE-1.czi",
+                    "*B977-24-3-2-AE-1.czi",
+                    "*_B977-24-6-2-AE-1.czi",
+                    "*B977-24-7-2-AE-1.czi",
+                    "*B3310-24-3-6-AE-1.czi",
+                    "*B1858-23-16-2-AE-1.czi",
+                    "*B1030-24-1-2-AE-0.czi",
+                    "*B3563-24-3-2-AE-0.czi",
+                ],
             ),
             source_kind="lymph_node",
-            slide_metastazis=True,
-        ),
-        # "lymphs-2024": {
-        #     "positive": Dataset(
-        #         datasource=DataSource(
-        #             "/mnt/data/Projects/lymph_nodes/dataset2-ihc-2024/positive",
-        #             glob_pattern="*-1.mrxs",
-        #         ),
-        #         source_kind="lymph_node",
-        #         slide_metastazis=True,
-        #     ),
-        #     "negative": Dataset(
-        #         datasource=DataSource(
-        #             "/mnt/data/Projects/lymph_nodes/dataset2-ihc-2024/negative",
-        #             glob_pattern="*-0.mrxs",
-        #         ),
-        #         source_kind="lymph_node",
-        #         slide_metastazis=False,
-        #     ),
-        # },
-        "tmas": {
-            "test": Dataset(
-                datasource=DataSource(
-                    "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_final_scans",
-                    glob_pattern=["FIN-CK-*.mrxs"],
-                ),
-                source_kind="tma",
-                slide_metastazis=True,
-            ),
-            "train": Dataset(
-                datasource=ChainedDataSources(
-                    [
-                        DataSource(
-                            "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
-                            glob_pattern="*.mrxs",
-                            exclue_pattern=["TNBC-BF-4-*.mrxs"],
-                        ),
-                        DataSource(
-                            "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_colorectal_TMAs",
-                            glob_pattern="DAB-*.mrxs",
-                            exclue_pattern=["DAB-CK-KOS04.mrxs"],
-                        ),
-                    ]
-                ),
-                source_kind="tma",
-                slide_metastazis=True,
-            ),
-            "val": Dataset(
-                datasource=ChainedDataSources(
-                    [
-                        DataSource(
-                            "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_new_breast_TNBC-TMAS/ckae",
-                            glob_pattern="TNBC-BF-4-*mrxs",
-                        ),
-                        DataSource(
-                            "/mnt/data/Projects/lymph_nodes/Cytokeratin_mask_colorectal_TMAs",
-                            glob_pattern="DAB-CK-KOS04.mrxs",
-                        ),
-                    ]
-                ),
-                source_kind="tma",
-                slide_metastazis=True,
-            ),
-        },
+            slide_metastazis=None,
+        )
     }
 
     # DataSource
@@ -243,59 +111,59 @@ def main(config: DictConfig) -> None:
     )
 
     # Annotation masks
-    print("Generating annotation masks")
-    generate_annotation_masks(
-        slide_paths=ChainedDataSources(
-            [
-                datasets["lymhps-2023"]["positive-test"].datasource,
-                datasets["positive-lymph-nodes"].datasource,
-            ]
-        ),
-        mpp=2,
-        reference_path=config.metadata.relative_path_prefix,
-        dest=config.metadata.annotation_mask_dest,
-    )
+    # print("Generating annotation masks")
+    # generate_annotation_masks(
+    #     slide_paths=ChainedDataSources(
+    #         [
+    #             datasets["lymhps-2023"]["positive-test"].datasource,
+    #             datasets["positive-lymph-nodes"].datasource,
+    #         ]
+    #     ),
+    #     mpp=2,
+    #     reference_path=config.metadata.relative_path_prefix,
+    #     dest=config.metadata.annotation_mask_dest,
+    # )
 
-    # Ignore masks
-    print("Generating ignore masks")
-    generate_ignore_masks(
-        slide_paths=ChainedDataSources(
-            [
-                datasets["tmas"]["test"].datasource,
-                datasets["tmas"]["train"].datasource,
-                datasets["tmas"]["val"].datasource,
-            ]
-        ),
-        mpp=2,
-        reference_path=config.metadata.relative_path_prefix,
-        dest=config.metadata.ignore_mask_dest,
-    )
+    # # Ignore masks
+    # print("Generating ignore masks")
+    # generate_ignore_masks(
+    #     slide_paths=ChainedDataSources(
+    #         [
+    #             datasets["tmas"]["test"].datasource,
+    #             datasets["tmas"]["train"].datasource,
+    #             datasets["tmas"]["val"].datasource,
+    #         ]
+    #     ),
+    #     mpp=2,
+    #     reference_path=config.metadata.relative_path_prefix,
+    #     dest=config.metadata.ignore_mask_dest,
+    # )
 
-    # CustomIgnore masks
-    print("Generating custom ignore masks")
-    generate_custom_ignore_masks(
-        slide_paths=ChainedDataSources(
-            [
-                datasets["tmas"]["test"].datasource,
-                datasets["tmas"]["train"].datasource,
-                datasets["tmas"]["val"].datasource,
-                datasets["lymhps-2023"]["negative-test"].datasource,
-                datasets["lymhps-2023"]["positive-test"].datasource,
-            ]
-        ),
-        mpp=2,
-        reference_path=config.metadata.relative_path_prefix,
-        dest=config.metadata.ignore_mask_dest,
-    )
+    # # CustomIgnore masks
+    # print("Generating custom ignore masks")
+    # generate_custom_ignore_masks(
+    #     slide_paths=ChainedDataSources(
+    #         [
+    #             datasets["tmas"]["test"].datasource,
+    #             datasets["tmas"]["train"].datasource,
+    #             datasets["tmas"]["val"].datasource,
+    #             datasets["lymhps-2023"]["negative-test"].datasource,
+    #             datasets["lymhps-2023"]["positive-test"].datasource,
+    #         ]
+    #     ),
+    #     mpp=2,
+    #     reference_path=config.metadata.relative_path_prefix,
+    #     dest=config.metadata.ignore_mask_dest,
+    # )
 
-    # Color separation masks
-    print("Generating color separation masks")
-    generate_color_separation_masks(
-        slide_paths=ChainedDataSources(list(map_datasets(datasets))),
-        mpp=1,
-        reference_path=config.metadata.relative_path_prefix,
-        dest=config.metadata.color_separation_mask_dest,
-    )
+    # # Color separation masks
+    # print("Generating color separation masks")
+    # generate_color_separation_masks(
+    #     slide_paths=ChainedDataSources(list(map_datasets(datasets))),
+    #     mpp=1,
+    #     reference_path=config.metadata.relative_path_prefix,
+    #     dest=config.metadata.color_separation_mask_dest,
+    # )
 
     # Tiling
     print("Tiling")
