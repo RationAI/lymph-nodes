@@ -2,76 +2,78 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
+import hydra
 from aiohttp import ClientSession, ClientTimeout
+from omegaconf import DictConfig
 from rationai.mlkit.lightning.loggers import MLFlowLogger
 
 
-REQUEST_LIMIT = 4
-REQUEST_TIMEOUT = 30 * 60
-MAX_REQUEST_RETRY_ATTEMPTS = 5
-BACKOFF_BASE = 2
-
-URL = "http://rayservice-qc-serve-svc.rationai-jobs-ns.svc.cluster.local:8000/"
-OUTPUT_DIR = Path(
-    "/mnt/data/Projects/lymph_nodes/test"
-)  # Replace with your desired output directory in xOpat
-
-SLIDES = [  # Replace with your slide paths
-    Path(
-        "/mnt/data/Projects/Data/MOU/lymph_nodes/dataset2-ihc-2024/positive/SNB_IHC_CASE_141_SLIDE_4-B-1.mrxs"
-    ),
-]
-
-semaphore = asyncio.Semaphore(REQUEST_LIMIT)
-
-
 async def put_request(
-    session: ClientSession, url: str, data: dict[str, Any]
+    session: ClientSession,
+    url: str,
+    data: dict[str, Any],
+    *,
+    timeout_sec: int,
+    semaphore: asyncio.Semaphore,
 ) -> tuple[int, str]:
-    timeout = ClientTimeout(total=REQUEST_TIMEOUT)
+    timeout = ClientTimeout(total=timeout_sec)
     try:
         async with semaphore, session.put(url, json=data, timeout=timeout) as response:
             text = await response.text()
             return response.status, text
     except TimeoutError:
         print(
-            f"Failed to process {data['wsi_path']}:\n\tTimeout after {REQUEST_TIMEOUT} seconds\n"
+            f"Failed to process {data.get('wsi_path', data.get('backgrounds', [''])[0])}:\n\tTimeout after {timeout_sec} seconds\n"
         )
         return -1, "Timeout"
 
 
 async def repeatable_put_request(
-    session: ClientSession, url: str, data: dict[str, Any]
+    session: ClientSession,
+    url: str,
+    data: dict[str, Any],
+    *,
+    max_attempts: int,
+    backoff_base: int,
+    timeout_sec: int,
+    semaphore: asyncio.Semaphore,
 ) -> None:
-    for attempt in range(1, MAX_REQUEST_RETRY_ATTEMPTS + 1):
-        status, text = await put_request(session, url, data)
+    for attempt in range(1, max_attempts + 1):
+        status, text = await put_request(
+            session, url, data, timeout_sec=timeout_sec, semaphore=semaphore
+        )
         if status == -1 and text == "Timeout":
             return
         if status == 500 and text == "Internal Server Error":
             print(
-                f"Unexpected status 500 for {data['wsi_path']} (attempt {attempt}/{MAX_REQUEST_RETRY_ATTEMPTS})"
+                f"Unexpected status 500 for {data['wsi_path']} (attempt {attempt}/{max_attempts})"
             )
-            await asyncio.sleep(BACKOFF_BASE**attempt)
+            await asyncio.sleep(backoff_base**attempt)
             continue
         print(
             f"Processed {data['wsi_path']}:\n\tStatus: {status} \n\tResponse: {text}\n"
         )
         return
-    print(
-        f"Failed to process {data['wsi_path']} after {MAX_REQUEST_RETRY_ATTEMPTS} attempts\n"
-    )
+    print(f"Failed to process {data['wsi_path']} after {max_attempts} attempts\n")
 
 
 async def generate_report_for_slide(
-    session: ClientSession, slide: Path, slide_output_dir: Path, combined_report: Path
+    session: ClientSession,
+    slide: Path,
+    slide_output_dir: Path,
+    combined_report: Path,
+    *,
+    service_url: str,
+    compute_metrics: bool,
+    semaphore: asyncio.Semaphore,
 ) -> None:
-    url = URL + "report"
+    url = service_url.rstrip("/") + "/report"
 
     data = {
         "backgrounds": [str(slide.resolve())],
         "mask_dir": str(slide_output_dir),
         "save_location": str(combined_report),
-        "compute_metrics": True,
+        "compute_metrics": compute_metrics,
     }
 
     async with semaphore, session.put(url, json=data) as response:
@@ -82,45 +84,81 @@ async def generate_report_for_slide(
 
 
 async def process_slide(
-    session: ClientSession, slide: Path, combined_report: Path
+    session: ClientSession,
+    slide: Path,
+    combined_report: Path,
+    *,
+    output_dir: Path,
+    service_url: str,
+    network_cfg: dict,
+    qc_cfg: dict,
+    semaphore: asyncio.Semaphore,
 ) -> None:
-    slide_output_dir = OUTPUT_DIR / slide.stem
+    slide_output_dir = output_dir / slide.stem
     slide_output_dir.mkdir(parents=True, exist_ok=True)
 
     await repeatable_put_request(
         session=session,
-        url=URL,
+        url=service_url,
         data={
             "wsi_path": str(slide.resolve()),
             "output_path": str(slide_output_dir),
-            "mask_level": 3,
-            "sample_level": 1,
-            "check_residual": True,
-            "check_folding": True,
-            "check_focus": True,
-            "wb_correction": True,
+            "mask_level": int(qc_cfg["mask_level"]),
+            "sample_level": int(qc_cfg["sample_level"]),
+            "check_residual": bool(qc_cfg["check_residual"]),
+            "check_folding": bool(qc_cfg["check_folding"]),
+            "check_focus": bool(qc_cfg["check_focus"]),
+            "wb_correction": bool(qc_cfg["wb_correction"]),
         },
+        max_attempts=int(network_cfg["max_retry_attempts"]),
+        backoff_base=int(network_cfg["backoff_base"]),
+        timeout_sec=int(network_cfg["request_timeout_sec"]),
+        semaphore=semaphore,
     )
 
-    await generate_report_for_slide(session, slide, slide_output_dir, combined_report)
+    await generate_report_for_slide(
+        session,
+        slide,
+        slide_output_dir,
+        combined_report,
+        service_url=service_url,
+        compute_metrics=bool(qc_cfg["compute_metrics"]),
+        semaphore=semaphore,
+    )
 
 
-async def main() -> None:
+@hydra.main(config_path="./configs", config_name="quality_control", version_base=None)
+async def main(config: DictConfig) -> None:
     logger = MLFlowLogger(
-        experiment_name="Lymph nodes",  # Replace with your experiment name
-        run_name="QC combined run",  # Replace with your run name
+        experiment_name=config.mlflow.experiment_name,
+        run_name=config.mlflow.run_name,
     )
 
-    combined_report = (
-        OUTPUT_DIR / "final_report.html"
-    )  # Replace with your desired report path
+    output_dir = Path(config.io.output_dir)
+    combined_report = Path(config.io.combined_report)
     combined_report.parent.mkdir(parents=True, exist_ok=True)
 
+    semaphore = asyncio.Semaphore(int(config.network.request_limit))
+
+    slides = [Path(p) for p in config.io.slides]
+
     async with ClientSession() as session:
-        tasks = [process_slide(session, slide, combined_report) for slide in SLIDES]
+        tasks = [
+            process_slide(
+                session,
+                slide,
+                combined_report,
+                output_dir=output_dir,
+                service_url=config.service.url,
+                network_cfg=dict(config.network),
+                qc_cfg=dict(config.qc),
+                semaphore=semaphore,
+            )
+            for slide in slides
+        ]
         await asyncio.gather(*tasks)
 
-    logger.experiment.log_artifacts(run_id=logger.run_id, local_dir=str(OUTPUT_DIR))
+    logger.experiment.log_artifacts(run_id=logger.run_id, local_dir=str(output_dir))
 
 
 if __name__ == "__main__":
