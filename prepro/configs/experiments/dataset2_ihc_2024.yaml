@@ -1,0 +1,14 @@
+# configs/experiments/dataset2_ihc_2024.yaml
+io:
+  output_dir: "/mnt/data/Projects/lymph_nodes/qc_ihc_2024"
+  combined_report: "/mnt/data/Projects/lymph_nodes/qc_ihc_2024/final_report.html"
+  slides:
+    # positive slides
+    - "/mnt/data/Projects/Data/MOU/lymph_nodes/dataset2-ihc-2024/positive/SNB_IHC_CASE_152_SLIDE_11-0.mrxs"
+    - "/mnt/data/Projects/Data/MOU/lymph_nodes/dataset2-ihc-2024/positive/SNB_IHC_CASE_157_SLIDE_3-0.mrxs"
+    - "/mnt/data/Projects/Data/MOU/lymph_nodes/dataset2-ihc-2024/positive/SNB_IHC_CASE_160_SLIDE_6-0.mrxs"
+    # negative slides
+    - "/mnt/data/Projects/Data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_161_SLIDE_6-8-B-0.mrxs"
+    - "/mnt/data/Projects/Data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_187_SLIDE_8-9-0.mrxs"
+    - "/mnt/data/Projects/Data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_190_SLIDE_12-13-0.mrxs"
+    - "/mnt/data/Projects/Data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_175_SLIDE_3-4-0.mrxs"

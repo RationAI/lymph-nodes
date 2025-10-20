@@ -1,0 +1,19 @@
+# configs/experiments/dataset3_fnb_AE.yaml
+io:
+  output_dir: "/mnt/data/Projects/lymph_nodes/qc_fnb_ae_slides"
+  combined_report: "/mnt/data/Projects/lymph_nodes/qc_fnb_ae_slides/final_report.html"
+  slides:
+    # positive slides
+    - "/mnt/data/Projects/Data/FNBrno/lymph_nodes/maternity_hospital_dataset/FNB-4008-24-4-2-AE-1.czi"
+    - "/mnt/data/Projects/Data/FNBrno/lymph_nodes/maternity_hospital_dataset/FNB248-23-3-6-AE-1.czi"
+    - "/mnt/data/Projects/Data/FNBrno/lymph_nodes/maternity_hospital_dataset/FNB872-23-8-6-AE-1.czi"
+    - "/mnt/data/Projects/Data/FNBrno/lymph_nodes/maternity_hospital_dataset/FNB977-24-4-2-AE-1.czi"
+    - "/mnt/data/Projects/Data/FNBrno/lymph_nodes/maternity_hospital_dataset/FNB1858-23-15-2-AE-1.czi"
+    - "/mnt/data/Projects/Data/FNBrno/lymph_nodes/maternity_hospital_dataset/FNB977-24-6-2-AE-1.czi"
+    - "/mnt/data/Projects/Data/FNBrno/lymph_nodes/maternity_hospital_dataset/FNB977-24-8-10-AE-1.czi"
+    - "/mnt/data/Projects/Data/FNBrno/lymph_nodes/maternity_hospital_dataset/FNB3529-24-1-2-AE-1.czi"
+    # negative slides
+    - "/mnt/data/Projects/Data/FNBrno/lymph_nodes/maternity_hospital_dataset/FNB-126-25-10-2-AE-0.czi"
+    - "/mnt/data/Projects/Data/FNBrno/lymph_nodes/maternity_hospital_dataset/FNB-126-25-13-2-AE-0.czi"
+    - "/mnt/data/Projects/Data/FNBrno/lymph_nodes/maternity_hospital_dataset/FNB-3895-24-4-6-AE-0.czi"
+    - "/mnt/data/Projects/Data/FNBrno/lymph_nodes/maternity_hospital_dataset/FNB1171-23-4-6-AE-0.czi"

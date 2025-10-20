@@ -1,13 +1,11 @@
 # Hydra config for prepro/quality_control.py
 
+defaults:
+  - experiments: dataset3_fnb_AE
+  - _self_
+
 service:
   url: "http://rayservice-qc-serve-svc.rationai-jobs-ns.svc.cluster.local:8000/"
-
-io:
-  output_dir: "/mnt/data/Projects/lymph_nodes/test"
-  combined_report: "/mnt/data/Projects/lymph_nodes/test/final_report.html"
-  slides:
-    - "/mnt/data/Projects/Data/MOU/lymph_nodes/dataset2-ihc-2024/positive/SNB_IHC_CASE_141_SLIDE_4-B-1.mrxs"
 
 network:
   request_limit: 4
@@ -18,12 +16,12 @@ network:
 qc:
   mask_level: 3
   sample_level: 1
-  check_residual: true
-  check_folding: true
+  check_residual: false
+  check_folding: false
   check_focus: true
   wb_correction: true
   compute_metrics: true
 
 mlflow:
   experiment_name: "Lymph nodes"
-  run_name: "QC combined run"
+  run_name: "QC of pre-inference slides"
