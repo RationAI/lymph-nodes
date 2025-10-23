@@ -1,5 +1,5 @@
 # configs/experiments/dataset3_fnb_AE.yaml
-io:
+data:
   output_dir: "/mnt/data/Projects/lymph_nodes/qc_fnb_ae_slides"
   combined_report: "/mnt/data/Projects/lymph_nodes/qc_fnb_ae_slides/final_report.html"
   slides:

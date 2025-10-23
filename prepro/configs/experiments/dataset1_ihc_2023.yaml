@@ -1,5 +1,5 @@
 # configs/experiments/dataset1_ihc_2023.yaml
-io:
+data:
   output_dir: "/mnt/data/Projects/lymph_nodes/qc_ihc_2023"
   combined_report: "/mnt/data/Projects/lymph_nodes/qc_ihc_2023/final_report.html"
   slides:

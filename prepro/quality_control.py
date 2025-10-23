@@ -134,13 +134,13 @@ async def main(config: DictConfig) -> None:
         run_name=config.mlflow.run_name,
     )
 
-    output_dir = Path(config.io.output_dir)
-    combined_report = Path(config.io.combined_report)
+    output_dir = Path(config.data.output_dir)
+    combined_report = Path(config.data.combined_report)
     combined_report.parent.mkdir(parents=True, exist_ok=True)
 
     semaphore = asyncio.Semaphore(int(config.network.request_limit))
 
-    slides = [Path(p) for p in config.io.slides]
+    slides = [Path(p) for p in config.data.slides]
 
     async with ClientSession() as session:
         tasks = [

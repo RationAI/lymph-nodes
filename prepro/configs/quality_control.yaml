@@ -1,7 +1,7 @@
-# Hydra config for prepro/quality_control.py
+# config for prepro/quality_control.py
 
 defaults:
-  - experiments: dataset3_fnb_AE
+  - override experiments: null
   - _self_
 
 service:
