@@ -4,39 +4,40 @@ version = "0.1.0"
 authors = [
     { name = "Jakub Pekár", email = "jakubpekar@mail.muni.cz" },
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.13"
 readme = "README.md"
 license = { file = "LICENSE" }
 dependencies = [
-    "lightning>=2.0.0",
-    "pyvips>=2.2.3",
-    "openslide-python>=1.4.2",
-    "albumentations>=1.4.14",
-    "torchvision>=0.17.2",
-    "pandas>=2.2.2",
-    "torch>=2.2.2",
-    "tqdm>=4.66.5",
-    "numpy<2.0",
-    "rationai-tiling @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/tiling.git",
-    "rationai-mlkit @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/mlkit.git@feature/batch-sampler-new",
-    "rationai-masks @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git@feature/modular-tissue-mask",
-    "rationai-kube-jobs @ git+ssh://git@gitlab.ics.muni.cz/rationai/digital-pathology/libraries/kube-jobs.git",
-    "timm>=1.0.15",
+    "albumentations>=2.0.8",
+    "dynamic-network-architectures>=0.4.2",
     "einops>=0.8.1",
-    "dynamic-network-architectures>=0.3.1",
-    "report @ git+https://gitlab.ics.muni.cz/rationai/digital-pathology/tools/report.git",
-    "mamba-ssm @ https://github.com/state-spaces/mamba/releases/download/v2.2.4/mamba_ssm-2.2.4+cu12torch2.6cxx11abiTRUE-cp312-cp312-linux_x86_64.whl",
-    "psutil>=7.0.0",
+    "lightning>=2.5.5",
+    "mamba-ssm",
+    "numpy>=2.3.4",
+    "openslide-python>=1.4.2",
+    "pandas>=2.3.3",
+    "psutil>=7.1.1",
+    "pyvips>=3.0.0",
+    "rationai-masks",
+    "rationai-mlkit",
+    "rationai-tiling",
+    "report",
+    "timm>=1.0.20",
+    "torch>=2.9.0",
+    "torchvision>=0.24.0",
+    "tqdm>=4.67.1",
 ]
 
-[tool.pdm.dev-dependencies]
+[project.optional-dependencies]
 dev = ["mypy", "pre-commit", "ruff"]
 
-[tool.pdm.overrides]
-pyvips = "<3.0.0"
 
 [tool.uv.sources]
-mamba-ssm = { url = "https://github.com/state-spaces/mamba/releases/download/v2.2.4/mamba_ssm-2.2.4+cu12torch2.6cxx11abiTRUE-cp312-cp312-linux_x86_64.whl", marker = "sys_platform=='linux'" }
+report = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/tools/report.git" }
+mamba-ssm = { url = "https://github.com/state-spaces/mamba/releases/download/v2.2.4/mamba_ssm-2.2.4+cu12torch2.6cxx11abiTRUE-cp312-cp312-linux_x86_64.whl" }
+rationai-tiling = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/tiling.git", rev = "feature/uv-manager" }
+rationai-masks = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git", rev = "feature/modular-tissue-mask" }
+rationai-mlkit = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/mlkit.git", rev = "feature/batch-sampler-new" }
 
 
 [tool.pdm.scripts]
@@ -44,7 +45,6 @@ train = "python -m lymph_nodes"
 fit = "python -m lymph_nodes mode=fit"
 test = "python -m lymph_nodes mode=test"
 preprocess = "python -m prepro"
-job = "python job.py"
 l = { composite = ["lint", "format", "mypy"] }
 lint = "ruff check --fix"
 format = "ruff format"
