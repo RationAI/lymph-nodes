@@ -160,6 +160,5 @@ async def main(config: DictConfig) -> None:
 
     logger.experiment.log_artifacts(run_id=logger.run_id, local_dir=str(output_dir))
 
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
