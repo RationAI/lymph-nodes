@@ -127,7 +127,7 @@ async def process_slide(
     )
 
 
-@hydra.main(config_path="prepro/configs", config_name="quality_control", version_base=None)
+@hydra.main(config_path="./configs", config_name="quality_control", version_base=None)
 async def main(config: DictConfig) -> None:
     logger = MLFlowLogger(
         experiment_name=config.mlflow.experiment_name,
