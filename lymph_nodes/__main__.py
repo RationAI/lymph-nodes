@@ -6,8 +6,8 @@ from omegaconf import DictConfig, OmegaConf
 from rationai.mlkit import Trainer, autolog
 from rationai.mlkit.lightning.loggers import MLFlowLogger
 
-from project_name.data import DataModule
-from project_name.meta_arch import MetaArch
+from lymph_nodes.data import DataModule
+from lymph_nodes.meta_arch import MetaArch
 
 
 OmegaConf.register_new_resolver(
@@ -15,7 +15,7 @@ OmegaConf.register_new_resolver(
 )
 
 
-@hydra.main(config_path="../configs", config_name="project_name", version_base=None)
+@hydra.main(config_path="../configs", config_name="lymph_nodes", version_base=None)
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
     seed_everything(config.seed, workers=True)

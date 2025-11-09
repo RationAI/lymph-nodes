@@ -3,7 +3,7 @@ from torch import Tensor, nn
 from torch.optim.optimizer import Optimizer
 from torchmetrics import MetricCollection
 
-from project_name.typing import Input, Outputs
+from lymph_nodes.typing import Input, Outputs
 
 
 class MetaArch(LightningModule):

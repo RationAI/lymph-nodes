@@ -5,7 +5,7 @@ from lightning import LightningDataModule
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 
-from project_name.typing import Input
+from lymph_nodes.typing import Input
 
 
 class DataModule(LightningDataModule):
