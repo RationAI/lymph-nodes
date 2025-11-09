@@ -1,0 +1,27 @@
+# config for prepro/quality_control.py
+
+defaults:
+  - experiments: null
+  - _self_
+
+service:
+  url: "http://rayservice-qc-serve-svc.rationai-jobs-ns.svc.cluster.local:8000/"
+
+network:
+  request_limit: 4
+  request_timeout_sec: 1800  
+  max_retry_attempts: 5
+  backoff_base: 2
+
+qc:
+  mask_level: 3
+  sample_level: 1
+  check_residual: false
+  check_folding: false
+  check_focus: true
+  wb_correction: true
+  compute_metrics: true
+
+mlflow:
+  experiment_name: "Lymph nodes"
+  run_name: "QC of pre-inference slides"
