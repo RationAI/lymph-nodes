@@ -1,0 +1,12 @@
+# @package _global_
+
+defaults:
+  - base
+  - _self_
+
+# List slides explicitly
+slides: []
+# Or point to a directory
+slides_dir: null
+# Discovery options (when slides_dir is set)
+slides_glob: "**/*.czi"

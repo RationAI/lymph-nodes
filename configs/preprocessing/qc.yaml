@@ -2,6 +2,7 @@
 
 defaults:
   - base
+  - experiment: preprocessing
   - _self_
 
 request_limit: 10
@@ -14,5 +15,5 @@ sample_level: ???
 output_path: ${data_path}/qc_masks
 
 metadata:
-  run_name: QC Masks
+  run_name: QC Masks for lymph nodes
   description: ???

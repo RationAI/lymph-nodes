@@ -1,7 +1,7 @@
+from pathlib import Path
+from typing import Any, Iterable
 import asyncio
 import tempfile
-from pathlib import Path
-from typing import Any
 
 import hydra
 from aiohttp import ClientSession, ClientTimeout
@@ -56,13 +56,11 @@ async def repeatable_put_request(
                 f"Unexpected status 500 received for {data['wsi_path']} ({att_count}):\n\tResponse: {text}\n"
             )
             await asyncio.sleep(2**attempt)
-
             continue
 
         print(
             f"Processed {data['wsi_path']}:\n\tStatus: {status} \n\tResponse: {text}\n"
         )
-
         return
 
     print(f"Failed to process {data['wsi_path']}:\n\tAll retry attempts failed\n")
@@ -77,7 +75,7 @@ async def generate_report(
     url: str,
     semaphore: asyncio.Semaphore,
 ) -> None:
-    url = url + "report"
+    url = url.rstrip("/") + "/report"
 
     data = {
         "backgrounds": [str(slide) for slide in slides],
@@ -93,7 +91,6 @@ async def generate_report(
             ) as response,
         ):
             result = await response.text()
-
             print(
                 f"Report generation:\n\tStatus: {response.status} \n\tResponse: {result}\n"
             )
@@ -103,87 +100,76 @@ async def generate_report(
         )
 
 
-async def qc_main(
-    output_path: str,
-    report_path: str,
-    slides: list[Path],
-    mask_level: int,
-    sample_level: int,
-    logger: MLFlowLogger,
-    url: str,
-    semaphore: asyncio.Semaphore,
-    request_timeout: int,
-    report_request_timeout: int,
-    num_repeats: int,
-) -> None:
+async def qc_main(config: DictConfig, logger: MLFlowLogger) -> None:
+    # Resolve slides: prefer explicit list; else discover from slides_dir
+    slides_cfg = config.get("slides") or []
+    slides: list[Path] = [Path(s) for s in slides_cfg] if slides_cfg else []
+
+    if not slides and config.get("slides_dir"):
+        base = Path(str(config.slides_dir)).expanduser()
+        pattern = str(config.get("slides_glob", "**/*.czi"))
+        if "**" in pattern:
+            slides = sorted(base.rglob(pattern))
+        else:
+            slides = sorted(base.glob(pattern))
+
+    if not slides:
+        raise ValueError(
+            "No slides provided. Set +slides=[/abs/one.czi,...] or slides_dir=/path/to/dir in config."
+        )
+
+    output_path = Path(config.output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    semaphore = asyncio.Semaphore(int(config.request_limit))
+    timeout_sec = int(config.request_timeout)
+
     async with ClientSession() as session:
+        # submit per-slide QC
         tasks = [
             repeatable_put_request(
                 session=session,
-                request_timeout=request_timeout,
-                url=url,
-                num_repeats=num_repeats,
-                semaphore=semaphore,
+                url=config.url,
                 data={
-                    "wsi_path": str(slide),
-                    "output_path": output_path,
-                    "mask_level": mask_level,
-                    "sample_level": sample_level,
-                    "check_residual": True,
-                    "check_folding": True,
-                    "check_focus": True,
+                    "wsi_path": str(slide.resolve()),
+                    "output_path": str(output_path / slide.stem),
+                    "mask_level": int(config.mask_level),
+                    "sample_level": int(config.sample_level),
+                    "check_residual": bool(config.get("check_residual", True)),
+                    "check_folding": bool(config.get("check_folding", True)),
+                    "check_focus": bool(config.get("check_focus", True)),
                 },
+                num_repeats=int(config.num_repeats),
+                semaphore=semaphore,
+                request_timeout=timeout_sec,
             )
             for slide in slides
         ]
-
         await asyncio.gather(*tasks)
 
-        await generate_report(
-            session=session,
-            slides=slides,
-            output_dir=output_path,
-            save_location=report_path,
-            url=url,
-            semaphore=semaphore,
-            report_request_timeout=report_request_timeout,
-        )
+        with tempfile.TemporaryDirectory(
+            prefix="qc_masks_report_", dir=output_path.as_posix()
+        ) as tmp_dir:
+            report_path = Path(tmp_dir, "report.html")
+            report_path.parent.mkdir(parents=True, exist_ok=True)
 
-        logger.log_artifacts(local_dir=report_path)
+            await generate_report(
+                session=session,
+                report_request_timeout=int(config.report_request_timeout),
+                slides=slides,
+                output_dir=output_path.as_posix(),
+                save_location=report_path.as_posix(),
+                url=config.url,
+                semaphore=semaphore,
+            )
+
+            logger.log_artifacts(local_dir=report_path.parent.as_posix())
 
 
 @hydra.main(config_path="../configs", config_name="preprocessing/qc", version_base=None)
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
-    output_path = Path(config.output_path)
-    output_path.mkdir(exist_ok=True, parents=True)
-
-    slides: list[Path] = ...  # Load slide paths
-
-    semaphore = asyncio.Semaphore(config.request_limit)
-
-    with tempfile.TemporaryDirectory(
-        prefix="qc_masks_report_", dir=output_path.as_posix()
-    ) as tmp_dir:  # Create a temporary directory for the report
-        report_path = Path(tmp_dir, "report.html")
-        report_path.parent.mkdir(parents=True, exist_ok=True)
-
-        asyncio.run(
-            qc_main(
-                output_path=output_path.absolute().as_posix(),
-                report_path=report_path.absolute().as_posix(),
-                slides=slides,
-                logger=logger,
-                url=config.url,
-                mask_level=config.mask_level,
-                sample_level=config.sample_level,
-                semaphore=semaphore,
-                request_timeout=config.request_timeout,
-                report_request_timeout=config.report_request_timeout,
-                num_repeats=config.num_repeats,
-            )
-        )
-
+    asyncio.run(qc_main(config, logger))
 
 if __name__ == "__main__":
     main()  # pylint: disable=no-value-for-parameter
