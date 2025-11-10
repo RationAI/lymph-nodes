@@ -164,7 +164,9 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         slides_glob = config.get("slides_glob", "**/*.czi")
         slides = list(Path(config.slides_dir).rglob(slides_glob))
     else:
-        raise ValueError("Either 'slides' or 'slides_dir' must be specified in the config.")
+        raise ValueError(
+            "Either 'slides' or 'slides_dir' must be specified in the config."
+        )
 
     semaphore = asyncio.Semaphore(config.request_limit)
 
