@@ -159,10 +159,8 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     output_path.mkdir(exist_ok=True, parents=True)
 
     if config.slides and len(config.slides) > 0:
-        # Explicitly listed slides
         slides = [Path(s).resolve() for s in config.slides]
     elif config.slides_dir:
-        # Discover slides from directory using glob
         slides_glob = config.get("slides_glob", "**/*.czi")
         slides = list(Path(config.slides_dir).rglob(slides_glob))
     else:
