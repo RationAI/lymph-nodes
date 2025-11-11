@@ -6,6 +6,5 @@ defaults:
 # List slides explicitly
 slides: []
 # Or point to a directory
-slides_dir: null
-# Discovery options (when slides_dir is set)
-slides_glob: "**/*.czi"
+slides_dir: null    # mnt/data/FNBrno/lymph_nodes/maternity_hospital_dataset
+slides_glob: "**/*-AE-*.czi"
