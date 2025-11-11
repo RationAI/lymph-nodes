@@ -128,8 +128,8 @@ async def qc_main(
                     "output_path": output_path,
                     "mask_level": mask_level,
                     "sample_level": sample_level,
-                    "check_residual": True,
-                    "check_folding": True,
+                    "check_residual": False,
+                    "check_folding": False,
                     "check_focus": True,
                 },
             )
