@@ -1,10 +1,8 @@
 # @package _global_
-
 defaults:
   - _self_
 
-# List slides explicitly
 slides: []
-# Or point to a directory
-slides_dir: null    # mnt/data/FNBrno/lymph_nodes/maternity_hospital_dataset
-slides_glob: "**/*-AE-*.czi"
+slides_dir: /mnt/data/FNBrno/lymph_nodes/maternity_hospital_dataset
+slides_glob:
+  - "**/*-AE-*.czi"

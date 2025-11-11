@@ -2,7 +2,7 @@
 
 defaults:
   - base
-  - /experiment: slides
+  - /experiment: FNBrno_slides
   - _self_
 
 request_limit: 10
@@ -16,4 +16,4 @@ output_path: ${data_path}/qc_masks
 
 metadata:
   run_name: QC Masks for lymph nodes
-  description: ???
+  description: ??
