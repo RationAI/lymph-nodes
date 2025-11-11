@@ -170,27 +170,33 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
     semaphore = asyncio.Semaphore(config.request_limit)
 
-    with tempfile.TemporaryDirectory(
-        prefix="qc_masks_report_", dir=output_path.as_posix()
-    ) as tmp_dir:  # Create a temporary directory for the report
-        report_path = Path(tmp_dir, "report.html")
-        report_path.parent.mkdir(parents=True, exist_ok=True)
+    # Persistent report directory (no auto deletion)
+    report_dir = output_path / "qc_report"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = report_dir / "report.html"
 
-        asyncio.run(
-            qc_main(
-                output_path=output_path.absolute().as_posix(),
-                report_path=report_path.absolute().as_posix(),
-                slides=slides,
-                logger=logger,
-                url=config.url,
-                mask_level=config.mask_level,
-                sample_level=config.sample_level,
-                semaphore=semaphore,
-                request_timeout=config.request_timeout,
-                report_request_timeout=config.report_request_timeout,
-                num_repeats=config.num_repeats,
-            )
+    asyncio.run(
+        qc_main(
+            output_path=output_path.absolute().as_posix(),
+            report_path=report_path.absolute().as_posix(),
+            slides=slides,
+            logger=logger,
+            url=config.url,
+            mask_level=config.mask_level,
+            sample_level=config.sample_level,
+            semaphore=semaphore,
+            request_timeout=config.request_timeout,
+            report_request_timeout=config.report_request_timeout,
+            num_repeats=config.num_repeats,
         )
+    )
+
+    # Log the whole report directory (contains report.html)
+    if report_path.exists():
+        logger.log_artifacts(local_dir=report_dir.as_posix())
+        print(f"QC report saved to: {report_path}")
+    else:
+        print("QC report was not generated.")
 
 
 if __name__ == "__main__":
