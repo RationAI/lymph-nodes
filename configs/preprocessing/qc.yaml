@@ -5,10 +5,10 @@ defaults:
   - /experiment: FNBrno_slides
   - _self_
 
-request_limit: 10
-request_timeout: 100000
+request_limit: 4
+request_timeout: 30 * 60
 report_request_timeout: 24000
-num_repeats: 10
+num_repeats: 5
 url: "http://rayservice-qc-serve-svc.rationai-jobs-ns.svc.cluster.local:8000/"
 mask_level: ???
 sample_level: ???
