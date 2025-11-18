@@ -1,4 +1,3 @@
-
 # This script was adapted from the repository:
 # https://gitlab.ics.muni.cz/rationai/digital-pathology/pathology/prostate-cancer/-/tree/a631d443abf1b618be8ff5c128bf17fecd1ea310/
 
@@ -11,10 +10,12 @@ from omegaconf import DictConfig
 from rationai.mlkit import autolog
 from rationai.mlkit.lightning.loggers import MLFlowLogger
 
+
 QC_MASKS = [
     ("Piqe_focus_score_piqe_median", "blur_per_tile"),
     ("Piqe_piqe_median_activity_mask", "blur_per_pixel"),
 ]
+
 
 def create_directory_structure(qc_path: Path, file_prefix: str) -> None:
     prefix_dir = qc_path / file_prefix

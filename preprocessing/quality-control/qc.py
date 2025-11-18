@@ -8,14 +8,13 @@ import mlflow
 import pandas as pd
 from aiohttp import ClientSession, ClientTimeout
 from omegaconf import DictConfig
-from rationai.mlkit.autolog import autolog
-from rationai.mlkit.lightning.loggers import MLFlowLogger
-
 from qc_organize import (
+    QC_MASKS,
     create_directory_structure,
     log_qc_masks_directory,
-    QC_MASKS,
 )
+from rationai.mlkit.autolog import autolog
+from rationai.mlkit.lightning.loggers import MLFlowLogger
 
 
 async def put_request(
@@ -160,16 +159,18 @@ async def qc_main(
         logger.log_artifacts(local_dir=report_path)
 
 
-@hydra.main(config_path="../../configs", config_name="preprocessing/qc", version_base=None)
+@hydra.main(
+    config_path="../../configs", config_name="preprocessing/qc", version_base=None
+)
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
     output_path = Path(config.output_path)
     output_path.mkdir(exist_ok=True, parents=True)
     lymph_nodes_path = config.lymph_nodes_path
 
-    df = pd.read_csv(mlflow.artifacts.download_artifacts(config.slides_df_uri)) 
+    df = pd.read_csv(mlflow.artifacts.download_artifacts(config.slides_df_uri))
     slides = [Path(path) for path in df["slide_path"]]
-    
+
     semaphore = asyncio.Semaphore(config.request_limit)
 
     with tempfile.TemporaryDirectory(
@@ -200,6 +201,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         create_directory_structure(output_path, prefix)
         artifact_name = f"qc_masks/{artifact_name}"
         log_qc_masks_directory(output_path / prefix, artifact_name)
+
 
 if __name__ == "__main__":
     main()  # pylint: disable=no-value-for-parameter

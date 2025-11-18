@@ -3,6 +3,7 @@ name = "lymph-nodes"
 version = "0.1.0"
 authors = [
     { name = "Jakub Pekár", email = "jakubpekar@mail.muni.cz" },
+    { name = "Tomáš Homola", email = "567740@mail.muni.cz" },
 ]
 requires-python = ">=3.11,<3.13"
 readme = "README.md"
@@ -33,10 +34,6 @@ rationai-mlkit = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/
 
 
 [tool.pdm.scripts]
-train = "python -m lymph_nodes"
-fit = "python -m lymph_nodes mode=fit"
-test = "python -m lymph_nodes mode=test"
-preprocess = "python -m prepro"
 l = { composite = ["lint", "format", "mypy"] }
 lint = "ruff check --fix"
 format = "ruff format"
@@ -49,6 +46,3 @@ post_install = { composite = [
 
 [tool.pdm]
 distribution = false
-
-[tool.ruff]
-exclude = ["cytokeratin_mask"]
