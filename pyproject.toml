@@ -8,24 +8,17 @@ requires-python = ">=3.11,<3.13"
 readme = "README.md"
 license = { file = "LICENSE" }
 dependencies = [
-    "albumentations>=2.0.8",
-    "dynamic-network-architectures>=0.4.2",
-    "einops>=0.8.1",
     "lightning>=2.5.5",
-    "mamba-ssm",
     "numpy>=2.3.4",
     "openslide-python>=1.4.2",
     "pandas>=2.3.3",
-    "psutil>=7.1.1",
     "pyvips>=3.0.0",
     "rationai-masks",
     "rationai-mlkit",
     "rationai-tiling",
     "report",
-    "timm>=1.0.20",
     "torch>=2.9.0",
     "torchvision>=0.24.0",
-    "tqdm>=4.67.1",
 ]
 
 [project.optional-dependencies]
@@ -34,7 +27,6 @@ dev = ["mypy", "pre-commit", "ruff"]
 
 [tool.uv.sources]
 report = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/tools/report.git" }
-mamba-ssm = { url = "https://github.com/state-spaces/mamba/releases/download/v2.2.4/mamba_ssm-2.2.4+cu12torch2.6cxx11abiTRUE-cp312-cp312-linux_x86_64.whl" }
 rationai-tiling = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/tiling.git", rev = "feature/uv-manager" }
 rationai-masks = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git", rev = "feature/modular-tissue-mask" }
 rationai-mlkit = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/mlkit.git", rev = "feature/batch-sampler-new" }

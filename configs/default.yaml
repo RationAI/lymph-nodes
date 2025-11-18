@@ -3,8 +3,10 @@ defaults:
   - logger: mlflow
   - _self_
 
+lymph_nodes_artifacts: /mnt/projects/lymph_nodes/lymphs
+lymph_nodes_data: /mnt/data/MOU/lymph_nodes
+
 metadata:
   experiment_name: Lymph Nodes
   run_name: ???
   description: ???
-  hyperparams: {}

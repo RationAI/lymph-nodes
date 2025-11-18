@@ -2,7 +2,6 @@
 
 defaults:
   - base
-  - /experiment: FNBrno_slides
   - _self_
 
 request_limit: 4
@@ -10,10 +9,10 @@ request_timeout: 30 * 60
 report_request_timeout: 24000
 num_repeats: 5
 url: "http://rayservice-qc-serve-svc.rationai-jobs-ns.svc.cluster.local:8000/"
-mask_level: ???
-sample_level: ???
-output_path: ${data_path}/qc_masks
+mask_level: 3
+sample_level: 1
+output_path: ${lymph_nodes_artifacts}/qc_masks/${data_name}
 
 metadata:
-  run_name: QC Masks for lymph nodes
-  description: ??
+  run_name: QC Masks ${data_name}
+  description: Quality control masks for ${data_name}

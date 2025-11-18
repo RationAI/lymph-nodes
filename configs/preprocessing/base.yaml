@@ -4,4 +4,5 @@ defaults:
   - /default
   - _self_
 
-data_path: ???
+data_name: ???
+slides_df_uri: ???

@@ -1,7 +1,5 @@
 # @package _global_
 data:
-  output_dir: "/mnt/projects/lymph_nodes/qc_ihc_2023_2024"
-  combined_report: "/mnt/projects/lymph_nodes/qc_ihc_2023_2024/final_report.html"
   slides:
     # 2023 positive slides
     - "/mnt/data/MOU/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_129_SLIDE_1-1.tiff"

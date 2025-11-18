@@ -1,12 +1,21 @@
 import asyncio
+import tempfile
 from pathlib import Path
 from typing import Any
 
 import hydra
+import mlflow
+import pandas as pd
 from aiohttp import ClientSession, ClientTimeout
 from omegaconf import DictConfig
 from rationai.mlkit.autolog import autolog
 from rationai.mlkit.lightning.loggers import MLFlowLogger
+
+from qc_organize import (
+    create_directory_structure,
+    log_qc_masks_directory,
+    QC_MASKS,
+)
 
 
 async def put_request(
@@ -151,52 +160,46 @@ async def qc_main(
         logger.log_artifacts(local_dir=report_path)
 
 
-@hydra.main(config_path="../configs", config_name="preprocessing/qc", version_base=None)
+@hydra.main(config_path="../../configs", config_name="preprocessing/qc", version_base=None)
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
     output_path = Path(config.output_path)
     output_path.mkdir(exist_ok=True, parents=True)
+    lymph_nodes_path = config.lymph_nodes_path
 
-    if config.slides and len(config.slides) > 0:
-        slides = [Path(s).resolve() for s in config.slides]
-    elif config.slides_dir:
-        slides_glob = config.get("slides_glob", "**/*.czi")
-        slides = list(Path(config.slides_dir).rglob(slides_glob))
-    else:
-        raise ValueError(
-            "Either 'slides' or 'slides_dir' must be specified in the config."
-        )
-
+    df = pd.read_csv(mlflow.artifacts.download_artifacts(config.slides_df_uri)) 
+    slides = [Path(path) for path in df["slide_path"]]
+    
     semaphore = asyncio.Semaphore(config.request_limit)
 
-    # Persistent report directory (no auto deletion)
-    report_dir = output_path / "qc_report"
-    report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / "report.html"
+    with tempfile.TemporaryDirectory(
+        prefix="qc_masks_report_", dir=Path(lymph_nodes_path).as_posix()
+    ) as tmp_dir:  # Create a temporary directory for the report
+        report_path = Path(tmp_dir, "report.html")
 
-    asyncio.run(
-        qc_main(
-            output_path=output_path.absolute().as_posix(),
-            report_path=report_path.absolute().as_posix(),
-            slides=slides,
-            logger=logger,
-            url=config.url,
-            mask_level=config.mask_level,
-            sample_level=config.sample_level,
-            semaphore=semaphore,
-            request_timeout=config.request_timeout,
-            report_request_timeout=config.report_request_timeout,
-            num_repeats=config.num_repeats,
+        output_path.mkdir(parents=True, exist_ok=True)
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+
+        asyncio.run(
+            qc_main(
+                output_path=output_path.absolute().as_posix(),
+                report_path=report_path.absolute().as_posix(),
+                slides=slides,
+                logger=logger,
+                url=config.url,
+                mask_level=config.mask_level,
+                sample_level=config.sample_level,
+                semaphore=semaphore,
+                request_timeout=config.request_timeout,
+                report_request_timeout=config.report_request_timeout,
+                num_repeats=config.num_repeats,
+            )
         )
-    )
 
-    # Log the whole report directory (contains report.html)
-    if report_path.exists():
-        logger.log_artifacts(local_dir=report_dir.as_posix())
-        print(f"QC report saved to: {report_path}")
-    else:
-        print("QC report was not generated.")
-
+    for prefix, artifact_name in QC_MASKS:
+        create_directory_structure(output_path, prefix)
+        artifact_name = f"qc_masks/{artifact_name}"
+        log_qc_masks_directory(output_path / prefix, artifact_name)
 
 if __name__ == "__main__":
     main()  # pylint: disable=no-value-for-parameter
