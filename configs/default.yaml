@@ -4,7 +4,8 @@ defaults:
   - _self_
 
 lymph_nodes_artifacts: /mnt/projects/lymph_nodes/lymphs
-lymph_nodes_data: /mnt/data/MOU/lymph_nodes
+lymph_nodes_data_MOU: /mnt/data/MOU/lymph_nodes
+lymph_nodes_data_FNBrno: /mnt/data/FNBrno/lymph_nodes/maternity_hospital_dataset
 
 metadata:
   experiment_name: Lymph Nodes

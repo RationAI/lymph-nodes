@@ -1,7 +1,24 @@
 # @package _global_
-defaults:
-  - _self_
-
-slides_dir: /mnt/data/FNBrno/lymph_nodes/maternity_hospital_dataset
-slides_glob:
-  - "**/*-AE-*.czi"
+data:
+  slides:
+  # 20 selected slides from FNBrno maternity hospital dataset (14 positive, 6 negative)
+  - "${lymph_nodes_data_FNBrno}/FNB1233-23-1-2-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB174-24-1-6-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB174-24-2-6-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB1858-23-15-2-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB1858-23-16-2-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB1870-23-1-2-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB1870-23-2-6-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB1870-23-5-2-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB2099-23-10-2-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB2099-23-9-10-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB2554-23-2-2-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB3405-23-2-2-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB-P1418-25-6-6-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB977-24-8-10-AE-1.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB1030-24-1-2-AE-0.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB1472-23-2-2-AE-0.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB1770-23-4-2-AE-0.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB2888-23-4-2-AE-0.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB342-24-3-6-AE-0.czi"
+  - "${lymph_nodes_data_FNBrno}/FNB500-24-5-2-AE-0.czi"
