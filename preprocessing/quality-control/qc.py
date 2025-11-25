@@ -8,11 +8,6 @@ import mlflow
 import pandas as pd
 from aiohttp import ClientSession, ClientTimeout
 from omegaconf import DictConfig
-from qc_organize import (
-    QC_MASKS,
-    create_directory_structure,
-    log_qc_masks_directory,
-)
 from rationai.mlkit.autolog import autolog
 from rationai.mlkit.lightning.loggers import MLFlowLogger
 
@@ -156,35 +151,28 @@ async def qc_main(
             report_request_timeout=report_request_timeout,
         )
 
-        logger.log_artifacts(local_dir=report_path)
-
 
 @hydra.main(
     config_path="../../configs", config_name="preprocessing/qc", version_base=None
 )
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
-    output_path = Path(config.output_path)
-    output_path.mkdir(exist_ok=True, parents=True)
     lymph_nodes_path = config.lymph_nodes_path
 
     df = pd.read_csv(mlflow.artifacts.download_artifacts(config.slides_df_uri))
-    slides = [Path(path) for path in df["slide_path"]]
+    slides = [Path(p) for p in df["slide_path"]]
 
     semaphore = asyncio.Semaphore(config.request_limit)
 
-    with tempfile.TemporaryDirectory(
-        prefix="qc_masks_report_", dir=Path(lymph_nodes_path).as_posix()
-    ) as tmp_dir:  # Create a temporary directory for the report
-        report_path = Path(tmp_dir, "report.html")
-
-        output_path.mkdir(parents=True, exist_ok=True)
-        report_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="qc_tmp_", dir=Path(lymph_nodes_path)) as qc_run_dir:
+        masks_dir = Path(qc_run_dir, "masks")
+        masks_dir.mkdir(parents=True, exist_ok=True)
+        report_file = Path(qc_run_dir, "report.html")
 
         asyncio.run(
             qc_main(
-                output_path=output_path.absolute().as_posix(),
-                report_path=report_path.absolute().as_posix(),
+                output_path=masks_dir.as_posix(),
+                report_path=report_file.as_posix(),
                 slides=slides,
                 logger=logger,
                 url=config.url,
@@ -197,10 +185,8 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
             )
         )
 
-    for prefix, artifact_name in QC_MASKS:
-        create_directory_structure(output_path, prefix)
-        artifact_name = f"qc_masks/{artifact_name}"
-        log_qc_masks_directory(output_path / prefix, artifact_name)
+        logger.log_artifacts(local_dir=masks_dir.as_posix())
+        mlflow.log_artifact(str(report_file), artifact_path="qc_report")
 
 
 if __name__ == "__main__":
