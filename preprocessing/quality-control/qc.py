@@ -164,7 +164,9 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
     semaphore = asyncio.Semaphore(config.request_limit)
 
-    with tempfile.TemporaryDirectory(prefix="qc_tmp_", dir=Path(lymph_nodes_path)) as qc_run_dir:
+    with tempfile.TemporaryDirectory(
+        prefix="qc_tmp_", dir=Path(lymph_nodes_path)
+    ) as qc_run_dir:
         masks_dir = Path(qc_run_dir, "masks")
         masks_dir.mkdir(parents=True, exist_ok=True)
         report_file = Path(qc_run_dir, "report.html")
