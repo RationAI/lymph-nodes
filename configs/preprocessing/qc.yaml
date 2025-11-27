@@ -2,7 +2,6 @@
 
 defaults:
   - base
-  - /experiment:
   - _self_
 
 request_limit: 4
@@ -12,8 +11,7 @@ num_repeats: 5
 url: "http://rayservice-qc-serve-svc.rationai-jobs-ns.svc.cluster.local:8000/"
 mask_level: 3
 sample_level: 1
-output_path: qc_masks/${data_name}
 
 metadata:
-  run_name: QC Masks ${data_name}
+  run_name: QC Masks ${dataset_name}
   description: Quality control masks for ${data_name}

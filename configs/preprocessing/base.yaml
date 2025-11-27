@@ -4,5 +4,5 @@ defaults:
   - /default
   - _self_
 
-data_name: ???
-slides_df_uri: ???
+dataset_source: ???
+dataset_name: ???

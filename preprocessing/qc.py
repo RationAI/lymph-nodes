@@ -5,7 +5,6 @@ from typing import Any
 
 import hydra
 import mlflow
-import pandas as pd
 from aiohttp import ClientSession, ClientTimeout
 from omegaconf import DictConfig
 from rationai.mlkit.autolog import autolog
@@ -151,30 +150,24 @@ async def qc_main(
             report_request_timeout=report_request_timeout,
         )
 
+        logger.log_artifacts(local_dir=output_path)
+
 
 @hydra.main(
-    config_path="../../configs", config_name="preprocessing/qc", version_base=None
+    config_path="../configs", config_name="preprocessing/qc", version_base=None
 )
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
-    lymph_nodes_path = config.lymph_nodes_path
-
-    df = pd.read_csv(mlflow.artifacts.download_artifacts(config.slides_df_uri))
-    slides = [Path(p) for p in df["slide_path"]]
-
+    slides = list(config.data_source)
     semaphore = asyncio.Semaphore(config.request_limit)
 
-    with tempfile.TemporaryDirectory(
-        prefix="qc_tmp_", dir=Path(lymph_nodes_path)
-    ) as qc_run_dir:
-        masks_dir = Path(qc_run_dir, "masks")
-        masks_dir.mkdir(parents=True, exist_ok=True)
-        report_file = Path(qc_run_dir, "report.html")
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        report_path = Path(tmp_dir, "report.html")
 
         asyncio.run(
             qc_main(
-                output_path=masks_dir.as_posix(),
-                report_path=report_file.as_posix(),
+                output_path=tmp_dir.absolute().as_posix(),
+                report_path=report_path.absolute().as_posix(),
                 slides=slides,
                 logger=logger,
                 url=config.url,
@@ -186,9 +179,6 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
                 num_repeats=config.num_repeats,
             )
         )
-
-        logger.log_artifacts(local_dir=masks_dir.as_posix())
-        mlflow.log_artifact(str(report_file), artifact_path="qc_report")
 
 
 if __name__ == "__main__":
