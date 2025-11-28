@@ -5,7 +5,7 @@ defaults:
   - _self_
 
 mpp: 4.0
-max_concurrent: null
+max_concurrent: 50
 artifact_path: tissue_masks
 
 metadata:

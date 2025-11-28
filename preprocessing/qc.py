@@ -4,10 +4,17 @@ from pathlib import Path
 from typing import Any
 
 import hydra
+import pandas as pd
 from aiohttp import ClientSession, ClientTimeout
 from omegaconf import DictConfig
 from rationai.mlkit.autolog import autolog
 from rationai.mlkit.lightning.loggers import MLFlowLogger
+
+
+QC_MASKS = [
+    ("Piqe_focus_score_piqe_median", "blur_per_tile"),
+    ("Piqe_piqe_median_activity_mask", "blur_per_pixel"),
+]
 
 
 async def put_request(
@@ -103,6 +110,16 @@ async def generate_report(
         )
 
 
+def organize_masks(output_path: Path, subdir: str, mask_prefix: str) -> None:
+    prefix_dir = output_path / subdir
+    prefix_dir.mkdir(parents=True, exist_ok=True)
+
+    for file in output_path.glob(f"{mask_prefix}_*.tiff"):
+        slide_name = file.name.replace(f"{mask_prefix}_", "")
+        destination = prefix_dir / slide_name
+        file.rename(destination)
+
+
 async def qc_main(
     output_path: str,
     report_path: str,
@@ -139,6 +156,15 @@ async def qc_main(
 
         await asyncio.gather(*tasks)
 
+        # Organize generated masks into subdirectories
+        for prefix, artifact_name in QC_MASKS:
+            organize_masks(Path(output_path), artifact_name, prefix)
+
+        # Merge generated csv files
+        pd.concat([pd.read_csv(f) for f in Path(output_path).glob("*.csv")]).to_csv(
+            Path(output_path, "qc_metrics.csv"), index=False
+        )
+
         await generate_report(
             session=session,
             slides=slides,
@@ -158,7 +184,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     slides = list(hydra.utils.instantiate(config.dataset.slides))
     semaphore = asyncio.Semaphore(config.request_limit)
 
-    with tempfile.TemporaryDirectory(dir=config.shared_dir) as tmp_dir:
+    with tempfile.TemporaryDirectory(dir=config.shared_dir, prefix="qc_") as tmp_dir:
         report_path = Path(tmp_dir, "report.html")
 
         asyncio.run(
@@ -180,3 +206,16 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
 if __name__ == "__main__":
     main()  # pylint: disable=no-value-for-parameter
+
+
+######################
+##### RUN PARAMS #####
+######################
+
+"""
+> uv run -m preprocessing.qc +experiment=...
+
+GPU: None
+CPU: 2
+RAM: 2Gi
+"""

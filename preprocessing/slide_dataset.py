@@ -102,3 +102,16 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
 if __name__ == "__main__":
     main()  # pylint: disable=no-value-for-parameter
+
+
+######################
+##### RUN PARAMS #####
+######################
+
+"""
+> uv run -m preprocessing.slide_dataset +experiment=...
+
+GPU: None
+CPU: 2
+RAM: 2Gi
+"""
