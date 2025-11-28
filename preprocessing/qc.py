@@ -161,9 +161,14 @@ async def qc_main(
             organize_masks(Path(output_path), artifact_name, prefix)
 
         # Merge generated csv files
-        pd.concat([pd.read_csv(f) for f in Path(output_path).glob("*.csv")]).to_csv(
+        csvs = list(Path(output_path).glob("*.csv"))
+        pd.concat([pd.read_csv(f) for f in csvs]).to_csv(
             Path(output_path, "qc_metrics.csv"), index=False
         )
+
+        # Remove individual csv files
+        for f in csvs:
+            f.unlink()
 
         await generate_report(
             session=session,
