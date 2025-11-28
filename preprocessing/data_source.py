@@ -2,6 +2,9 @@ import itertools
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
+import pandas as pd
+from mlflow.artifacts import download_artifacts
+
 
 class DataSource(Iterable[Path]):
     def __init__(
@@ -60,3 +63,20 @@ class ChainedDataSources(Iterable[Path]):
 
     def __len__(self) -> int:
         return sum([len(ds) for ds in self.data_sources])
+
+
+class SlideDataSource(Iterable[Path]):
+    def __init__(self, uris: list[str]) -> None:
+        self.datasets = [self._download_dataset(uri) for uri in uris]
+
+    def __iter__(self) -> Iterator[Path]:
+        for dataset in self.datasets:
+            for slide_path in dataset["slide_path"]:
+                yield Path(slide_path)
+
+    def __len__(self) -> int:
+        return sum(len(dataset) for dataset in self.datasets)
+
+    def _download_dataset(self, uri: str) -> pd.DataFrame:
+        artifact_path = download_artifacts(artifact_uri=uri)
+        return pd.read_csv(artifact_path)

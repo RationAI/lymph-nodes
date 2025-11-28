@@ -799,6 +799,7 @@ dependencies = [
     { name = "omegaconf" },
     { name = "rationai-masks" },
     { name = "rationai-mlkit" },
+    { name = "ray" },
     { name = "torch" },
     { name = "torchmetrics" },
 ]
@@ -817,6 +818,7 @@ requires-dist = [
     { name = "omegaconf", specifier = ">=2.3.0" },
     { name = "rationai-masks", git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git" },
     { name = "rationai-mlkit", git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/mlkit.git" },
+    { name = "ray", specifier = ">=2.52.1" },
     { name = "torch", specifier = ">=2.9.0" },
     { name = "torchmetrics", specifier = ">=1.8.2" },
 ]

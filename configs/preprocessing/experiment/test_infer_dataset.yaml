@@ -1,0 +1,9 @@
+# @package _global_
+
+dataset:
+  name: Test Inference Dataset
+  data:
+    _target_: preprocessing.data_source.SlideDataSource
+    uris:
+      - mlflow... # TODO
+      - mlflow... # TODO

@@ -4,10 +4,10 @@ defaults:
   - base
   - _self_
 
-level: ???
-max_concurrent: ???
+mpp: 4.0
+max_concurrent: null
 artifact_path: tissue_masks
 
 metadata:
-  run_name: Tissue Masks
-  description: ???
+  run_name: Tissue Masks ${dataset.name}
+  description: Tissue masks for ${dataset.name} at ${mpp} mpp
