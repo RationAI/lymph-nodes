@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any
 
 import hydra
-import mlflow
 from aiohttp import ClientSession, ClientTimeout
 from omegaconf import DictConfig
 from rationai.mlkit.autolog import autolog
@@ -153,9 +152,7 @@ async def qc_main(
         logger.log_artifacts(local_dir=output_path)
 
 
-@hydra.main(
-    config_path="../configs", config_name="preprocessing/qc", version_base=None
-)
+@hydra.main(config_path="../configs", config_name="preprocessing/qc", version_base=None)
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
     slides = list(config.data_source)
@@ -166,7 +163,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
         asyncio.run(
             qc_main(
-                output_path=tmp_dir.absolute().as_posix(),
+                output_path=Path(tmp_dir).absolute().as_posix(),
                 report_path=report_path.absolute().as_posix(),
                 slides=slides,
                 logger=logger,

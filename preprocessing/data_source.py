@@ -8,7 +8,7 @@ class DataSource(Iterable[Path]):
         self,
         paths: list[str],
     ) -> None:
-        self.data = paths
+        self.data = [Path(path) for path in paths]
 
     def __iter__(self) -> Iterator[Path]:
         return iter(self.data)
