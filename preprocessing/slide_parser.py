@@ -1,8 +1,10 @@
 import re
 import tempfile
+from pathlib import Path
 from typing import Any
 
 import hydra
+import mlflow
 import pandas as pd
 from omegaconf import DictConfig
 from rationai.mlkit.autolog import autolog
@@ -12,7 +14,7 @@ from rationai.mlkit.lightning.loggers import MLFlowLogger
 def parse_mmci_filename(filename: str) -> dict[str, Any]:
     pattern = r"^SNB_([A-Z]+)_CASE_(\d+)_SLIDE_(\d+)-(0|1)\.mrxs$"
 
-    match = re.match(pattern, filename)
+    match = re.match(pattern, Path(filename).name)
 
     if match:
         # Extract the captured groups
@@ -41,7 +43,7 @@ def parse_fnb_filename(filename: str) -> dict[str, Any]:
     # \.czi$: Matches the literal '.czi' extension at the end
     pattern = r"^FNB-?P?(\d+)-(\d+)-(\d+)-(\d+)-([A-Z]+)-(0|1)\.czi$"
 
-    match = re.match(pattern, filename)
+    match = re.match(pattern, Path(filename).name)
 
     if match:
         # Extract the captured groups. Group 1 (case_id) is now only digits.
@@ -57,12 +59,18 @@ def parse_fnb_filename(filename: str) -> dict[str, Any]:
         raise ValueError(f"Filename does not match expected FNB pattern: {filename}")
 
 
-@hydra.main(config_path="../configs", config_name="preprocessing/qc", version_base=None)
+@hydra.main(
+    config_path="../configs",
+    config_name="preprocessing/slide_parser",
+    version_base=None,
+)
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
+    slides = hydra.utils.instantiate(config.dataset.slides)
+
     df = pd.DataFrame(
         {
-            "slide_path": [str(slide) for slide in config.dataset.slides],
+            "slide_path": [str(slide) for slide in slides],
         }
     )
 
@@ -81,17 +89,15 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
     # Save to a temporary CSV file and log as artifact
     with tempfile.TemporaryDirectory() as tmp_dir:
-        path = f"{tmp_dir}/slides.csv"
-        df.to_csv(path, index=False)
-        logger.log_artifacts(path, "slides")
+        df.to_csv(f"{tmp_dir}/slides.csv", index=False)
+        logger.log_artifacts(tmp_dir)
 
-    slides_dataset = logger.experiment.data.pandas_dataset.from_pandas(
+    slides_dataset = mlflow.data.from_pandas(
         df,
         name=config.dataset.name,
-        context="slides",
     )
 
-    logger.experiment.log_input(slides_dataset, context="slides")
+    mlflow.log_input(slides_dataset, context="slides")
 
 
 if __name__ == "__main__":

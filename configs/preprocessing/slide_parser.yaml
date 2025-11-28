@@ -7,4 +7,4 @@ defaults:
 
 metadata:
   run_name: Slide Dataset ${dataset.name}
-  description: Slide Dataset for ${dataset.name}
+  description: Slide Dataset for ${dataset.institute} - ${dataset.name}

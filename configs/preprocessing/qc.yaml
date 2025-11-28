@@ -11,6 +11,7 @@ num_repeats: 5
 url: "http://rayservice-qc-serve-svc.rationai-jobs-ns.svc.cluster.local:8000/"
 mask_level: 3
 sample_level: 1
+shared_dir: /mnt/projects/lymph_nodes
 
 metadata:
   run_name: QC Masks ${dataset.name}
