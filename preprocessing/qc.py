@@ -170,15 +170,15 @@ async def qc_main(
         for f in csvs:
             f.unlink()
 
-        await generate_report(
-            session=session,
-            slides=slides,
-            output_dir=output_path,
-            save_location=report_path,
-            url=url,
-            semaphore=semaphore,
-            report_request_timeout=report_request_timeout,
-        )
+        # await generate_report(
+        #     session=session,
+        #     slides=slides,
+        #     output_dir=output_path,
+        #     save_location=report_path,
+        #     url=url,
+        #     semaphore=semaphore,
+        #     report_request_timeout=report_request_timeout,
+        # )
 
         logger.log_artifacts(local_dir=output_path)
 
