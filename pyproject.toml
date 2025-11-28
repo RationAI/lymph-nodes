@@ -19,9 +19,11 @@ dependencies = [
     "torchmetrics>=1.8.2",
 ]
 
-[optional-dependencies]
+[dependency-groups]
 dev = ["mypy", "ruff"]
 
 [tool.uv.sources]
 rationai-masks = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git" }
 rationai-mlkit = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/mlkit.git" }
+
+

@@ -1,12 +1,9 @@
-import asyncio
 import re
 import tempfile
-from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import hydra
 import pandas as pd
-from aiohttp import ClientSession, ClientTimeout
 from omegaconf import DictConfig
 from rationai.mlkit.autolog import autolog
 from rationai.mlkit.lightning.loggers import MLFlowLogger
@@ -60,45 +57,41 @@ def parse_fnb_filename(filename: str) -> dict[str, Any]:
         raise ValueError(f"Filename does not match expected FNB pattern: {filename}")
 
 
-def save_dataset(slides: pd.DataFrame, logger: MLFlowLogger) -> None:
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        path = f"{tmp_dir}/slides.csv"
-        slides.to_csv(path, index=False)
-        logger.log_artifacts(path, "slides")
-
-    df.to_csv(output_path, index=False)
-
-
 @hydra.main(config_path="../configs", config_name="preprocessing/qc", version_base=None)
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
     df = pd.DataFrame(
         {
-            "slide_path": [str(slide) for slide in config.data_source],
+            "slide_path": [str(slide) for slide in config.dataset.data],
         }
     )
 
-    if config.institute == "mmci":
+    if config.dataset.institute == "mmci":
         parser_func = parse_mmci_filename
-    elif config.institute == "fnb":
+    elif config.dataset.institute == "fnb":
         parser_func = parse_fnb_filename
     else:
-        # Handle cases where config.kind is not recognized
         raise ValueError(
-            f"Unknown dataset kind specified: {config.dataset_kind}. Must be 'mmci' or 'fnb'."
+            f"Unknown dataset kind specified: {config.dataset.institute}. Must be 'mmci' or 'fnb'."
         )
 
     parsed_data = df["slide_path"].apply(parser_func).apply(pd.Series)
     df = pd.concat([df, parsed_data], axis=1)
-    df["institute"] = config.institute
+    df["institute"] = config.dataset.institute
 
-    slides_dataset = logger.data.pandas_dataset.from_pandas(
+    # Save to a temporary CSV file and log as artifact
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        path = f"{tmp_dir}/slides.csv"
+        df.to_csv(path, index=False)
+        logger.log_artifacts(path, "slides")
+
+    slides_dataset = logger.experiment.data.pandas_dataset.from_pandas(
         df,
-        name=config.dataset_name,
+        name=config.dataset.name,
         context="slides",
     )
 
-    logger.log_input(slides_dataset, context="slides")
+    logger.experiment.log_input(slides_dataset, context="slides")
 
 
 if __name__ == "__main__":

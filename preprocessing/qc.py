@@ -155,7 +155,7 @@ async def qc_main(
 @hydra.main(config_path="../configs", config_name="preprocessing/qc", version_base=None)
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
-    slides = list(config.data_source)
+    slides = list(config.dataset.data)
     semaphore = asyncio.Semaphore(config.request_limit)
 
     with tempfile.TemporaryDirectory() as tmp_dir:

@@ -4,5 +4,4 @@ defaults:
   - /default
   - _self_
 
-dataset_source: ???
-dataset_name: ???
+dataset: ???

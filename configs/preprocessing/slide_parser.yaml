@@ -1,0 +1,10 @@
+# @package _global_
+
+defaults:
+  - base
+  - _self_
+
+
+metadata:
+  run_name: Slide Dataset ${dataset.name}
+  description: Slide Dataset for ${dataset.name}

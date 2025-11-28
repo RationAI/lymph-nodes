@@ -13,5 +13,5 @@ mask_level: 3
 sample_level: 1
 
 metadata:
-  run_name: QC Masks ${dataset_name}
-  description: Quality control masks for ${dataset_name}
+  run_name: QC Masks ${dataset.name}
+  description: Quality control masks for ${dataset.name}
