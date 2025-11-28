@@ -3,7 +3,7 @@
 dataset:
   institute: fnb
   name: FN Brno HDAB Test Inference
-  data:
+  slides:
     _target_: preprocessing.data_source.DataSource
     paths:
       # 20 selected slides from FNBrno maternity hospital dataset (14 positive, 6 negative)

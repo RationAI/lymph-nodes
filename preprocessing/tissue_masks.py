@@ -75,7 +75,7 @@ def process_slide(slide_path: Path, mpp: int, output_path: Path) -> None:
 )
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
-    slides = list(config.dataset.data)
+    slides = list(config.dataset.slides)
 
     with TemporaryDirectory() as output_dir:
         process_items(

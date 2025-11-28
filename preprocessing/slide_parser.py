@@ -62,7 +62,7 @@ def parse_fnb_filename(filename: str) -> dict[str, Any]:
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
     df = pd.DataFrame(
         {
-            "slide_path": [str(slide) for slide in config.dataset.data],
+            "slide_path": [str(slide) for slide in config.dataset.slides],
         }
     )
 
