@@ -1,5 +1,24 @@
 # @package _global_
 
+defaults:
+  - base
+  - _self_
+
+mpp: 0.25
+tile_extent: 512
+stride: 256
+
+output_dir: /
+artifact_path: tiles
+
+use_annotations: false
+use_tissue_masks: true
+use_blur_masks: true
+
+std_threshold: 8
+min_tissue_coverage: 0.5
+max_blur_coverage: 0.3
+
 metadata:
-  run_name: Tiling
-  description: ???
+  run_name: Tiling ${dataset.name}
+  description: Tile extraction for ${dataset.name} at ${mpp} mpp with quality filtering
