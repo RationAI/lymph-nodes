@@ -45,7 +45,6 @@ def add_overlay_blur_mask_path(df: pd.DataFrame) -> pd.DataFrame:
 def add_tissue_mask(df: pd.DataFrame) -> pd.DataFrame:
     """Read tissue mask overlay tiles and attach as 'tissue_mask' column."""
     df = df.copy()
-    # tile_overlay expects a dict-like batch, and constructs its own DataFrame
     overlays = tile_overlay(
         batch=df.to_dict(orient="list"),
         overlay_path_key="tissue_mask_path",
