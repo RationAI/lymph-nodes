@@ -4,6 +4,9 @@ defaults:
   - base
   - _self_
 
+
+slide_paths: ???
+
 mpp: 0.25
 tile_extent: 512
 stride: 256
@@ -11,11 +14,14 @@ stride: 256
 output_dir: /
 artifact_path: tiles
 
-use_annotations: false
-use_tissue_masks: true
-use_blur_masks: true
+with_annotations: false
+with_tissue_mask: true
+with_blur_mask: true
 
-std_threshold: 8
+num_cpus_tiles: 1
+memory_tiles: 4294967296  # 4GB in bytes
+
+std_threshold: 8.0
 min_tissue_coverage: 0.5
 max_blur_coverage: 0.3
 
