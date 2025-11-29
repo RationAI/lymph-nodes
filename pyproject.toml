@@ -10,12 +10,16 @@ readme = "README.md"
 license = { file = "LICENSE" }
 dependencies = [
     "aiohttp>=3.13.2",
+    "shapely",
+    "numpy",
+    "pandas",
     "lightning>=2.5.6",
     "mlflow<3.0.0",
     "omegaconf>=2.3.0",
     "rationai",
     "rationai-masks",
     "rationai-mlkit",
+    "ratiopath>=1.0.3",
     "ray>=2.52.1",
     "torch>=2.9.0",
     "torchmetrics>=1.8.2",
