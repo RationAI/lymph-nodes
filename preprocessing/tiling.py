@@ -1,23 +1,21 @@
+import os
+import tempfile
 from typing import Any
 
 import hydra
-import numpy as np
-import pandas as pd
+import mlflow
 from omegaconf import DictConfig
 from rationai.mlkit import autolog, with_cli_args
 from rationai.mlkit.lightning.loggers import MLFlowLogger
-from ratiopath.parsers import ASAPParser
+from rationai.tiling.writers import save_mlflow_dataset
 from ratiopath.ray import read_slides
 from ratiopath.tiling import (
     grid_tiles,
     overlay_roi,
     read_slide_tiles,
-    tile_annotations,
-    tile_overlay,
     tile_overlay_overlap,
 )
 from ratiopath.tiling.utils import row_hash
-from shapely import Polygon
 
 
 CENTERED_ROI = overlay_roi(
@@ -28,66 +26,28 @@ CENTERED_ROI = overlay_roi(
 )
 
 
-def add_overlay_tissue_mask_path(df: pd.DataFrame) -> pd.DataFrame:
-    """Add tissue mask overlay path for each tile in the batch."""
-    df = df.copy()
-    df["tissue_mask_path"] = df["path"].str.replace(".mrxs", "_tissue_mask.tiff")
-    return df
+# def add_overlay_mask_paths(batch: dict[str, Any], tissue_mask_dir: str, blur_mask_dir: str) -> dict[str, Any]:
+#     """Add tissue and blur mask overlay paths for each tile in the batch."""
+#     names = [os.path.splitext(os.path.basename(p))[0] for p in batch["path"]]
+#     batch["tissue_mask_path"] = [f"{tissue_mask_dir}/{n}_tissue_mask.tiff" for n in names]
+#     batch["blur_mask_path"] = [f"{blur_mask_dir}/{n}_blur_mask.tiff" for n in names]
+#     return batch
 
 
-def add_overlay_blur_mask_path(df: pd.DataFrame) -> pd.DataFrame:
-    """Add blur mask overlay path for each tile in the batch."""
-    df = df.copy()
-    df["blur_mask_path"] = df["path"].str.replace(".mrxs", "_blur_mask.tiff")
-    return df
-
-
-def add_tissue_mask(df: pd.DataFrame) -> pd.DataFrame:
-    """Read tissue mask overlay tiles and attach as 'tissue_mask' column."""
-    df = df.copy()
-    overlays = tile_overlay(
-        batch=df.to_dict(orient="list"),
+# TODO : not used anywhere
+def compute_overlaps(batch: dict[str, Any]) -> dict[str, Any]:
+    """Compute overlap histograms for both masks"""
+    batch["tissue_mask_overlap"] = tile_overlay_overlap(
+        batch=batch,
         overlay_path_key="tissue_mask_path",
         roi=CENTERED_ROI,
     )
-    df["tissue_mask"] = overlays
-    return df
-
-
-def add_blur_mask(df: pd.DataFrame) -> pd.DataFrame:
-    """Read blur mask overlay tiles and attach as 'blur_mask' column."""
-    df = df.copy()
-    overlays = tile_overlay(
-        batch=df.to_dict(orient="list"),
+    batch["blur_mask_overlap"] = tile_overlay_overlap(
+        batch=batch,
         overlay_path_key="blur_mask_path",
         roi=CENTERED_ROI,
     )
-    df["blur_mask"] = overlays
-    return df
-
-
-def add_tissue_mask_overlap(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate overlap ratios for tissue mask and store as 'tissue_mask_overlap'."""
-    df = df.copy()
-    overlaps = tile_overlay_overlap(
-        batch=df.to_dict(orient="list"),
-        overlay_path_key="tissue_mask_path",
-        roi=CENTERED_ROI,
-    )
-    df["tissue_mask_overlap"] = overlaps
-    return df
-
-
-def add_blur_mask_overlap(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate overlap ratios for blur mask."""
-    df = df.copy()
-    overlaps = tile_overlay_overlap(
-        batch=df.to_dict(orient="list"),
-        overlay_path_key="blur_mask_path",
-        roi=CENTERED_ROI,
-    )
-    df["blur_mask_overlap"] = overlaps
-    return df
+    return batch
 
 
 def extract_foreground_coverage(row: dict[str, Any]) -> dict[str, Any]:
@@ -97,55 +57,6 @@ def extract_foreground_coverage(row: dict[str, Any]) -> dict[str, Any]:
     if "blur_mask_overlap" in row:
         row["blur_coverage"] = row["blur_mask_overlap"].get(255, 0.0)
     return row
-
-
-def tiling_with_annotations(row: dict[str, Any]) -> list[dict[str, Any]]:
-    """Generate tiles and compute annotation coverage per tile."""
-    annotation_path = row["path"].replace(".mrxs", ".xml")
-    parser = ASAPParser(annotation_path)
-
-    annotations = list(parser.get_polygons(name="...", part_of_group="..."))
-
-    roi = Polygon(
-        [
-            (0, 0),
-            (row["tile_extent_x"], 0),
-            (row["tile_extent_x"], row["tile_extent_y"]),
-            (0, row["tile_extent_y"]),
-        ]
-    )
-
-    coordinates = np.array(
-        list(
-            grid_tiles(
-                slide_extent=(row["extent_x"], row["extent_y"]),
-                tile_extent=(row["tile_extent_x"], row["tile_extent_y"]),
-                stride=(row["stride_x"], row["stride_y"]),
-                last="keep",
-            )
-        )
-    )
-
-    return [
-        {
-            "tile_x": coordinates[i, 0],
-            "tile_y": coordinates[i, 1],
-            "path": row["path"],
-            "slide_id": row["id"],
-            "level": row["level"],
-            "tile_extent_x": row["tile_extent_x"],
-            "tile_extent_y": row["tile_extent_y"],
-            "annotation_coverage": polygon.area / roi.area if roi.area > 0 else 0.0,
-        }
-        for i, polygon in enumerate(
-            tile_annotations(
-                annotations=annotations,
-                roi=roi,
-                coordinates=coordinates,
-                downsample=row["downsample"],
-            )
-        )
-    ]
 
 
 def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
@@ -178,6 +89,17 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
 )
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
+    tissue_mask_path = mlflow.artifacts.download_artifacts(
+        run_id=run_with_tissue_masks_id,  # TODO
+        dst_path="./tissue_masks",
+    )
+    blur_mask_path = mlflow.artifacts.download_artifacts(
+        run_id=run_with_blur_masks_id,  # TODO
+        dst_path="./blur_masks",
+    )
+
+    slides = list(hydra.utils.instantiate(config.dataset.slides))
+
     # Read slides metadata
     slides_ray = read_slides(
         path=config.slide_paths,
@@ -188,61 +110,31 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
     # Add unique hash ID for each slide
     slides_ray = slides_ray.map(row_hash, num_cpus=0.1, memory=128 * 1024**2)
-    slides_ray.write_parquet(f"{config.output_dir}/slides")
 
     # Tiling
-    if config.get("with_annotations", False):
-        tiles = slides_ray.flat_map(
-            tiling_with_annotations,
-            num_cpus=0.2,
-            memory=128 * 1024**2,
-        )
-    else:
-        tiles = slides_ray.flat_map(
-            tiling,
-            num_cpus=0.2,
-            memory=128 * 1024**2,
-        )
+    tiles = slides_ray.flat_map(
+        tiling,
+        num_cpus=0.2,
+        memory=128 * 1024**2,
+    )
 
     tiles = tiles.repartition(target_num_rows_per_block=128)
 
-    # Overlays: tissue mask
-    if config.get("with_tissue_mask", False):
-        tiles = tiles.map_batches(
-            add_overlay_tissue_mask_path,
-            batch_format="pandas",
-        )
+    # # Build overlay paths (replace entire path with mask directories) in one pass, no pandas
+    # tiles = tiles.map_batches(
+    #     add_overlay_mask_paths,
+    #     fn_kwargs={"tissue_mask_dir": tissue_mask_path, "blur_mask_dir": blur_mask_path},
+    #     batch_format="numpy",
+    # )
 
-        tiles = tiles.map_batches(
-            add_tissue_mask,
-            batch_format="pandas",
-        )
-
-        tiles = tiles.map_batches(
-            add_tissue_mask_overlap,
-            batch_format="pandas",
-        )
-
-    # Overlays: blur mask
-    if config.get("with_blur_mask", False):
-        tiles = tiles.map_batches(
-            add_overlay_blur_mask_path,
-            batch_format="pandas",
-        )
-
-        tiles = tiles.map_batches(
-            add_blur_mask,
-            batch_format="pandas",
-        )
-
-        tiles = tiles.map_batches(
-            add_blur_mask_overlap,
-            batch_format="pandas",
-        )
+    # # Compute overlays and overlap dicts for both masks in one pass, no pandas
+    # tiles = tiles.map_batches(
+    #     compute_overlays,
+    #     batch_format="numpy",
+    # )
 
     # Extract coverage values from overlap dicts
-    if config.get("with_tissue_mask", False) or config.get("with_blur_mask", False):
-        tiles = tiles.map(extract_foreground_coverage)
+    tiles = tiles.map(extract_foreground_coverage)
 
     # Read tile images and filter low-variance tiles
     tiles = tiles.map_batches(
@@ -251,27 +143,14 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         memory=config.get("memory_tiles", 4 * 1024**3),
     )
 
-    # Filter out low-variance (background) tiles
-    std_threshold = config.get("std_threshold", 8.0)
-    tiles = tiles.filter(lambda row: row["tile"].std() > std_threshold)
-
     # QC filters using masks
-    if config.get("with_tissue_mask", False):
-        min_tissue_cov = config.get("min_tissue_coverage", 0.5)
-        tiles = tiles.filter(
-            lambda row: row.get("tissue_coverage", 0.0) > min_tissue_cov
-        )
-
-    if config.get("with_blur_mask", False):
-        max_blur_cov = config.get("max_blur_coverage", 0.3)
-        tiles = tiles.filter(lambda row: row.get("blur_coverage", 0.0) < max_blur_cov)
+    min_tissue_cov = config.get("min_tissue_coverage", 0.5)
+    tiles = tiles.filter(lambda row: row.get("tissue_coverage", 0.0) > min_tissue_cov)
 
     # Drop heavy / intermediate columns
     cols_to_drop = []
     for col in [
         "tile",
-        "tissue_mask",
-        "blur_mask",
         "tissue_mask_overlap",
         "blur_mask_overlap",
     ]:
@@ -281,14 +160,20 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     if cols_to_drop:
         tiles = tiles.drop_columns(cols_to_drop)
 
-    # Write output and log to MLflow
-    output_path = f"{config.output_dir}/tiles"
-    tiles.write_parquet(output_path)
+    with tempfile.TemporaryDirectory(dir=config.shared_dir, prefix="tiling_") as tmpdir:
+        slides_out = os.path.join(tmpdir, "slides")
+        tiles_out = os.path.join(tmpdir, "tiles")
+        slides_ray.write_parquet(slides_out)
+        tiles.write_parquet(tiles_out)
 
-    logger.log_artifacts(
-        local_dir=config.output_dir,
-        artifact_path=config.artifact_path,
-    )
+    # Log dataset to MLflow
+    mlflow.set_experiment(experiment_name="Lymph Nodes")
+    with mlflow.start_run(run_id="HDAB dataset tiling") as _:
+        save_mlflow_dataset(
+            slides=slides,
+            tiles=tiles,
+            dataset_name="HDAB dataset - tiling",
+        )
 
 
 if __name__ == "__main__":
@@ -296,5 +181,5 @@ if __name__ == "__main__":
 
 """
 Example usage:
-python preprocessing/tiling.py slide_paths=/path/to/slides/ output_dir=/path/to/output
+> uv run -m preprocessing.tiling +experiment=<experiment_name>
 """
