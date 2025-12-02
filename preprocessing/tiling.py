@@ -34,7 +34,6 @@ CENTERED_ROI = overlay_roi(
 #     return batch
 
 
-# TODO : not used anywhere
 def compute_overlaps(batch: dict[str, Any]) -> dict[str, Any]:
     """Compute overlap histograms for both masks"""
     batch["tissue_mask_overlap"] = tile_overlay_overlap(
@@ -101,79 +100,73 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     slides = list(hydra.utils.instantiate(config.dataset.slides))
 
     # Read slides metadata
-    slides_ray = read_slides(
-        path=config.slide_paths,
+    slides_metadata = read_slides(
+        path=slides,
         mpp=config.mpp,
         tile_extent=config.tile_extent,
         stride=config.stride,
     )
 
     # Add unique hash ID for each slide
-    slides_ray = slides_ray.map(row_hash, num_cpus=0.1, memory=128 * 1024**2)
-
-    # Tiling
-    tiles = slides_ray.flat_map(
-        tiling,
-        num_cpus=0.2,
-        memory=128 * 1024**2,
-    )
-
-    tiles = tiles.repartition(target_num_rows_per_block=128)
-
-    # # Build overlay paths (replace entire path with mask directories) in one pass, no pandas
-    # tiles = tiles.map_batches(
-    #     add_overlay_mask_paths,
-    #     fn_kwargs={"tissue_mask_dir": tissue_mask_path, "blur_mask_dir": blur_mask_path},
-    #     batch_format="numpy",
-    # )
-
-    # # Compute overlays and overlap dicts for both masks in one pass, no pandas
-    # tiles = tiles.map_batches(
-    #     compute_overlays,
-    #     batch_format="numpy",
-    # )
-
-    # Extract coverage values from overlap dicts
-    tiles = tiles.map(extract_foreground_coverage)
-
-    # Read tile images and filter low-variance tiles
-    tiles = tiles.map_batches(
-        read_slide_tiles,
-        num_cpus=config.get("num_cpus_tiles", 1),
-        memory=config.get("memory_tiles", 4 * 1024**3),
-    )
-
-    # QC filters using masks
-    min_tissue_cov = config.get("min_tissue_coverage", 0.5)
-    tiles = tiles.filter(lambda row: row.get("tissue_coverage", 0.0) > min_tissue_cov)
-
-    # Drop heavy / intermediate columns
-    cols_to_drop = []
-    for col in [
-        "tile",
-        "tissue_mask_overlap",
-        "blur_mask_overlap",
-    ]:
-        if col in tiles.schema().names:
-            cols_to_drop.append(col)
-
-    if cols_to_drop:
-        tiles = tiles.drop_columns(cols_to_drop)
+    slides_metadata = slides_metadata.map(row_hash, num_cpus=0.1, memory=128 * 1024**2)
 
     with tempfile.TemporaryDirectory(dir=config.shared_dir, prefix="tiling_") as tmpdir:
         slides_out = os.path.join(tmpdir, "slides")
         tiles_out = os.path.join(tmpdir, "tiles")
-        slides_ray.write_parquet(slides_out)
+
+        tiles = slides_out.flat_map(
+            tiling,
+            num_cpus=0.2,
+            memory=128 * 1024**2,
+        ).reparation(
+            target_num_rows_per_block=128
+        )
+
+    
+        tiles = tiles.with_column(      #TODO
+            compute_overlaps,
+        )
+
+        # Extract coverage values from overlap dicts
+        tiles = tiles.map(extract_foreground_coverage)
+
+        # Read tile images and filter low-variance tiles
+        tiles = tiles.map_batches(          #TODO
+            read_slide_tiles,
+            num_cpus=config.get("num_cpus_tiles", 1),
+            memory=config.get("memory_tiles", 4 * 1024**3),
+        )
+
+        # QC filters using masks
+        min_tissue_cov = config.get("min_tissue_coverage", 0.5)
+        tiles = tiles.filter(lambda row: row.get("tissue_coverage", 0.0) > min_tissue_cov)
+
+        # Drop heavy / intermediate columns
+        # NOTE: try without filtering
+        # cols_to_drop = []
+        # for col in [
+        #     "tile",
+        #     "tissue_mask_overlap",
+        #     "blur_mask_overlap",
+        # ]:
+        #     if col in tiles.schema().names:
+        #         cols_to_drop.append(col)
+
+        # if cols_to_drop:
+        tiles = tiles.drop_columns()
+
+    
+        slides.write_parquet(slides_out)
         tiles.write_parquet(tiles_out)
 
-    # Log dataset to MLflow
-    mlflow.set_experiment(experiment_name="Lymph Nodes")
-    with mlflow.start_run(run_id="HDAB dataset tiling") as _:
-        save_mlflow_dataset(
-            slides=slides,
-            tiles=tiles,
-            dataset_name="HDAB dataset - tiling",
-        )
+        # Log dataset to MLflow
+        mlflow.set_experiment(experiment_name="Lymph Nodes")
+        with mlflow.start_run(run_id="HDAB dataset tiling") as _:
+            save_mlflow_dataset(
+                slides=slides,
+                tiles=tiles,
+                dataset_name="HDAB dataset - tiling",
+            )
 
 
 if __name__ == "__main__":
