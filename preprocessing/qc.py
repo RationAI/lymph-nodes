@@ -143,7 +143,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     slides = hydra.utils.instantiate(config.dataset.slides)
     semaphore = asyncio.Semaphore(config.request_limit)
 
-    with tempfile.TemporaryDirectory(dir=config.shared_dir, prefix="qc_") as tmp_dir:
+    with tempfile.TemporaryDirectory(dir=config.project_dir, prefix="qc_") as tmp_dir:
         asyncio.run(
             qc_main(
                 output_path=Path(tmp_dir).absolute().as_posix(),
@@ -161,29 +161,3 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
 if __name__ == "__main__":
     main()  # pylint: disable=no-value-for-parameter
-
-
-######################
-##### RUN PARAMS #####
-######################
-
-"""
-rom kube_jobs import storage, submit_job
-
-
-submit_job(
-    job_name="lymph-nodes-qc",
-    username="your name",
-    cpu=2,
-    memory="2Gi",
-    gpu=None,
-    public=False,
-    script=[
-        "git clone https://gitlab.ics.muni.cz/rationai/digital-pathology/pathology/lymph-nodes.git workdir",
-        "cd workdir",
-        "uv sync --frozen",
-        "uv run -m preprocessing.qc +experiment=<experiment_name>",
-    ],
-    storage=[storage.secure.DATA, storage.secure.PROJECTS],
-)
-"""
