@@ -12,7 +12,7 @@ from rationai.mlkit.lightning.loggers import MLFlowLogger
 
 
 def parse_mmci_filename(filename: str) -> dict[str, Any]:
-    pattern = r"^SNB_([A-Z]+)_CASE_(\d+)_SLIDE_(\d+)-(0|1)\.mrxs$"
+    pattern = r"^SNB_([A-Z]+)_CASE_(\d+)_SLIDE_([A-Z0-9-]+)-(0|1)\.mrxs$"
 
     match = re.match(pattern, Path(filename).name)
 
@@ -61,18 +61,12 @@ def parse_fnb_filename(filename: str) -> dict[str, Any]:
 
 @hydra.main(
     config_path="../configs",
-    config_name="preprocessing/slide_parser",
+    config_name="preprocessing/slide_dataset",
     version_base=None,
 )
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
-    slides = hydra.utils.instantiate(config.dataset.slides)
-
-    df = pd.DataFrame(
-        {
-            "slide_path": [str(slide) for slide in slides],
-        }
-    )
+    df = hydra.utils.instantiate(config.dataset.slides).to_pandas()
 
     if config.dataset.institute == "mmci":
         parser_func = parse_mmci_filename
@@ -92,7 +86,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         df.to_csv(f"{tmp_dir}/slides.csv", index=False)
         logger.log_artifacts(tmp_dir)
 
-    slides_dataset = mlflow.data.from_pandas(
+    slides_dataset = mlflow.data.from_pandas(  # type: ignore [attr-defined]
         df,
         name=config.dataset.name,
     )
@@ -109,9 +103,22 @@ if __name__ == "__main__":
 ######################
 
 """
-> uv run -m preprocessing.slide_dataset +experiment=...
+from kube_jobs import storage, submit_job
 
-GPU: None
-CPU: 2
-RAM: 2Gi
+
+submit_job(
+    job_name="lymph-nodes-slide-dataset",
+    username="your name",
+    cpu=2,
+    memory="2Gi",
+    gpu=None,
+    public=False,
+    script=[
+        "git clone https://gitlab.ics.muni.cz/rationai/digital-pathology/pathology/lymph-nodes.git workdir",
+        "cd workdir",
+        "uv sync --frozen",
+        "uv run -m preprocessing.slide_dataset +experiment=<experiment_name>",
+    ],
+    storage=[storage.secure.DATA, storage.secure.PROJECTS],
+)
 """

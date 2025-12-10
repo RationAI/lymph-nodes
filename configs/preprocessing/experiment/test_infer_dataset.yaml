@@ -3,7 +3,5 @@
 dataset:
   name: Test Inference Dataset
   slides:
-    _target_: preprocessing.data_source.SlideDataSource
-    uris:
-      - mlflow... # TODO
-      - mlflow... # TODO
+    _target_: preprocessing.data_source.MLFlowDataSource
+    uri: ???

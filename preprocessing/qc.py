@@ -9,6 +9,7 @@ from aiohttp import ClientSession, ClientTimeout
 from omegaconf import DictConfig
 from rationai.mlkit.autolog import autolog
 from rationai.mlkit.lightning.loggers import MLFlowLogger
+from tqdm.asyncio import tqdm_asyncio
 
 
 QC_MASKS = [
@@ -75,41 +76,6 @@ async def repeatable_put_request(
     print(f"Failed to process {data['wsi_path']}:\n\tAll retry attempts failed\n")
 
 
-async def generate_report(
-    session: ClientSession,
-    report_request_timeout: int,
-    slides: list[Path],
-    output_dir: str,
-    save_location: str,
-    url: str,
-    semaphore: asyncio.Semaphore,
-) -> None:
-    url = url + "report"
-
-    data = {
-        "backgrounds": [str(slide) for slide in slides],
-        "mask_dir": output_dir,
-        "save_location": save_location,
-    }
-
-    try:
-        async with (
-            semaphore,
-            session.put(
-                url, json=data, timeout=ClientTimeout(total=report_request_timeout)
-            ) as response,
-        ):
-            result = await response.text()
-
-            print(
-                f"Report generation:\n\tStatus: {response.status} \n\tResponse: {result}\n"
-            )
-    except TimeoutError:
-        print(
-            f"Report generation request to {url} timed out after {report_request_timeout} seconds."
-        )
-
-
 def organize_masks(output_path: Path, subdir: str, mask_prefix: str) -> None:
     prefix_dir = output_path / subdir
     prefix_dir.mkdir(parents=True, exist_ok=True)
@@ -122,7 +88,6 @@ def organize_masks(output_path: Path, subdir: str, mask_prefix: str) -> None:
 
 async def qc_main(
     output_path: str,
-    report_path: str,
     slides: list[Path],
     mask_level: int,
     sample_level: int,
@@ -130,7 +95,6 @@ async def qc_main(
     url: str,
     semaphore: asyncio.Semaphore,
     request_timeout: int,
-    report_request_timeout: int,
     num_repeats: int,
 ) -> None:
     async with ClientSession() as session:
@@ -154,7 +118,7 @@ async def qc_main(
             for slide in slides
         ]
 
-        await asyncio.gather(*tasks)
+        await tqdm_asyncio.gather(*tasks)
 
         # Organize generated masks into subdirectories
         for prefix, artifact_name in QC_MASKS:
@@ -170,32 +134,19 @@ async def qc_main(
         for f in csvs:
             f.unlink()
 
-        # await generate_report(
-        #     session=session,
-        #     slides=slides,
-        #     output_dir=output_path,
-        #     save_location=report_path,
-        #     url=url,
-        #     semaphore=semaphore,
-        #     report_request_timeout=report_request_timeout,
-        # )
-
         logger.log_artifacts(local_dir=output_path)
 
 
 @hydra.main(config_path="../configs", config_name="preprocessing/qc", version_base=None)
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
-    slides = list(hydra.utils.instantiate(config.dataset.slides))
+    slides = hydra.utils.instantiate(config.dataset.slides)
     semaphore = asyncio.Semaphore(config.request_limit)
 
     with tempfile.TemporaryDirectory(dir=config.shared_dir, prefix="qc_") as tmp_dir:
-        report_path = Path(tmp_dir, "report.html")
-
         asyncio.run(
             qc_main(
                 output_path=Path(tmp_dir).absolute().as_posix(),
-                report_path=report_path.absolute().as_posix(),
                 slides=slides,
                 logger=logger,
                 url=config.url,
@@ -203,7 +154,6 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
                 sample_level=config.sample_level,
                 semaphore=semaphore,
                 request_timeout=config.request_timeout,
-                report_request_timeout=config.report_request_timeout,
                 num_repeats=config.num_repeats,
             )
         )
@@ -218,9 +168,22 @@ if __name__ == "__main__":
 ######################
 
 """
-> uv run -m preprocessing.qc +experiment=...
+rom kube_jobs import storage, submit_job
 
-GPU: None
-CPU: 2
-RAM: 2Gi
+
+submit_job(
+    job_name="lymph-nodes-qc",
+    username="your name",
+    cpu=2,
+    memory="2Gi",
+    gpu=None,
+    public=False,
+    script=[
+        "git clone https://gitlab.ics.muni.cz/rationai/digital-pathology/pathology/lymph-nodes.git workdir",
+        "cd workdir",
+        "uv sync --frozen",
+        "uv run -m preprocessing.qc +experiment=<experiment_name>",
+    ],
+    storage=[storage.secure.DATA, storage.secure.PROJECTS],
+)
 """

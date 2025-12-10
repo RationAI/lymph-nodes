@@ -4,7 +4,7 @@ dataset:
   institute: mmci
   name: MMCI HDAB Test Inference
   slides:
-    _target_: preprocessing.data_source.DataSource
+    _target_: preprocessing.data_source.PathDataSource
     paths:
       # 2023 positive slides
       - "/mnt/data/MOU/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_129_SLIDE_1-1.mrxs"

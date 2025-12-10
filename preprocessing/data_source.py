@@ -9,18 +9,35 @@ from mlflow.artifacts import download_artifacts
 class DataSource(Iterable[Path]):
     def __init__(
         self,
-        paths: list[str],
+        df: pd.DataFrame,
+        path_key: str
     ) -> None:
-        self.data = [Path(path) for path in paths]
+        self.data = df
+        self.path_key = path_key
 
     def __iter__(self) -> Iterator[Path]:
-        return iter(self.data)
+        return iter(self.data.apply(lambda row: Path(row[self.path_key])))
 
     def __len__(self) -> int:
         return len(self.data)
 
+    def to_pandas(self) -> pd.DataFrame:
+        return self.data
+    
 
-class GlobDataSource(Iterable[Path]):
+
+class PathDataSource(DataSource):
+    def __init__(
+        self,
+        paths: list[str] | list[Path],
+    ) -> None:
+        super().__init__(
+            pd.DataFrame({"slide_path": [str(path) for path in paths]}),
+            "slide_path"
+        )
+
+
+class GlobDataSource(PathDataSource):
     def __init__(
         self,
         src_dir: str,
@@ -34,15 +51,9 @@ class GlobDataSource(Iterable[Path]):
         )
         self.include_paths = list(self._paths(dir, glob_pattern))
 
-        self.data = [
+        super().__init__([
             path for path in self.include_paths if path not in self.exclude_paths
-        ]
-
-    def __iter__(self) -> Iterator[Path]:
-        return iter(self.data)
-
-    def __len__(self) -> int:
-        return len(self.data)
+        ])
 
     @staticmethod
     def _paths(dir: Path, pattern: str | list[str]) -> Iterable[Path]:
@@ -54,8 +65,18 @@ class GlobDataSource(Iterable[Path]):
         )
 
 
-class ChainedDataSources(Iterable[Path]):
-    def __init__(self, sources: list[DataSource | GlobDataSource]) -> None:
+class MLFlowDataSource(DataSource):
+    def __init__(self, uri: str, path_key: str = "slide_path") -> None:
+        super().__init__(df=self._download_dataset(uri), path_key=path_key)
+
+    @staticmethod
+    def _download_dataset(uri: str) -> pd.DataFrame:
+        artifact_path = download_artifacts(artifact_uri=uri)
+        return pd.read_csv(artifact_path)
+
+
+class ChainedDataSources(DataSource):
+    def __init__(self, sources: list[DataSource]) -> None:
         self.data_sources = sources
 
     def __iter__(self) -> Iterator[Path]:
@@ -64,19 +85,5 @@ class ChainedDataSources(Iterable[Path]):
     def __len__(self) -> int:
         return sum([len(ds) for ds in self.data_sources])
 
-
-class SlideDataSource(Iterable[Path]):
-    def __init__(self, uris: list[str]) -> None:
-        self.datasets = [self._download_dataset(uri) for uri in uris]
-
-    def __iter__(self) -> Iterator[Path]:
-        for dataset in self.datasets:
-            for slide_path in dataset["slide_path"]:
-                yield Path(slide_path)
-
-    def __len__(self) -> int:
-        return sum(len(dataset) for dataset in self.datasets)
-
-    def _download_dataset(self, uri: str) -> pd.DataFrame:
-        artifact_path = download_artifacts(artifact_uri=uri)
-        return pd.read_csv(artifact_path)
+    def to_pandas(self) -> pd.DataFrame:
+        return pd.concat([ds.to_pandas() for ds in self.data_sources])
