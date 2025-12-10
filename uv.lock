@@ -827,7 +827,6 @@ dependencies = [
     { name = "lightning" },
     { name = "mlflow" },
     { name = "omegaconf" },
-    { name = "rationai-kube-jobs" },
     { name = "rationai-masks" },
     { name = "rationai-mlkit" },
     { name = "ray" },
@@ -840,6 +839,9 @@ dev = [
     { name = "mypy" },
     { name = "ruff" },
 ]
+run = [
+    { name = "rationai-kube-jobs" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -847,7 +849,6 @@ requires-dist = [
     { name = "lightning", specifier = ">=2.5.6" },
     { name = "mlflow", specifier = "<3.0.0" },
     { name = "omegaconf", specifier = ">=2.3.0" },
-    { name = "rationai-kube-jobs", git = "ssh://git@gitlab.ics.muni.cz/rationai/infrastructure/kube-jobs" },
     { name = "rationai-masks", git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git" },
     { name = "rationai-mlkit", git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/mlkit.git" },
     { name = "ray", specifier = ">=2.52.1" },
@@ -860,6 +861,7 @@ dev = [
     { name = "mypy" },
     { name = "ruff" },
 ]
+run = [{ name = "rationai-kube-jobs", git = "ssh://git@gitlab.ics.muni.cz/rationai/infrastructure/kube-jobs" }]
 
 [[package]]
 name = "mako"
