@@ -7,11 +7,7 @@ from mlflow.artifacts import download_artifacts
 
 
 class DataSource(Iterable[Path]):
-    def __init__(
-        self,
-        df: pd.DataFrame,
-        path_key: str
-    ) -> None:
+    def __init__(self, df: pd.DataFrame, path_key: str) -> None:
         self.data = df
         self.path_key = path_key
 
@@ -23,21 +19,19 @@ class DataSource(Iterable[Path]):
 
     def to_pandas(self) -> pd.DataFrame:
         return self.data
-    
 
 
-class PathDataSource(DataSource):
+class ListDataSource(DataSource):
     def __init__(
         self,
         paths: list[str] | list[Path],
     ) -> None:
         super().__init__(
-            pd.DataFrame({"slide_path": [str(path) for path in paths]}),
-            "slide_path"
+            pd.DataFrame({"slide_path": [str(path) for path in paths]}), "slide_path"
         )
 
 
-class GlobDataSource(PathDataSource):
+class GlobDataSource(ListDataSource):
     def __init__(
         self,
         src_dir: str,
@@ -51,9 +45,9 @@ class GlobDataSource(PathDataSource):
         )
         self.include_paths = list(self._paths(dir, glob_pattern))
 
-        super().__init__([
-            path for path in self.include_paths if path not in self.exclude_paths
-        ])
+        super().__init__(
+            [path for path in self.include_paths if path not in self.exclude_paths]
+        )
 
     @staticmethod
     def _paths(dir: Path, pattern: str | list[str]) -> Iterable[Path]:
