@@ -4,11 +4,8 @@ defaults:
   - base
   - _self_
 
-request_limit: 4
 request_timeout: 18000
-report_request_timeout: 24000
-num_repeats: 5
-url: "http://rayservice-qc-serve-svc.rationai-jobs-ns.svc.cluster.local:8000/"
+max_concurrent: 5
 mask_level: 3
 sample_level: 1
 

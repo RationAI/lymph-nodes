@@ -12,7 +12,7 @@ class DataSource(Iterable[Path]):
         self.path_key = path_key
 
     def __iter__(self) -> Iterator[Path]:
-        return iter(self.data.apply(lambda row: Path(row[self.path_key])))
+        return iter(self.data[self.path_key].apply(lambda row: Path(row)))  # type: ignore [return-value]
 
     def __len__(self) -> int:
         return len(self.data)

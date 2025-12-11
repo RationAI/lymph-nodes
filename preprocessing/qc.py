@@ -1,79 +1,21 @@
 import asyncio
 import tempfile
 from pathlib import Path
-from typing import Any
 
 import hydra
 import pandas as pd
-from aiohttp import ClientSession, ClientTimeout
+import rationai
 from omegaconf import DictConfig
 from rationai.mlkit.autolog import autolog
 from rationai.mlkit.lightning.loggers import MLFlowLogger
-from tqdm.asyncio import tqdm_asyncio
+from rationai.types import SlideCheckConfig
+from tqdm.asyncio import tqdm
 
 
 QC_MASKS = [
     ("Piqe_focus_score_piqe_median", "blur_per_tile"),
     ("Piqe_piqe_median_activity_mask", "blur_per_pixel"),
 ]
-
-
-async def put_request(
-    session: ClientSession,
-    url: str,
-    semaphore: asyncio.Semaphore,
-    request_timeout: int,
-    data: dict[str, Any],
-) -> tuple[int, str]:
-    timeout = ClientTimeout(total=request_timeout)
-
-    try:
-        async with semaphore, session.put(url, json=data, timeout=timeout) as response:
-            result = await response.text()
-
-            print(
-                f"Processed {data['wsi_path']}:\n\tStatus: {response.status} \n\tResponse: {result}\n"
-            )
-
-            return response.status, result
-    except TimeoutError:
-        slide_name = Path(data["wsi_path"]).name
-        print(
-            f"Request to {url} timed out after {request_timeout} seconds. Slide: {slide_name}"
-        )
-        return -1, "Timeout"
-
-
-async def repeatable_put_request(
-    session: ClientSession,
-    url: str,
-    data: dict[str, Any],
-    num_repeats: int,
-    semaphore: asyncio.Semaphore,
-    request_timeout: int,
-) -> None:
-    for attempt in range(1, num_repeats + 1):
-        status, text = await put_request(session, url, semaphore, request_timeout, data)
-
-        if status == -1 and text == "Timeout":
-            return
-
-        if status == 500 and text == "Internal Server Error":
-            att_count = f"attempt {attempt}/{num_repeats}"
-            print(
-                f"Unexpected status 500 received for {data['wsi_path']} ({att_count}):\n\tResponse: {text}\n"
-            )
-            await asyncio.sleep(2**attempt)
-
-            continue
-
-        print(
-            f"Processed {data['wsi_path']}:\n\tStatus: {status} \n\tResponse: {text}\n"
-        )
-
-        return
-
-    print(f"Failed to process {data['wsi_path']}:\n\tAll retry attempts failed\n")
 
 
 def organize_masks(output_path: Path, subdir: str, mask_prefix: str) -> None:
@@ -88,37 +30,34 @@ def organize_masks(output_path: Path, subdir: str, mask_prefix: str) -> None:
 
 async def qc_main(
     output_path: str,
-    slides: list[Path],
+    slides: list[str],
     mask_level: int,
     sample_level: int,
     logger: MLFlowLogger,
-    url: str,
-    semaphore: asyncio.Semaphore,
     request_timeout: int,
-    num_repeats: int,
+    max_concurrent: int,
 ) -> None:
-    async with ClientSession() as session:
-        tasks = [
-            repeatable_put_request(
-                session=session,
-                request_timeout=request_timeout,
-                url=url,
-                num_repeats=num_repeats,
-                semaphore=semaphore,
-                data={
-                    "wsi_path": str(slide),
-                    "output_path": output_path,
-                    "mask_level": mask_level,
-                    "sample_level": sample_level,
-                    "check_residual": False,
-                    "check_folding": False,
-                    "check_focus": True,
-                },
-            )
-            for slide in slides
-        ]
-
-        await tqdm_asyncio.gather(*tasks)
+    async with rationai.AsyncClient() as client:
+        async for result in tqdm(
+            client.qc.check_slides(
+                slides,
+                output_path,
+                config=SlideCheckConfig(
+                    mask_level=mask_level,
+                    sample_level=sample_level,
+                    check_residual=False,
+                    check_folding=False,
+                    check_focus=True,
+                    wb_correction=False,
+                ),
+                timeout=request_timeout,
+                max_concurrent=max_concurrent,
+            ),
+            total=len(slides),
+        ):
+            if not result.success:
+                with open(Path(output_path) / "qc_errors.log", "a") as log_file:
+                    log_file.write(f"Failed to process {result.wsi_path}: {result.error}\n")
 
         # Organize generated masks into subdirectories
         for prefix, artifact_name in QC_MASKS:
@@ -141,7 +80,6 @@ async def qc_main(
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
     slides = hydra.utils.instantiate(config.dataset.slides)
-    semaphore = asyncio.Semaphore(config.request_limit)
 
     with tempfile.TemporaryDirectory(dir=config.project_dir, prefix="qc_") as tmp_dir:
         asyncio.run(
@@ -149,12 +87,10 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
                 output_path=Path(tmp_dir).absolute().as_posix(),
                 slides=slides,
                 logger=logger,
-                url=config.url,
                 mask_level=config.mask_level,
                 sample_level=config.sample_level,
-                semaphore=semaphore,
                 request_timeout=config.request_timeout,
-                num_repeats=config.num_repeats,
+                max_concurrent=config.max_concurrent,
             )
         )
 
