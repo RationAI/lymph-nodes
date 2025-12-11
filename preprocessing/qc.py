@@ -57,7 +57,9 @@ async def qc_main(
         ):
             if not result.success:
                 with open(Path(output_path) / "qc_errors.log", "a") as log_file:
-                    log_file.write(f"Failed to process {result.wsi_path}: {result.error}\n")
+                    log_file.write(
+                        f"Failed to process {result.wsi_path}: {result.error}\n"
+                    )
 
         # Organize generated masks into subdirectories
         for prefix, artifact_name in QC_MASKS:
