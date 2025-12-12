@@ -34,7 +34,6 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
                 "mpp_y": row["mpp_y"],
                 "tile_extent_x": row["tile_extent_x"],
                 "tile_extent_y": row["tile_extent_y"],
-                # mask paths propagated per-tile
                 "tissue_mask_path": row["tissue_mask_path"],
                 "blur_mask_path": row["blur_mask_path"],
             }
@@ -43,31 +42,31 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def extract_coverage(row: dict[str, Any]) -> dict[str, Any]:
-    # Histogram keyed by class label (255 = FG)
     row["tissue_coverage"] = row.get("tissue_overlap", {}).get(255, 0.0)
     row["blur_coverage"] = row.get("blur_overlap", {}).get(255, 0.0)
     return row
 
 
 @hydra.main(
-    config_path="../configs", config_name="preprocessing/tiling", version_base=None
+    config_path="../configs",
+    config_name="preprocessing/tiling",
+    version_base=None,
 )
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger):
-    slides_list = hydra.utils.instantiate(config.dataset.slides)
-    if not isinstance(slides_list, list):
-        raise RuntimeError("dataset.slides must return a list of slide paths.")
 
-    print(f"[INFO] Loaded {len(slides_list)} slide paths from ListDataSource")
+    slide_source = hydra.utils.instantiate(config.dataset.slides)
+    slides_list = [str(path) for path in slide_source]
+
+    print(f"[INFO] Loaded {len(slides_list)} slide paths from {type(slide_source).__name__}")
 
     slides_ds = read_slides(
         path=slides_list,
-        mpp=config.mpp,  # fixed: 0.5
-        tile_extent=config.tile_extent,  # fixed: 224
-        stride=config.stride,  # fixed: 112
+        mpp=config.mpp,
+        tile_extent=config.tile_extent,
+        stride=config.stride,
     )
 
-    # Unique slide ID
     slides_ds = slides_ds.map(
         row_hash,
         num_cpus=0.1,
@@ -119,7 +118,6 @@ def main(config: DictConfig, logger: MLFlowLogger):
 
     tiles = tiles.map(extract_coverage)
 
-    # Only remove tiles with ZERO tissue coverage
     tiles = tiles.filter(lambda r: r["tissue_coverage"] > 0)
 
     tiles = tiles.drop_columns(
