@@ -14,37 +14,54 @@ from ratiopath.tiling import (
 )
 from ratiopath.tiling.utils import row_hash
 from ray.data.expressions import col
+from shapely.geometry import box
+
+
+def make_tissue_roi(tile_extent: int):
+    offset = tile_extent // 4
+    size = tile_extent // 2
+    return box(offset, offset, offset + size, offset + size)
 
 
 def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
-    tiles = []
-    for x, y in grid_tiles(
-        slide_extent=(row["extent_x"], row["extent_y"]),
-        tile_extent=(row["tile_extent_x"], row["tile_extent_y"]),
-        stride=(row["stride_x"], row["stride_y"]),
-        last="keep",
-    ):
-        tiles.append(
-            {
-                "tile_x": x,
-                "tile_y": y,
-                "path": row["path"],
-                "slide_id": row["id"],
-                "mpp_x": row["mpp_x"],
-                "mpp_y": row["mpp_y"],
-                "tile_extent_x": row["tile_extent_x"],
-                "tile_extent_y": row["tile_extent_y"],
-                "tissue_mask_path": row["tissue_mask_path"],
-                "blur_mask_path": row["blur_mask_path"],
-            }
+    slide_extent = (row["extent_x"], row["extent_y"])
+    tile_extent = (row["tile_extent_x"], row["tile_extent_y"])
+    stride = (row["stride_x"], row["stride_y"])
+
+    common = {
+        "path": row["path"],
+        "slide_id": row["id"],
+        "mpp_x": row["mpp_x"],
+        "mpp_y": row["mpp_y"],
+        "tile_extent_x": row["tile_extent_x"],
+        "tile_extent_y": row["tile_extent_y"],
+        "tissue_mask_path": row["tissue_mask_path"],
+        "blur_mask_path": row["blur_mask_path"],
+    }
+
+    return [
+        {
+            "tile_x": x,
+            "tile_y": y,
+            **common,
+        }
+        for x, y in grid_tiles(
+            slide_extent=slide_extent,
+            tile_extent=tile_extent,
+            stride=stride,
+            last="keep",
         )
-    return tiles
+    ]
+
 
 
 def extract_coverage(row: dict[str, Any]) -> dict[str, Any]:
-    row["tissue_coverage"] = row.get("tissue_overlap", {}).get(255, 0.0)
-    row["blur_coverage"] = row.get("blur_overlap", {}).get(255, 0.0)
-    return row
+    return {
+        **row,
+        "tissue_coverage": row.get("tissue_overlap", {}).get(255, 0.0),
+        "blur_coverage": row.get("blur_overlap", {}).get(255, 0.0),
+    }
+
 
 
 @hydra.main(
@@ -54,11 +71,12 @@ def extract_coverage(row: dict[str, Any]) -> dict[str, Any]:
 )
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger):
-
     slide_source = hydra.utils.instantiate(config.dataset.slides)
     slides_list = [str(path) for path in slide_source]
 
-    print(f"[INFO] Loaded {len(slides_list)} slide paths from {type(slide_source).__name__}")
+    print(
+        f"[INFO] Loaded {len(slides_list)} slide paths from {type(slide_source).__name__}"
+    )
 
     slides_ds = read_slides(
         path=slides_list,
@@ -90,24 +108,28 @@ def main(config: DictConfig, logger: MLFlowLogger):
         memory=128 * 1024**2,
     ).repartition(target_num_rows_per_block=128)
 
-    full_roi = None
+    tissue_roi = make_tissue_roi(config.tile_extent[0])
 
-    tiles = tiles.add_column(
+    tiles = tiles.with_column(
         "tissue_overlap",
         tile_overlay_overlap(
-            full_roi,
+            tissue_roi,
             col("tissue_mask_path"),
             col("tile_x"),
             col("tile_y"),
             col("mpp_x"),
             col("mpp_y"),
         ),
+        num_cpus=2,
+        memory=2 * 3 * 128 * 512**2,
     )
 
-    tiles = tiles.add_column(
+    tiles = tiles.filter(lambda r: r["tissue_coverage"] > 0)
+
+    tiles = tiles.with_column(
         "blur_overlap",
         tile_overlay_overlap(
-            full_roi,
+            tissue_roi,
             col("blur_mask_path"),
             col("tile_x"),
             col("tile_y"),
@@ -117,8 +139,6 @@ def main(config: DictConfig, logger: MLFlowLogger):
     )
 
     tiles = tiles.map(extract_coverage)
-
-    tiles = tiles.filter(lambda r: r["tissue_coverage"] > 0)
 
     tiles = tiles.drop_columns(
         [
