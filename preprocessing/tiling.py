@@ -4,8 +4,7 @@ from typing import Any
 
 import hydra
 from omegaconf import DictConfig
-from rationai.mlkit import autolog, with_cli_args
-from rationai.mlkit.lightning.loggers import MLFlowLogger
+from rationai.mlkit import autolog
 from rationai.tiling.writers import save_mlflow_dataset
 from ratiopath.ray import read_slides
 from ratiopath.tiling import (
@@ -54,14 +53,12 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-
 def extract_coverage(row: dict[str, Any]) -> dict[str, Any]:
     return {
         **row,
         "tissue_coverage": row.get("tissue_overlap", {}).get(255, 0.0),
         "blur_coverage": row.get("blur_overlap", {}).get(255, 0.0),
     }
-
 
 
 @hydra.main(
