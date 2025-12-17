@@ -70,13 +70,9 @@ def extract_coverage(row: dict[str, Any]) -> dict[str, Any]:
     version_base=None,
 )
 @autolog
-def main(config: DictConfig, logger: MLFlowLogger):
+def main(config: DictConfig):
     slide_source = hydra.utils.instantiate(config.dataset.slides)
     slides_list = [str(path) for path in slide_source]
-
-    print(
-        f"[INFO] Loaded {len(slides_list)} slide paths from {type(slide_source).__name__}"
-    )
 
     slides_ds = read_slides(
         path=slides_list,
@@ -95,9 +91,9 @@ def main(config: DictConfig, logger: MLFlowLogger):
     blur_dir = config.blur_mask_dir
 
     def add_mask_paths(row):
-        base = os.path.splitext(os.path.basename(row["path"]))[0]
-        row["tissue_mask_path"] = os.path.join(tissue_dir, f"{base}_tissue_mask.tiff")
-        row["blur_mask_path"] = os.path.join(blur_dir, f"{base}_blur_mask.tiff")
+        filename = os.path.basename(row["path"])
+        row["tissue_mask_path"] = os.path.join(tissue_dir, filename)
+        row["blur_mask_path"] = os.path.join(blur_dir, filename)
         return row
 
     slides_ds = slides_ds.map(add_mask_paths)
@@ -159,8 +155,6 @@ def main(config: DictConfig, logger: MLFlowLogger):
             dataset_name=config.dataset.name,
             output_dir=tmpdir,
         )
-
-    print(f"[INFO] Completed. Slides: {len(slides_df)}, Tiles: {len(tiles_df)}")
 
 
 if __name__ == "__main__":
