@@ -32,5 +32,5 @@ run = [
 rationai = { git = "https://gitlab.ics.muni.cz/rationai/infrastructure/rationai-sdk-python.git" }
 rationai-masks = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git" }
 rationai-mlkit = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/mlkit.git" }
-rationai-kube-jobs = { git = "https://gitlab.ics.muni.cz/rationai/infrastructure/kube-jobs.git" }
+rationai-kube-jobs = { git = "git@gitlab.ics.muni.cz:rationai/infrastructure/kube-jobs.git" }
 
