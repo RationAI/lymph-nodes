@@ -3,7 +3,7 @@ from kube_jobs import storage, submit_job
 
 submit_job(
     job_name="lymph-nodes-tissue-masks",
-    username="your name",
+    username="...",
     cpu=12,
     memory="64Gi",
     gpu=None,

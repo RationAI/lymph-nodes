@@ -3,7 +3,7 @@ from kube_jobs import storage, submit_job
 
 submit_job(
     job_name="lymph-nodes-slide-dataset",
-    username="your name",
+    username="...",
     cpu=2,
     memory="2Gi",
     gpu=None,
