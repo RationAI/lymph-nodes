@@ -1,8 +1,8 @@
 import os
-import tempfile
 from typing import Any
 
 import hydra
+from mlflow.artifacts import download_artifacts
 from omegaconf import DictConfig
 from rationai.mlkit import autolog
 from rationai.tiling.writers import save_mlflow_dataset
@@ -84,13 +84,15 @@ def main(config: DictConfig):
         memory=128 * 1024**2,
     )
 
-    tissue_dir = config.tissue_mask_dir
-    blur_dir = config.blur_mask_dir
+    tissue_dir = download_artifacts(config.tissue_mask_dir)
+    blur_dir = download_artifacts(config.blur_mask_dir)
 
     def add_mask_paths(row):
         filename = os.path.basename(row["path"])
-        row["tissue_mask_path"] = os.path.join(tissue_dir, filename)
-        row["blur_mask_path"] = os.path.join(blur_dir, filename)
+        stem, _ = os.path.splitext(filename)
+        mask_filename = f"{stem}.tiff"
+        row["tissue_mask_path"] = os.path.join(tissue_dir, mask_filename)
+        row["blur_mask_path"] = os.path.join(blur_dir, mask_filename)
         return row
 
     slides_ds = slides_ds.map(add_mask_paths)
@@ -101,7 +103,7 @@ def main(config: DictConfig):
         memory=128 * 1024**2,
     ).repartition(target_num_rows_per_block=128)
 
-    tissue_roi = make_tissue_roi(config.tile_extent[0])
+    tissue_roi = make_tissue_roi(config.tile_extent)
 
     tiles = tiles.with_column(
         "tissue_overlap",
@@ -117,7 +119,9 @@ def main(config: DictConfig):
         memory=2 * 3 * 128 * 512**2,
     )
 
-    tiles = tiles.filter(lambda r: r["tissue_coverage"] > 0)
+    tiles = tiles.filter(
+        lambda r: r.get("tissue_overlap", {}).get(255, 0.0) > config.min_tissue_coverage
+    )
 
     tiles = tiles.with_column(
         "blur_overlap",
@@ -145,13 +149,12 @@ def main(config: DictConfig):
     slides_df = slides_ds.to_pandas()
     tiles_df = tiles.to_pandas()
 
-    with tempfile.TemporaryDirectory(dir=config.shared_dir, prefix="tiling_") as tmpdir:
-        save_mlflow_dataset(
-            slides=slides_df,
-            tiles=tiles_df,
-            dataset_name=config.dataset.name,
-            output_dir=tmpdir,
-        )
+    save_mlflow_dataset(
+        slides=slides_df,
+        tiles=tiles_df,
+        dataset_name=config.dataset.name,
+        output_dir=config.shared_dir,
+    )
 
 
 if __name__ == "__main__":
