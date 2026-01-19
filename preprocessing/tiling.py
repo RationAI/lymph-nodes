@@ -116,7 +116,7 @@ def main(config: DictConfig):
             col("mpp_y"),
         ),
         num_cpus=2,
-        memory=2 * 3 * 128 * 512**2,
+        memory=2 * 3 * 128 * config.tile_extent**2,
     )
 
     tiles = tiles.filter(
