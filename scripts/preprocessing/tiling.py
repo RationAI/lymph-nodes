@@ -3,10 +3,10 @@ from kube_jobs import storage, submit_job
 
 submit_job(
     job_name="Tiling H&DAB Lymph Nodes",
-    username="your-name",
+    username=...,
     image="cerit.io/rationai/base:2.0.6",
     cpu=8,
-    memory="6Gi",
+    memory="12Gi",
     gpu=None,
     public=False,
     script=[

@@ -5,14 +5,10 @@ defaults:
   - _self_
 
 
-shared_dir: /mnt/projects/lymph_nodes
-
 mpp: 0.5
 tile_extent: 224
 stride: 112
 
-num_cpus_tiles: 1
-memory_tiles: 4294967296  # 4GB in bytes
 
 min_tissue_coverage: 0
 max_blur_coverage: 0
@@ -20,3 +16,6 @@ max_blur_coverage: 0
 metadata:
   run_name: Tiling ${dataset.name}
   description: Tile extraction for ${dataset.name} at ${mpp} mpp, tile extent ${tile_extent}, stride ${stride}
+  hyperparams:
+    mask_level: ${mask_level}
+    sample_level: ${sample_level}
