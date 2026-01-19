@@ -153,7 +153,6 @@ def main(config: DictConfig):
         slides=slides_df,
         tiles=tiles_df,
         dataset_name=config.dataset.name,
-        output_dir=config.shared_dir,
     )
 
 
