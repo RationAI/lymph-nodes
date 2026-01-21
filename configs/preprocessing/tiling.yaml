@@ -9,6 +9,8 @@ mpp: 0.5
 tile_extent: 224
 stride: 112
 
+tissue_mask_uri: ???
+blur_mask_uri: ???
 
 min_tissue_coverage: 0
 max_blur_coverage: 0
