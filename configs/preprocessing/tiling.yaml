@@ -15,7 +15,11 @@ max_blur_coverage: 0
 
 metadata:
   run_name: Tiling ${dataset.name}
-  description: Tile extraction for ${dataset.name} at ${mpp} mpp, tile extent ${tile_extent}, stride ${stride}
+  description: Tile extraction for ${dataset.name}
   hyperparams:
-    mask_level: ${mask_level}
+    mpp: ${mpp}
+    tile_extent: ${tile_extent}
+    stride: ${stride}
     sample_level: ${sample_level}
+    tissue_mask_uri: ${tissue_mask_uri}
+    blur_mask_uri: ${blur_mask_uri}

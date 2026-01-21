@@ -61,6 +61,12 @@ def extract_coverage(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def tissue_coverage(overlap: dict[str, float]) -> float:
+    if not isinstance(overlap, dict):
+        return 0.0
+    return 1.0 - overlap.get("0", 0.0)
+
+
 @hydra.main(
     config_path="../configs",
     config_name="preprocessing/tiling",
@@ -69,7 +75,7 @@ def extract_coverage(row: dict[str, Any]) -> dict[str, Any]:
 @autolog
 def main(config: DictConfig):
     slide_source = hydra.utils.instantiate(config.dataset.slides)
-    slides_list = [str(path) for path in slide_source]
+    slides_list = list(slide_source)
 
     slides_ds = read_slides(
         path=slides_list,
@@ -84,8 +90,8 @@ def main(config: DictConfig):
         memory=128 * 1024**2,
     )
 
-    tissue_dir = download_artifacts(config.tissue_mask_dir)
-    blur_dir = download_artifacts(config.blur_mask_dir)
+    tissue_dir = download_artifacts(config.tissue_mask_uri)
+    blur_dir = download_artifacts(config.blur_mask_uri)
 
     def add_mask_paths(row):
         filename = os.path.basename(row["path"])
@@ -120,7 +126,7 @@ def main(config: DictConfig):
     )
 
     tiles = tiles.filter(
-        lambda r: r.get("tissue_overlap", {}).get(255, 0.0) > config.min_tissue_coverage
+        lambda r: tissue_coverage(r.get("tissue_overlap")) > config.min_tissue_coverage
     )
 
     tiles = tiles.with_column(
