@@ -22,6 +22,5 @@ metadata:
     mpp: ${mpp}
     tile_extent: ${tile_extent}
     stride: ${stride}
-    sample_level: ${sample_level}
     tissue_mask_uri: ${tissue_mask_uri}
     blur_mask_uri: ${blur_mask_uri}
