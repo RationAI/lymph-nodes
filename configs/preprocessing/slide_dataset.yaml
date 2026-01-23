@@ -1,0 +1,8 @@
+# @package _global_
+
+metadata:
+  run_name: Slide Dataset ${dataset.name}
+  description: Slide Dataset for ${dataset.institute}
+  hyperparams:
+    institute: ${dataset.institute}
+    name: ${dataset.name}

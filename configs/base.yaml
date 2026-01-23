@@ -5,6 +5,3 @@ defaults:
 
 metadata:
   experiment_name: Lymph Nodes
-  run_name: ???
-  description: ???
-  hyperparams: {}
