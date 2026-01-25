@@ -1,9 +1,5 @@
 # @package _global_
 
-defaults:
-  - base
-  - _self_
-
 
 mpp: 0.5
 tile_extent: 224

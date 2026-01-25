@@ -85,3 +85,9 @@ class ChainedDataSources(DataSource):
 
     def to_pandas(self) -> pd.DataFrame:
         return pd.concat([ds.to_pandas() for ds in self.data_sources])
+
+
+class CsvDataSource(DataSource):
+    def __init__(self, path: str, path_key: str = "slide_path") -> None:
+        df = pd.read_csv(path)
+        super().__init__(df=df, path_key=path_key)

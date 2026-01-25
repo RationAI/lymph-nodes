@@ -4,7 +4,8 @@ from typing import Any
 import hydra
 from mlflow.artifacts import download_artifacts
 from omegaconf import DictConfig
-from rationai.mlkit import autolog
+from rationai.mlkit import autolog, with_cli_args
+from rationai.mlkit.lightning.loggers import MLFlowLogger
 from rationai.tiling.writers import save_mlflow_dataset
 from ratiopath.ray import read_slides
 from ratiopath.tiling import (
@@ -67,18 +68,19 @@ def tissue_coverage(overlap: dict[str, float]) -> float:
     return 1.0 - overlap.get("0", 0.0)
 
 
+@with_cli_args(["+preprocessing=tiling"])
 @hydra.main(
     config_path="../configs",
-    config_name="preprocessing/tiling",
+    config_name="preprocessing",
     version_base=None,
 )
 @autolog
-def main(config: DictConfig):
+def main(config: DictConfig, logger=MLFlowLogger):
     slide_source = hydra.utils.instantiate(config.dataset.slides)
     slides_list = list(slide_source)
 
     slides_ds = read_slides(
-        path=slides_list,
+        slides_list,
         mpp=config.mpp,
         tile_extent=config.tile_extent,
         stride=config.stride,
