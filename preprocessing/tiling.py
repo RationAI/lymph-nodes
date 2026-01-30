@@ -57,15 +57,13 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
 def extract_coverage(row: dict[str, Any]) -> dict[str, Any]:
     return {
         **row,
-        "tissue_coverage": row.get("tissue_overlap", {}).get(255, 0.0),
-        "blur_coverage": row.get("blur_overlap", {}).get(255, 0.0),
+        "tissue_coverage": 1.0 - (row.get("tissue_overlap", {}).get("0", 0.0) or 0.0),
+        "blur_coverage": 1.0 - (row.get("blur_overlap", {}).get("0", 0.0) or 0.0),
     }
 
 
 def tissue_coverage(overlap: dict[str, float]) -> float:
-    if not isinstance(overlap, dict):
-        return 0.0
-    return 1.0 - overlap.get("0", 0.0)
+    return 1.0 - (overlap.get("0", 0.0) or 0.0)
 
 
 @with_cli_args(["+preprocessing=tiling"])
@@ -108,8 +106,8 @@ def main(config: DictConfig, logger=MLFlowLogger):
     tiles = slides_ds.flat_map(
         tiling,
         num_cpus=0.2,
-        memory=128 * 1024**2,
-    ).repartition(target_num_rows_per_block=128)
+        memory=512 * 1024**2,
+    ).repartition(target_num_rows_per_block=512)
 
     tissue_roi = make_tissue_roi(config.tile_extent)
 
@@ -124,7 +122,7 @@ def main(config: DictConfig, logger=MLFlowLogger):
             col("mpp_y"),
         ),
         num_cpus=2,
-        memory=2 * 3 * 128 * config.tile_extent**2,
+        memory=2 * 3 * 512 * config.tile_extent**2,
     )
 
     tiles = tiles.filter(
