@@ -1,10 +1,8 @@
 # @package _global_
 
-dataset:
-  name: Test Inference Tiling
-  slides:
-    _target_: preprocessing.data_source.MLFlowDataSource
-    uri: ???  
+defaults:
+  - data/slide: test_infer_dataset
+  - _self_
 
 tissue_mask_uri: "mlflow-artifacts:/68/27ae945c666b4ade80a0ab3a139d87f2/artifacts/tissue_masks"
 blur_mask_uri: "mlflow-artifacts:/68/4ca8df5c62e9435d9a83dcc6160a9551/artifacts/blur_per_pixel"
