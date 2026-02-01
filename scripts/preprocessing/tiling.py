@@ -13,7 +13,7 @@ submit_job(
         "git clone https://gitlab.ics.muni.cz/rationai/digital-pathology/pathology/lymph-nodes.git",
         "cd lymph-nodes",
         "uv sync --frozen",
-        "uv run -m preprocessing.tiling +experiment=<experiment_name>",
+        "uv run -m preprocessing.tiling +data=<data_name>",
     ],
     storage=[storage.secure.DATA, storage.secure.PROJECTS],
 )
