@@ -1,0 +1,8 @@
+_target_: lymph_nodes.mil.dataset.MnistBags
+root: "./data"
+target_number: 9
+mean_bag_length: 10
+var_bag_length: 2
+num_bags: 1000
+train: True
+seed: 42
