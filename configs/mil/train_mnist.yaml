@@ -1,7 +1,7 @@
 defaults:
-  - data: mnist
-  - model: attention
-  - _self_
+  - data: mnist     # Points to configs/mil/data/mnist.yaml
+  - model: attention  # Points to configs/mil/model/attention.yaml
+  - _self_    # Allows overwriting params in this file
 
 experiment_name: "mil_mnist_test"
 

@@ -19,7 +19,9 @@ log = logging.getLogger(__name__)
 def main(cfg: DictConfig):
     log.info(f"Initializing MIL Experiment: {cfg.experiment_name}")
 
-    # 1. Instantiate Data and Model using the _target_ defined in yaml
+    # Hydra looks at the '_target_' line in yaml files.
+    # It imports that class and creates an object with the parameters provided.
+    # This allows to swap 'MnistBags' for 'WSIBags' without changing this python script!
     dataset = instantiate(cfg.data)
     model = instantiate(cfg.model)
 

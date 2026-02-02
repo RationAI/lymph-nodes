@@ -16,6 +16,12 @@ class MILTrainer:
             cfg.training.device if torch.cuda.is_available() else "cpu"
         )
         self.model = model.to(self.device)
+
+        # --- COMMENT: BATCH SIZE ---
+        # Note batch_size=1. In MIL, every bag has a different number of instances.
+        # Standard PyTorch DataLoaders cannot stack tensors of different sizes
+        # into a single batch without a complex 'collate_fn'.
+        # Using batch_size=1 is the standard workaround.
         self.train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
         self.optimizer = optim.Adam(
             model.parameters(),
@@ -36,6 +42,8 @@ class MILTrainer:
                 data, label = data.to(self.device), label.to(self.device)
 
                 self.optimizer.zero_grad()
+                # Forward pass
+                # We ignore the 3rd return value (Attention weights) during training
                 Y_prob, Y_hat, _ = self.model(data)
 
                 loss = self.criterion(Y_prob, label)
