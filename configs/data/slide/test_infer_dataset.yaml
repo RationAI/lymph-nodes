@@ -1,4 +1,6 @@
 # @package _global_
+tissue_mask_uri: ???
+blur_mask_uri: ???
 
 dataset:
   name: Test Inference Dataset
