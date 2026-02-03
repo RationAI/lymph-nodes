@@ -1,9 +1,11 @@
 # @package _global_
+tissue_mask_uri: ???
+blur_mask_uri: ???
 
 dataset:
   name: Test Inference Dataset
   slides:
-    _targe_: preprocessing.data_source.ChainedDataSources
+    _target_: preprocessing.data_source.ChainedDataSources
     sources:
       - _target_: preprocessing.data_source.MLFlowDataSource
         uri: ??? # TODO: mmci dataset uri
