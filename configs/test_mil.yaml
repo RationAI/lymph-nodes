@@ -1,0 +1,37 @@
+defaults:
+  - hydra: default
+  - logger: mlflow
+  - /data/datasets@data.test: tile_embeddings/tile_embeddings
+  - uris
+  - paths
+  - _self_
+
+seed: 42
+mode: test
+cohort: ???
+checkpoint: ???
+data_mode: ???
+foundation: ???
+level: ???
+
+
+trainer: {}
+
+data:
+  batch_size: 1
+  num_workers: 4
+  test:
+    mode: ${data_mode}
+    tiling_uris: ${uris.tiling.${level}.${cohort}.test_preliminary}
+    embeddings_uris: ${uris.embeddings.${level}.${cohort}.${foundation}}
+    embeddings_folders: ${paths.embeddings.${level}.${cohort}.${foundation}}
+
+model:
+  _target_: lymph_nodes.attention_mil_lymph_node.LymphNodesMIL
+  foundation: ${foundation}
+
+metadata:
+  experiment_name: 'Lymph Nodes'
+  run_name: '📏 Testing: ${data_mode} ${cohort} ${foundation}'
+  description: 'Lymph Nodes'
+  user: tomas-homola

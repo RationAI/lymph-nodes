@@ -11,6 +11,8 @@ mode: fit
 cohort: ???
 data_mode: ???
 level: ???
+foundation: ???
+
 
 trainer:
   enable_checkpointing: True
@@ -39,11 +41,11 @@ model:
   lr: 0.0001
   input_dim: 1536
   pos_weight: 1.0
+  foundation: ${foundation}
 
 metadata:
   experiment_name: 'Lymph Node Metastasis'
-  run_name: '🏋️‍♂️ Training: ${data_mode} ${cohort} MIL'
+  run_name: '🏋️‍♂️ Training: ${data_mode} ${cohort} ${foundation}'
   description: 'MIL for LymphNodes'
   user: tomas-homola
   hyperparams: {}
-  
