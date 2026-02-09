@@ -1,0 +1,49 @@
+defaults:
+  - hydra: default
+  - logger: mlflow
+  - /data/datasets@data.train: metastasis/train 
+  - uris
+  - paths
+  - _self_
+
+seed: 42
+mode: fit
+cohort: ???
+data_mode: ???
+level: ???
+
+trainer:
+  enable_checkpointing: True
+  max_epochs: 50
+  log_every_n_steps: 3
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      save_top_k: 1
+      monitor: val/AUC
+      mode: max
+    - _target_: lightning.pytorch.callbacks.EarlyStopping
+      monitor: val/loss
+      mode: min
+      patience: 10 
+
+data:
+  batch_size: 1 
+  target_column: 
+  num_workers: 4
+  kfold_splits: 5
+  k: 1
+
+
+model:
+  _target_: lymph_nodes.attention_mil_lymph_node.LymphNodesMIL
+  lr: 0.0001
+  input_dim: 1536
+  pos_weight: 1.0
+
+metadata:
+  experiment_name: 'Lymph Node Metastasis'
+  run_name: '🏋️‍♂️ Training: ${data_mode} ${cohort} MIL'
+  description: 'MIL for LymphNodes'
+  user: tomas-homola
+  hyperparams: {}
+  

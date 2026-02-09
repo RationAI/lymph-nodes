@@ -1,5 +1,0 @@
-_target_: lymph_nodes.mil.model.AttentionMIL
-feature_dim: 800  # 50*4*4 output from MNIST CNN
-L: 500            # Internal attention dim
-D: 128            # Gated attention dim
-K: 1              # Output attention dim
