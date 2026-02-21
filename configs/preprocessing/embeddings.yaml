@@ -1,6 +1,6 @@
 # @package _global_
 
-output_dir: ${lymph_nodes_path}/embeddings/${dataset.name}/${tile_encoder.name}
+output_dir: ${project_dir}/embeddings/${dataset.name}/${tile_encoder.name}
 
 dataloader:
   batch_size: 2048
@@ -9,7 +9,7 @@ dataloader:
 
 metadata:
   run_name: '📂 Embeddings: Lymph Nodes - ${dataset.name} - ${tile_encoder.name}'
-  description: 'Embeddings preprocessing experiment for lymph nodes dataset (institution: ${dataset.institution}using ${tile_encoder.name} tile encoder.'
+  description: 'Embeddings preprocessing experiment for lymph nodes dataset (institution: ${dataset.institution}) using ${tile_encoder.name} tile encoder.'
   hyperparams:
     tile_encoder: ${tile_encoder.name}
     dataset_name: ${dataset.name}

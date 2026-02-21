@@ -1,0 +1,10 @@
+# @package _global_
+
+dataset:
+  institute: mmci
+  name: MMCI HDAB lymph nodes
+  slides:
+    _target_: preprocessing.data_source.ListDataSource
+    paths:
+      # TODO: Add actual slide paths
+    
