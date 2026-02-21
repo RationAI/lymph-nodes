@@ -1,0 +1,9 @@
+# @package _global_
+
+dataset:
+  institute: mmci
+  name: MMCI HDAB Test Inference
+  slides:
+    _target_: preprocessing.data_source.ListDataSource
+    paths:
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/positive/SNB_IHC_CASE_142_SLIDE_18-1.mrxs"
