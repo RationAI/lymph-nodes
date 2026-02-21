@@ -1,13 +1,12 @@
 # @package _global_
-tissue_mask_uri: ???
-blur_mask_uri: ???
+tissue_mask_uri: mlflow-artifacts:/68/314c6686bfec4bf2bed2a9e08daedad0/artifacts/tissue_masks
+blur_mask_uri: mlflow-artifacts:/68/75fd234055f445ad8d71da2216fad5bc/artifacts
 
 dataset:
-  name: Test Inference Dataset
+  name: Test_Single_Slide_Tiling
   slides:
-    _target_: preprocessing.data_source.ChainedDataSources
-    sources:
-      - _target_: preprocessing.data_source.MLFlowDataSource
-        uri: ??? # TODO: mmci dataset uri
-      - _target_: preprocessing.data_source.MLFlowDataSource
-        uri: ??? # TODO: fnbrno dataset uri
+    # We use ListDataSource so you can just paste the raw path directly!
+    _target_: preprocessing.data_source.ListDataSource
+    paths:
+      # Put the exact path to the single .mrxs file you made the mask for right here:
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/positive/SNB_IHC_CASE_142_SLIDE_18-1.mrxs"
