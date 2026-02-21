@@ -1,6 +1,6 @@
 # @package _global_
 tissue_mask_uri: mlflow-artifacts:/68/314c6686bfec4bf2bed2a9e08daedad0/artifacts/tissue_masks
-blur_mask_uri: mlflow-artifacts:/68/75fd234055f445ad8d71da2216fad5bc/artifacts
+blur_mask_uri: mlflow-artifacts:/68/75fd234055f445ad8d71da2216fad5bc/artifacts/blur_per_pixel
 
 dataset:
   name: Test_Single_Slide_Tiling

@@ -97,8 +97,17 @@ def main(config: DictConfig, logger=MLFlowLogger):
         filename = os.path.basename(row["path"])
         stem, _ = os.path.splitext(filename)
         mask_filename = f"{stem}.tiff"
-        row["tissue_mask_path"] = os.path.join(tissue_dir, mask_filename)
-        row["blur_mask_path"] = os.path.join(blur_dir, mask_filename)
+        tissue_mask_path = os.path.join(tissue_dir, mask_filename)
+        blur_mask_path = os.path.join(blur_dir, mask_filename)
+        
+        # Check if mask files exist
+        if not os.path.exists(tissue_mask_path):
+            raise FileNotFoundError(f"Tissue mask not found: {tissue_mask_path}")
+        if not os.path.exists(blur_mask_path):
+            raise FileNotFoundError(f"Blur mask not found: {blur_mask_path}")
+            
+        row["tissue_mask_path"] = tissue_mask_path
+        row["blur_mask_path"] = blur_mask_path
         return row
 
     slides_ds = slides_ds.map(add_mask_paths)
