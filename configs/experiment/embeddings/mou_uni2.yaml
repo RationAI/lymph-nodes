@@ -1,0 +1,6 @@
+# @package _global_
+
+defaults:
+  - /dataset/tiled/mou@dataset      # TODO
+  - /preprocessing/tile_encoder/uni2
+  - _self_
