@@ -6,7 +6,7 @@ dataset:
   slides:
     _target_: preprocessing.data_source.ListDataSource
     paths:
-      # 2023 positive slides
+      # 2023 positive slides [8]
       - "/mnt/data/MOU/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_129_SLIDE_1-1.mrxs"
       - "/mnt/data/MOU/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_2_SLIDE_2-1.mrxs"
       - "/mnt/data/MOU/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_4_SLIDE_2-1.mrxs"
@@ -16,7 +16,7 @@ dataset:
       - "/mnt/data/MOU/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_666_SLIDE_1-1.mrxs"
       - "/mnt/data/MOU/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_5_SLIDE_8-1.mrxs"
 
-      # 2024 positive slides
+      # 2024 positive slides [20]
       - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/positive/SNB_IHC_CASE_138_SLIDE_13-1.mrxs"
       - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/positive/SNB_IHC_CASE_138_SLIDE_14-1.mrxs"
       - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/positive/SNB_IHC_CASE_138_SLIDE_15-1.mrxs"
@@ -38,11 +38,35 @@ dataset:
       - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/positive/SNB_IHC_CASE_191_SLIDE_14-1.mrxs"
       - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/positive/SNB_IHC_CASE_192_SLIDE_9-1.mrxs"
 
-      # 2024 negative slides
+      # 2024 negative slides [30]
       - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_152_SLIDE_11-0.mrxs"
-      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_160_SLIDE_6-0.mrxs"
-      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_175_SLIDE_3-4-0.mrxs"
-      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_190_SLIDE_12-13-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_139_SLIDE_1-0.mrxs"
       - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_157_SLIDE_3-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_160_SLIDE_6-0.mrxs"
       - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_161_SLIDE_6-8-B-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_175_SLIDE_3-4-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_179_SLIDE_1-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_179_SLIDE_2-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_179_SLIDE_3-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_179_SLIDE_4-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_179_SLIDE_5-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_179_SLIDE_6-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_179_SLIDE_7-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_179_SLIDE_8-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_181_SLIDE_1-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_181_SLIDE_2-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_181_SLIDE_3-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_181_SLIDE_4-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_181_SLIDE_5-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_181_SLIDE_6-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_181_SLIDE_7-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_182_SLIDE_10-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_182_SLIDE_11-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_182_SLIDE_13-14-15-0.mrxs"
       - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_187_SLIDE_8-9-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_188_SLIDE_4-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_188_SLIDE_5-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_188_SLIDE_6-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_190_SLIDE_12-13-0.mrxs"
+      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_190_SLIDE_11-0.mrxs"
+
