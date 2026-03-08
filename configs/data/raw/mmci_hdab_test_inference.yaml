@@ -1,6 +1,4 @@
 # @package _global_
-tissue_mask_uri: mlflow-artifacts:/68/f0bf2fec457e480e82a6a07c7cdad0bd/artifacts/tissue_masks
-blur_mask_uri: mlflow-artifacts:/68/fadfd18d81e74cb6849a3e93f8bfdef3/artifacts/blur_per_pixel
 
 dataset:
   institute: mmci
