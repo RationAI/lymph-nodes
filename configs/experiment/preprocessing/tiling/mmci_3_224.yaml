@@ -1,10 +1,8 @@
 # @package _global_
 
 dataset:
+  data_name: mmci_3_224
   institute: mmci
   mpp: 1.9405
   level: 3
   tile_extent: 224
-  uris:
-    train: # TODO update URI
-    validation: # TODO update URI
