@@ -71,7 +71,7 @@ def parse_fnb_filename(filename: str) -> dict[str, Any]:
 @with_cli_args(["+preprocessing=slide_dataset"])
 @hydra.main(
     config_path="../configs",
-    config_name="=preprocessing",
+    config_name="preprocessing",
     version_base=None,
 )
 @autolog
