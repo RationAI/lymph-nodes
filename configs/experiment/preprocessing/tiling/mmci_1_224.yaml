@@ -1,8 +1,7 @@
 # @package _global_
 
-dataset:
-  data_name: mmci_1_224
-  institute: mmci
-  mpp: 0.4854
-  level: 1
-  tile_extent: 224
+mpp: 0.4854
+level: 1
+tile_extent: 224
+stride: 112
+data_name: mmci_1_224
