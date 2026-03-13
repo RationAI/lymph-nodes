@@ -1,6 +1,6 @@
 # @package _global_
 
 defaults:
-  - /data/tiled/mou_0.5mpp@dataset
+  - /data/tiled/mou_0.5mpp
   - /preprocessing/tile_encoder/uni2
   - _self_
