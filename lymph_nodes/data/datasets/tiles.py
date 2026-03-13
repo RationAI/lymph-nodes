@@ -3,9 +3,10 @@ from collections.abc import Iterable
 import pandas as pd
 from albumentations.core.composition import TransformType
 from albumentations.pytorch import ToTensorV2
-from ml.typing import TileMetadata, TilesPredictSample, TilesSample
 from rationai.mlkit.data.datasets import MetaTiledSlides, OpenSlideTilesDataset
 from torch.utils.data import Dataset
+
+from lymph_nodes.typing import TileMetadata, TilesPredictSample, TilesSample
 
 
 class _Tiles[T: TilesPredictSample | TilesSample](Dataset[T]):

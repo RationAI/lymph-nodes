@@ -1,6 +1,6 @@
 # @package _global_
 
-output_dir: ${project_dir}/embeddings/${dataset.name}/${tile_encoder.name}
+output_dir: ${project_dir}/embeddings/${dataset.name}/${dataset.mpp}mpp/${tile_encoder.name}
 
 dataloader:
   batch_size: 2048
@@ -8,12 +8,13 @@ dataloader:
   persistent_workers: True
 
 metadata:
-  run_name: '📂 Embeddings: Lymph Nodes - ${dataset.name} - ${tile_encoder.name}'
-  description: 'Embeddings preprocessing experiment for lymph nodes dataset (institution: ${dataset.institution}) using ${tile_encoder.name} tile encoder.'
+  run_name: '📂 Embeddings: Lymph Nodes - ${dataset.name} - ${dataset.mpp}mpp - ${tile_encoder.name}'
+  description: 'Embeddings preprocessing experiment for lymph nodes dataset (institution: ${dataset.institution}, ${dataset.mpp}mpp) using ${tile_encoder.name} tile encoder.'
   hyperparams:
     tile_encoder: ${tile_encoder.name}
     dataset_name: ${dataset.name}
     dataset_institution: ${dataset.institution}
+    dataset_mpp: ${dataset.mpp}
     batch_size: ${dataloader.batch_size}
     num_workers: ${dataloader.num_workers}
     

@@ -1,6 +1,6 @@
 # @package _global_
 
 defaults:
-  - /dataset/tiled/mou@dataset      # TODO
-  - /preprocessing/tile_encoder/gigapath
+  - /data/tiled/mou_0.5mpp@dataset
+  - /preprocessing/tile_encoder/prov_gigapath
   - _self_

@@ -21,6 +21,7 @@ from lymph_nodes.data.datasets import TilesPredict
 
 class FoundationModel(torch.nn.Module):
     def __init__(self, name: str, embed_dim: int) -> None:
+        """Wrapper for a foundation model - forward and dimension differ depending on the model."""
         super().__init__()
         self.embed_dim = embed_dim
 
@@ -29,7 +30,6 @@ class Virchow2(FoundationModel):
     def __init__(self, name: str) -> None:
         super().__init__(name, 2560)
 
-        # For this, you need to setup HF_TOKEN=<X> env.variable.
         self.module = timm.create_model(
             "hf-hub:paige-ai/Virchow2",
             pretrained=True,
@@ -37,25 +37,24 @@ class Virchow2(FoundationModel):
             act_layer=torch.nn.SiLU,
         ).eval()
 
+    @torch.inference_mode()
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        output = self.module(x)  # size: B x 261 x 1280
+        output = self.module(x)
 
-        class_token = output[:, 0]  # size: B x 1280
-        patch_tokens = output[
-            :, 5:
-        ]  # size: B x 256 x 1280 (ignore register tokens 1-4)
+        class_token = output[:, 0]
+        patch_tokens = output[:, 5:]
 
-        return torch.cat([class_token, patch_tokens.mean(1)], dim=-1)  # size: B x 2560
+        return torch.cat([class_token, patch_tokens.mean(1)], dim=-1)
 
 
 class ProvGigaPath(FoundationModel):
     def __init__(self, name: str) -> None:
         super().__init__(name, 1536)
-        # For this, you need to setup HF_TOKEN=<X> env.variable.
         self.module = timm.create_model(
             "hf_hub:prov-gigapath/prov-gigapath", pretrained=True
         ).eval()
 
+    @torch.inference_mode()
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.module(x)
 
@@ -64,7 +63,6 @@ class UNI2(FoundationModel):
     def __init__(self, name: str) -> None:
         super().__init__(name, 1536)
 
-        # For this, you need to setup HF_TOKEN=<X> env.variable.
         self.module = timm.create_model(
             "hf-hub:MahmoodLab/UNI2-h",
             pretrained=True,
@@ -83,6 +81,7 @@ class UNI2(FoundationModel):
             dynamic_img_size=True,
         ).eval()
 
+    @torch.inference_mode()
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.module(x)
 
@@ -139,73 +138,67 @@ def save_embeddings(
 @hydra.main(config_path="../configs", config_name="preprocessing", version_base=None)
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
-    token = os.getenv("HF_TOKEN")
-    if not token:
-        raise RuntimeError("HF_TOKEN env var is not set.")
-    login(token=token)
+    hf_token = os.getenv("HF_TOKEN")
+    if not hf_token:
+        raise ValueError(
+            "Hugging Face token not found. Please set the HF_TOKEN environment variable."
+        )
+    login(token=hf_token)
 
     dest = Path(config.output_dir)
-    use_cuda = torch.cuda.is_available()
-    device = torch.device("cuda" if use_cuda else "cpu")
+    dest.mkdir(parents=True, exist_ok=True)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     tile_encoder: FoundationModel = hydra.utils.instantiate(config.tile_encoder)
     tile_encoder = tile_encoder.to(device)
 
     dataset = load_dataset(config.dataset.uris.values())
 
-    with torch.inference_mode():
-        for slide_dataset in tqdm(dataset.generate_datasets()):
-            slide_name = str(slide_dataset.slide_metadata["name"])
-            embeddings_path = (dest / slide_name).with_suffix(".parquet")
+    for slide_dataset in tqdm(dataset.generate_datasets()):
+        slide_name = str(slide_dataset.slide_metadata["name"])
+        embeddings_path = (dest / slide_name).with_suffix(".parquet")
 
-            if embeddings_path.exists():
-                print(f"Embeddings for slide {slide_name} already exist, skipping...")
-                continue
+        if embeddings_path.exists():
+            print(f"Embeddings for slide {slide_name} already exist, skipping...")
+            continue
 
-            try:
-                num_workers = int(config.dataloader.num_workers)
-                persistent_workers = (
-                    bool(config.dataloader.persistent_workers) and num_workers > 0
-                )
+        try:
+            slide_tiles_dataloader = DataLoader(
+                slide_dataset,
+                batch_size=config.dataloader.batch_size,
+                num_workers=config.dataloader.num_workers,
+                persistent_workers=config.dataloader.persistent_workers
+                and config.dataloader.num_workers > 0,
+            )
 
-                slide_tiles_dataloader = DataLoader(
-                    slide_dataset,
-                    batch_size=config.dataloader.batch_size,
-                    num_workers=num_workers,
-                    persistent_workers=persistent_workers,
-                    pin_memory=use_cuda,
-                )
+            slide_tiles_embeddings = torch.zeros(
+                (len(slide_dataset), tile_encoder.embed_dim), dtype=torch.float32
+            )
+            slide_tiles_x = torch.zeros((len(slide_dataset),), dtype=torch.int32)
+            slide_tiles_y = torch.zeros((len(slide_dataset),), dtype=torch.int32)
 
-                slide_tiles_embeddings = torch.zeros(
-                    (len(slide_dataset), tile_encoder.embed_dim), dtype=torch.float32
-                )
-                slide_tiles_x = torch.zeros((len(slide_dataset),), dtype=torch.int32)
-                slide_tiles_y = torch.zeros((len(slide_dataset),), dtype=torch.int32)
+            for i, (x, metadata) in enumerate(slide_tiles_dataloader):
+                x = x.to(device)
+                embeddings = cast("torch.Tensor", tile_encoder(x))
 
-                bs = int(config.dataloader.batch_size)
+                start = i * config.dataloader.batch_size
+                end = start + embeddings.size(0)
 
-                for i, (x, metadata) in enumerate(slide_tiles_dataloader):
-                    x = x.to(device)
-                    embeddings = cast("torch.Tensor", tile_encoder(x))
+                slide_tiles_embeddings[start:end] = embeddings.to("cpu")
+                slide_tiles_x[start:end] = metadata["x"].to("cpu")
+                slide_tiles_y[start:end] = metadata["y"].to("cpu")
 
-                    start = i * bs
-                    end = start + embeddings.size(0)
+            save_embeddings(
+                slide_tiles_embeddings,
+                slide_tiles_x,
+                slide_tiles_y,
+                embeddings_path,
+            )
 
-                    slide_tiles_embeddings[start:end] = embeddings.to("cpu")
-                    slide_tiles_x[start:end] = metadata["x"].to("cpu")
-                    slide_tiles_y[start:end] = metadata["y"].to("cpu")
+        except Exception as e:
+            print(f"Error processing slide {slide_name}: {e}")
 
-                save_embeddings(
-                    slide_tiles_embeddings,
-                    slide_tiles_x,
-                    slide_tiles_y,
-                    embeddings_path,
-                )
-
-            except Exception as e:
-                print(f"Error processing slide {slide_name}: {e}")
-
-        logger.log_artifacts(str(dest), artifact_path="embeddings")
+    logger.log_artifacts(str(dest), artifact_path="embeddings")
 
 
 if __name__ == "__main__":
