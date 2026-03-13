@@ -17,6 +17,10 @@ class _Tiles[T: TilesPredictSample | TilesSample](Dataset[T]):
         transforms: TransformType | None = None,
     ) -> None:
         super().__init__()
+
+        if "tile_x" in tiles.columns:
+            tiles = tiles.rename(columns={"tile_x": "x", "tile_y": "y"})
+
         self.slide_tiles = OpenSlideTilesDataset(
             slide_path=slide_metadata["path"],
             level=slide_metadata["level"],
