@@ -155,7 +155,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     dataset = load_dataset(config.dataset.uris.values())
 
     for slide_dataset in tqdm(dataset.generate_datasets()):
-        slide_name = str(slide_dataset.slide_metadata["name"])
+        slide_name = Path(slide_dataset.slide_metadata["path"]).stem
         embeddings_path = (dest / slide_name).with_suffix(".parquet")
 
         if embeddings_path.exists():
