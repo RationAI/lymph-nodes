@@ -3,8 +3,8 @@
 output_dir: ${project_dir}/embeddings/${dataset.name}/${dataset.mpp}mpp/${tile_encoder.name}
 
 dataloader:
-  batch_size: 2048
-  num_workers: 8
+  batch_size: 1024
+  num_workers: 4
   persistent_workers: True
 
 metadata:
