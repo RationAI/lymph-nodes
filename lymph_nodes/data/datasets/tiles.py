@@ -39,7 +39,7 @@ class _Tiles[T: TilesPredictSample | TilesSample](Dataset[T]):
         image = self.slide_tiles[index]
         tile_row = self.slide_tiles.tiles.iloc[index]
         metadata: TileMetadata = {
-            "slide_id": self.slide_tiles.stem,
+            "slide_id": self.slide_tiles.slide_path.stem,
             "x": int(tile_row["x"]),
             "y": int(tile_row["y"]),
         }
