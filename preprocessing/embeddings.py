@@ -1,4 +1,5 @@
 import os
+import sys
 from collections.abc import Iterable
 from pathlib import Path
 from typing import cast
@@ -17,6 +18,11 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from lymph_nodes.data.datasets import TilesPredict
+
+
+def log(msg: str) -> None:
+    """Print a message and flush stdout immediately (needed for kubectl logs)."""
+    print(msg, flush=True)
 
 
 class FoundationModel(torch.nn.Module):
@@ -138,67 +144,100 @@ def save_embeddings(
 @hydra.main(config_path="../configs", config_name="preprocessing", version_base=None)
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
+    log("=== Embeddings pipeline starting ===")
+    log(f"Python: {sys.version}")
+    log(f"PyTorch: {torch.__version__}")
+    log(f"CUDA available: {torch.cuda.is_available()}")
+
     hf_token = os.getenv("HF_TOKEN")
     if not hf_token:
         raise ValueError(
             "Hugging Face token not found. Please set the HF_TOKEN environment variable."
         )
     login(token=hf_token)
+    log("Hugging Face login successful.")
 
     dest = Path(config.output_dir)
     dest.mkdir(parents=True, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    log(f"Using device: {device}")
 
+    log(f"Instantiating tile encoder: {config.tile_encoder._target_}")
     tile_encoder: FoundationModel = hydra.utils.instantiate(config.tile_encoder)
     tile_encoder = tile_encoder.to(device)
+    log(f"Tile encoder loaded: {tile_encoder.__class__.__name__} (embed_dim={tile_encoder.embed_dim})")
 
+    log("Loading dataset...")
     dataset = load_dataset(config.dataset.uris.values())
+    log("Dataset loaded. Generating slide datasets...")
 
-    for slide_dataset in tqdm(dataset.generate_datasets()):
+    num_workers = config.dataloader.num_workers
+    batch_size = config.dataloader.batch_size
+    persistent_workers = config.dataloader.persistent_workers and num_workers > 0
+    log(f"DataLoader config: batch_size={batch_size}, num_workers={num_workers}, persistent_workers={persistent_workers}")
+
+    slide_count = 0
+    for slide_dataset in dataset.generate_datasets():
+        slide_count += 1
         slide_name = Path(slide_dataset.slide_metadata["path"]).stem
+        n_tiles = len(slide_dataset)
+        log(f"[Slide {slide_count}] {slide_name}: {n_tiles} tiles")
+
         embeddings_path = (dest / slide_name).with_suffix(".parquet")
 
         if embeddings_path.exists():
-            print(f"Embeddings for slide {slide_name} already exist, skipping...")
+            log(f"  -> Already exists, skipping.")
             continue
 
         try:
+            log(f"  -> Creating DataLoader...")
             slide_tiles_dataloader = DataLoader(
                 slide_dataset,
-                batch_size=config.dataloader.batch_size,
-                num_workers=config.dataloader.num_workers,
-                persistent_workers=config.dataloader.persistent_workers
-                and config.dataloader.num_workers > 0,
+                batch_size=batch_size,
+                num_workers=num_workers,
+                persistent_workers=persistent_workers,
             )
 
             slide_tiles_embeddings = torch.zeros(
-                (len(slide_dataset), tile_encoder.embed_dim), dtype=torch.float32
+                (n_tiles, tile_encoder.embed_dim), dtype=torch.float32
             )
-            slide_tiles_x = torch.zeros((len(slide_dataset),), dtype=torch.int32)
-            slide_tiles_y = torch.zeros((len(slide_dataset),), dtype=torch.int32)
+            slide_tiles_x = torch.zeros((n_tiles,), dtype=torch.int32)
+            slide_tiles_y = torch.zeros((n_tiles,), dtype=torch.int32)
 
+            log(f"  -> Starting inference...")
             for i, (x, metadata) in enumerate(slide_tiles_dataloader):
                 x = x.to(device)
                 embeddings = cast("torch.Tensor", tile_encoder(x))
 
-                start = i * config.dataloader.batch_size
+                start = i * batch_size
                 end = start + embeddings.size(0)
 
                 slide_tiles_embeddings[start:end] = embeddings.to("cpu")
                 slide_tiles_x[start:end] = metadata["x"].to("cpu")
                 slide_tiles_y[start:end] = metadata["y"].to("cpu")
 
+                if (i + 1) % 10 == 0 or i == 0:
+                    log(f"    Batch {i + 1}: processed {end}/{n_tiles} tiles")
+
+            log(f"  -> Inference done. Saving to {embeddings_path}")
             save_embeddings(
                 slide_tiles_embeddings,
                 slide_tiles_x,
                 slide_tiles_y,
                 embeddings_path,
             )
+            log(f"  -> Saved.")
 
         except Exception as e:
-            print(f"Error processing slide {slide_name}: {e}")
+            log(f"  ERROR processing slide {slide_name}: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.stdout.flush()
 
+    log(f"=== Done. Processed {slide_count} slides. ===")
+    log("Logging artifacts to MLflow...")
     logger.log_artifacts(str(dest), artifact_path="embeddings")
+    log("=== Pipeline complete. ===")
 
 
 if __name__ == "__main__":
