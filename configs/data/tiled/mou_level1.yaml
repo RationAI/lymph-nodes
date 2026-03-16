@@ -1,7 +1,7 @@
 # @package _global_
 
 dataset:
-  name: MOU Tiled (0.5 mpp)
+  name: MOU Tiled
   institution: mmci
   mpp: 0.5
   uris:

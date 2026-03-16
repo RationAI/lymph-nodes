@@ -13,7 +13,7 @@ submit_job(
         "cd workdir",
         "export HF_TOKEN=...",
         "uv sync --frozen",
-        "uv run -m preprocessing.embeddings +data=raw/<data_file>",
+        "uv run -m preprocessing.embeddings +experiment/embeddings=<data_file>",
     ],
     storage=[storage.secure.DATA, storage.secure.PROJECTS],
 )

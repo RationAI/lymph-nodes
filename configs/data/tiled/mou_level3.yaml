@@ -1,0 +1,8 @@
+# @package _global_
+
+dataset:
+  institution: mmci
+  level: 3
+  mpp: 1.94
+  uris:
+    mou: "mlflow-artifacts:/68/15d8d9ab70dc43e0bb0c814e5025c80f/artifacts/Test Inference Dataset"
