@@ -1,8 +1,8 @@
 # @package _global_
 
 dataset:
-  name: MOU Tiled
   institution: mmci
+  level: 1
   mpp: 0.5
   uris:
     mou: "mlflow-artifacts:/68/69a7669a299947fdb427b1d4a680cbcf/artifacts/Test Inference Dataset"
