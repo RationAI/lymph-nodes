@@ -15,7 +15,6 @@ from rationai.mlkit import autolog, with_cli_args
 from rationai.mlkit.lightning.loggers import MLFlowLogger
 from timm.layers.mlp import SwiGLUPacked
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from lymph_nodes.data.datasets import TilesPredict
 
@@ -165,7 +164,9 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     log(f"Instantiating tile encoder: {config.tile_encoder._target_}")
     tile_encoder: FoundationModel = hydra.utils.instantiate(config.tile_encoder)
     tile_encoder = tile_encoder.to(device)
-    log(f"Tile encoder loaded: {tile_encoder.__class__.__name__} (embed_dim={tile_encoder.embed_dim})")
+    log(
+        f"Tile encoder loaded: {tile_encoder.__class__.__name__} (embed_dim={tile_encoder.embed_dim})"
+    )
 
     log("Loading dataset...")
     dataset = load_dataset(config.dataset.uris.values())
@@ -174,7 +175,9 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     num_workers = config.dataloader.num_workers
     batch_size = config.dataloader.batch_size
     persistent_workers = config.dataloader.persistent_workers and num_workers > 0
-    log(f"DataLoader config: batch_size={batch_size}, num_workers={num_workers}, persistent_workers={persistent_workers}")
+    log(
+        f"DataLoader config: batch_size={batch_size}, num_workers={num_workers}, persistent_workers={persistent_workers}"
+    )
 
     slide_count = 0
     for slide_dataset in dataset.generate_datasets():
@@ -186,11 +189,11 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         embeddings_path = (dest / slide_name).with_suffix(".parquet")
 
         if embeddings_path.exists():
-            log(f"  -> Already exists, skipping.")
+            log("  -> Already exists, skipping.")
             continue
 
         try:
-            log(f"  -> Creating DataLoader...")
+            log("  -> Creating DataLoader...")
             slide_tiles_dataloader = DataLoader(
                 slide_dataset,
                 batch_size=batch_size,
@@ -204,7 +207,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
             slide_tiles_x = torch.zeros((n_tiles,), dtype=torch.int32)
             slide_tiles_y = torch.zeros((n_tiles,), dtype=torch.int32)
 
-            log(f"  -> Starting inference...")
+            log("  -> Starting inference...")
             for i, (x, metadata) in enumerate(slide_tiles_dataloader):
                 x = x.to(device)
                 embeddings = cast("torch.Tensor", tile_encoder(x))
@@ -226,11 +229,12 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
                 slide_tiles_y,
                 embeddings_path,
             )
-            log(f"  -> Saved.")
+            log("  -> Saved.")
 
         except Exception as e:
             log(f"  ERROR processing slide {slide_name}: {e}")
             import traceback
+
             traceback.print_exc()
             sys.stdout.flush()
 
