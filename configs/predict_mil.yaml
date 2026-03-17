@@ -22,7 +22,7 @@ model:
   foundation: ${foundation}
 
 metadata:
-  experiment_name: 'Lymph Node Metastasis'
+  experiment_name: 'Lymph Nodes'
   run_name: '🔮 Predict: ${foundation}'
   description: 'MIL Predict for Lymph Node Metastasis'
   hyperparams: {}
