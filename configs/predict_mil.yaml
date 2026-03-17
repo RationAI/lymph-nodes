@@ -9,7 +9,6 @@ mode: predict
 checkpoint: ???
 foundation: prov-gigapath
 
-# Override this with the URI of your prediction embeddings
 embeddings_uri: ???
 
 trainer: {}
