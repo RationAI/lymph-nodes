@@ -2,13 +2,15 @@ defaults:
   - hydra: default
   - logger: mlflow
   - /data/datasets@data.test: tile_embeddings/tile_embeddings
+  - /data/embeddings/uris
   - _self_
 
 seed: 42
 mode: test
 checkpoint: ???
 foundation: ???
-embeddings_uri: ???
+level: ???
+embeddings_uri: ${uris.embeddings.${key:${foundation}}.${level}}
 
 trainer: {}
 
@@ -22,7 +24,8 @@ model:
 
 metadata:
   experiment_name: 'Lymph Nodes'
-  run_name: '🧪 Test: ${foundation}'
+  run_name: '🧪 Test: ${foundation} ${level}'
   description: 'MIL Test for Lymph Node Metastasis'
-  hyperparams: {}
-  foundation: ${foundation}
+  hyperparams:
+    foundation: ${foundation}
+    level: ${level}

@@ -1,2 +1,3 @@
 _target_: lymph_nodes.data.datasets.TileEmbeddings
 embeddings_uri: ${embeddings_uri}
+padding: false

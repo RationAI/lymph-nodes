@@ -2,14 +2,16 @@ defaults:
   - hydra: default
   - logger: mlflow
   - /data/datasets@data.predict: tile_embeddings/tile_embeddings
+  - /data/embeddings/uris
   - _self_
 
 seed: 42
 mode: predict
 checkpoint: ???
 foundation: prov-gigapath
+level: ???
 
-embeddings_uri: ???
+embeddings_uri: ${uris.embeddings.${key:${foundation}}.${level}}
 
 trainer: {}
 
@@ -23,6 +25,8 @@ model:
 
 metadata:
   experiment_name: 'Lymph Nodes'
-  run_name: '🔮 Predict: ${foundation}'
+  run_name: '🔮 Predict: ${foundation} ${level}'
   description: 'MIL Predict for Lymph Node Metastasis'
-  hyperparams: {}
+  hyperparams:
+    foundation: ${foundation}
+    level: ${level}

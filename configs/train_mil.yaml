@@ -11,8 +11,9 @@ seed: 42
 mode: fit
 checkpoint: null
 foundation: ???
+level: ???
 
-embeddings_uri: ${uris.embeddings.${key:${foundation}}}
+embeddings_uri: ${uris.embeddings.${key:${foundation}}.${level}}
 
 trainer:
   enable_checkpointing: True
@@ -42,6 +43,8 @@ model:
 
 metadata:
   experiment_name: 'Lymph Nodes'
-  run_name: '🏋️‍♂️ Training: ${foundation} (fold ${data.k}/${data.kfold_splits}) MIL'
+  run_name: '🏋️‍♂️ Training: ${foundation} ${level} (fold ${data.k}/${data.kfold_splits}) MIL'
   description: 'MIL for Lymph Node Metastasis Detection'
-  hyperparams: {}
+  hyperparams:
+    foundation: ${foundation}
+    level: ${level}
