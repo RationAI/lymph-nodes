@@ -54,27 +54,6 @@ This project uses [Hydra](https://hydra.cc/) for configuration management.
     uv run python +m <lymph_nodes> mode=predict checkpoint=path/to/checkpoint.ckpt
     ```
 
-## Preprocessing: tissue_mask_generation
-
-`tissue_mask_generation` creates binary tissue masks from whole-slide images (WSI) and logs them as artifacts.
-
--   Input slide is read at the closest level for configured `mpp`.
--   Tissue candidate regions are detected in HSV space using value/saturation thresholds.
--   Morphological closing and opening are applied to remove small holes/noise.
--   Output masks are saved as `.tiff` files and logged under the configured `artifact_path` (default: `tissue_masks`).
-
-Run:
-
-```bash
-uv run python preprocessing/tissue_masks.py
-```
-
-Key config options are in [`configs/preprocessing/tissue_masks.yaml`](configs/preprocessing/tissue_masks.yaml):
-
--   `mpp`: target resolution used for selecting slide level.
--   `max_concurrent`: number of slides processed in parallel.
--   `artifact_path`: MLflow artifact destination.
-
 
 ## Linting, Formatting and Type Checking:
 

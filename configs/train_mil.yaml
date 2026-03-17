@@ -10,7 +10,7 @@ mode: fit
 checkpoint: null
 foundation: ???
 
-embeddings_uri: ${uris.embeddings.${foundation}}
+embeddings_uri: ${uris.embeddings.${key:${foundation}}}
 
 trainer:
   enable_checkpointing: True

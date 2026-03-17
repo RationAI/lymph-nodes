@@ -1,5 +1,5 @@
 uris:
   embeddings:
-    prov-gigapath: "mlflow-artifacts:/68/7013ddba0e1a4f28810814947db96270/artifacts/embeddings"
-    uni2-h: ???
+    prov_gigapath: "mlflow-artifacts:/68/7013ddba0e1a4f28810814947db96270/artifacts/embeddings"
+    uni2_h: ???
     virchow2: ???
