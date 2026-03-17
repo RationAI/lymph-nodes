@@ -10,13 +10,35 @@ from torchmetrics.classification import (
     BinarySpecificity,
 )
 
+from lymph_nodes.typing import TileEmbeddingsInput
+
+
+def _input_dim_for_foundation(foundation: str) -> int:
+    match foundation:
+        case "prov-gigapath" | "uni2-h":
+            return 1536
+        case "uni":
+            return 1024
+        case "virchow" | "virchow2":
+            return 2560
+        case _:
+            raise ValueError(f"Unknown foundation model: {foundation}")
+
 
 class LymphNodesMIL(LightningModule):
     def __init__(
-        self, input_dim: int = 1536, lr: float = 1e-4, pos_weight: float = 1.0
+        self,
+        foundation: str = "prov-gigapath",
+        lr: float = 1e-4,
+        pos_weight: float = 1.0,
+        input_dim: int | None = None,
     ):
         super().__init__()
         self.save_hyperparameters()
+
+        if input_dim is None:
+            input_dim = _input_dim_for_foundation(foundation)
+
         self.lr = lr
 
         self.attention_V = nn.Sequential(nn.Linear(input_dim, 256), nn.Tanh())
@@ -55,38 +77,50 @@ class LymphNodesMIL(LightningModule):
 
         return logits.squeeze(1), A.squeeze(2)
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch: TileEmbeddingsInput, batch_idx: int):
         features, label, _ = batch
         logits, _ = self(features)
 
         loss = self.criterion(logits, label.float())
-        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True)
+        self.log(
+            "train/loss",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            batch_size=len(label),
+        )
 
         probs = torch.sigmoid(logits)
-        self.train_metrics.update(probs, label)
-
-        self.log_dict(self.train_metrics, on_epoch=True)
+        self.train_metrics.update(probs, label.long())
+        self.log_dict(
+            self.train_metrics, on_epoch=True, on_step=False, batch_size=len(label)
+        )
 
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch: TileEmbeddingsInput, batch_idx: int):
         features, label, _ = batch
         logits, _ = self(features)
         loss = self.criterion(logits, label.float())
 
         probs = torch.sigmoid(logits)
-        self.val_metrics.update(probs, label)
-        self.log("val/loss", loss, prog_bar=True)
-        self.log_dict(self.val_metrics, on_epoch=True)
+        self.val_metrics.update(probs, label.long())
+        self.log("val/loss", loss, prog_bar=True, batch_size=len(label))
+        self.log_dict(
+            self.val_metrics, on_epoch=True, on_step=False, batch_size=len(label)
+        )
 
-    def test_step(self, batch, batch_idx):
-        features, label = batch
+    def test_step(self, batch: TileEmbeddingsInput, batch_idx: int):
+        features, label, _ = batch
         logits, _ = self(features)
         probs = torch.sigmoid(logits)
-        self.test_metrics.update(probs, label)
-        self.log_dict(self.test_metrics, on_epoch=True)
+        self.test_metrics.update(probs, label.long())
+        self.log_dict(
+            self.test_metrics, on_epoch=True, on_step=False, batch_size=len(label)
+        )
 
-    def predict_step(self, batch, batch_idx):
+    def predict_step(self, batch: TileEmbeddingsInput, batch_idx: int):
         features, label, _ = batch
         logits, attention_weights = self(features)
         probs = torch.sigmoid(logits)

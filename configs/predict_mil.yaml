@@ -1,42 +1,29 @@
 defaults:
   - hydra: default
   - logger: mlflow
-  - /data/datasets@data.predict: tile_embeddings/tile_embeddings_predict
-  - paths
-  - uris
+  - /data/datasets@data.predict: tile_embeddings/tile_embeddings
   - _self_
 
-seed: ${random_seed:}
+seed: 42
 mode: predict
-cohort: ???
 checkpoint: ???
-data_mode: ???
-foundation: ???
-level: ???
-K: ???
+foundation: prov-gigapath
 
-trainer:
-  callbacks:
-    - _target_: lymph_nodes.callbacks.MLFlowPredictionCallback
+# Override this with the URI of your prediction embeddings
+embeddings_uri: ???
+
+trainer: {}
 
 data:
-  batch_size: 8
+  batch_size: 1
   num_workers: 4
-  predict:
-    mode: ${data_mode}
-    tiling_uris: ${uris.tiling.${level}.${cohort}.test_preliminary}
-    embeddings_uris: ${uris.embeddings.${level}.${cohort}.${foundation}}
-    embeddings_folders: ${paths.embeddings.${level}.${cohort}.${foundation}}
-    stride_eq_tile: false
 
 model:
-  _target_: lymph_nodes.attention_mil_lymph_node.LymphNodesMIL
+  _target_: lymph_nodes.attention_mil_lymph_nodes.LymphNodesMIL
   foundation: ${foundation}
 
 metadata:
   experiment_name: 'Lymph Node Metastasis'
-  run_name: '🎯 Predicting: ${data_mode} ${cohort} ${foundation}'
-  description: 'MIL for LymphNodes'
-  user: tomas-homola
+  run_name: '🔮 Predict: ${foundation}'
+  description: 'MIL Predict for Lymph Node Metastasis'
   hyperparams: {}
-

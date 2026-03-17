@@ -1,18 +1,16 @@
 defaults:
   - hydra: default
   - logger: mlflow
-  - /data/datasets@data.train: metastasis/train 
-  - uris
-  - paths
+  - /data/datasets@data.train: tile_embeddings/tile_embeddings
+  - /data/embeddings/uris
   - _self_
 
 seed: 42
 mode: fit
-cohort: ???
-data_mode: ???
-level: ???
+checkpoint: null
 foundation: ???
 
+embeddings_uri: ${uris.embeddings.${foundation}}
 
 trainer:
   enable_checkpointing: True
@@ -26,26 +24,22 @@ trainer:
     - _target_: lightning.pytorch.callbacks.EarlyStopping
       monitor: val/loss
       mode: min
-      patience: 10 
+      patience: 10
 
 data:
-  batch_size: 1 
-  target_column: 
+  batch_size: 1
   num_workers: 4
   kfold_splits: 5
   k: 1
 
-
 model:
-  _target_: lymph_nodes.attention_mil_lymph_node.LymphNodesMIL
+  _target_: lymph_nodes.attention_mil_lymph_nodes.LymphNodesMIL
   lr: 0.0001
-  input_dim: 1536
   pos_weight: 1.0
   foundation: ${foundation}
 
 metadata:
   experiment_name: 'Lymph Node Metastasis'
-  run_name: '🏋️‍♂️ Training: ${data_mode} ${cohort} ${foundation}'
-  description: 'MIL for LymphNodes'
-  user: tomas-homola
+  run_name: '🏋️‍♂️ Training: ${foundation} (fold ${data.k}/${data.kfold_splits}) MIL'
+  description: 'MIL for Lymph Node Metastasis Detection'
   hyperparams: {}
