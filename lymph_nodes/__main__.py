@@ -12,9 +12,7 @@ from lymph_nodes.data import DataModule
 OmegaConf.register_new_resolver(
     "random_seed", lambda: randint(0, 2**31), use_cache=True
 )
-OmegaConf.register_new_resolver(
-    "key", lambda s: s.replace("-", "_"), use_cache=True
-)
+OmegaConf.register_new_resolver("key", lambda s: s.replace("-", "_"), use_cache=True)
 
 
 @hydra.main(config_path="../configs", config_name="train_mil", version_base=None)
