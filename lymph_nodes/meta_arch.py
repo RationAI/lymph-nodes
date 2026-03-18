@@ -35,7 +35,9 @@ class MetaArch(LightningModule):
         self.test_metrics = metrics.clone(prefix="test/")
 
     def forward(self, x: Tensor) -> tuple[Tensor, Tensor]:
-        """Args:
+        """Forward pass.
+
+        Args:
             x: tile embeddings for a single bag, shape [n_tiles, embed_dim]
 
         Returns:
@@ -57,7 +59,9 @@ class MetaArch(LightningModule):
         logits, _ = self(inputs)
         loss = self.criterion(logits, targets.float())
         self.log("train/loss", loss, on_step=True, prog_bar=True)
-        self.train_metrics.update(torch.sigmoid(logits).unsqueeze(0), targets.unsqueeze(0))
+        self.train_metrics.update(
+            torch.sigmoid(logits).unsqueeze(0), targets.unsqueeze(0)
+        )
         return loss
 
     def on_train_epoch_end(self) -> None:
@@ -72,7 +76,9 @@ class MetaArch(LightningModule):
         logits, _ = self(inputs)
         loss = self.criterion(logits, targets.float())
         self.log("val/loss", loss, on_epoch=True, prog_bar=True)
-        self.val_metrics.update(torch.sigmoid(logits).unsqueeze(0), targets.unsqueeze(0))
+        self.val_metrics.update(
+            torch.sigmoid(logits).unsqueeze(0), targets.unsqueeze(0)
+        )
 
     def on_validation_epoch_end(self) -> None:
         self.log_dict(self.val_metrics.compute(), prog_bar=True)
@@ -84,7 +90,9 @@ class MetaArch(LightningModule):
         targets = targets.squeeze(0)
 
         logits, _ = self(inputs)
-        self.test_metrics.update(torch.sigmoid(logits).unsqueeze(0), targets.unsqueeze(0))
+        self.test_metrics.update(
+            torch.sigmoid(logits).unsqueeze(0), targets.unsqueeze(0)
+        )
 
     def on_test_epoch_end(self) -> None:
         self.log_dict(self.test_metrics.compute())
