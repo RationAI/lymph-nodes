@@ -1,54 +1,94 @@
+import torch
 from lightning import LightningModule
 from torch import Tensor, nn
 from torch.optim.optimizer import Optimizer
 from torchmetrics import MetricCollection
-
-from lymph_nodes.typing import Input, Outputs
+from torchmetrics.classification import BinaryAUROC
 
 
 class MetaArch(LightningModule):
-    def __init__(self, backbone: nn.Module, decode_head: nn.Module) -> None:
+    """Attention-Based Multiple Instance Learning (ABMIL) model for slide-level classification.
+
+    Reference: Ilse et al., "Attention-based Deep Multiple Instance Learning" (ICML 2018).
+    """
+
+    def __init__(
+        self,
+        embed_dim: int,
+        hidden_dim: int = 256,
+        lr: float = 1e-4,
+    ) -> None:
         super().__init__()
-        self.backbone = backbone
-        self.decode_head = decode_head
-        self.criterion = ...  # TODO add your loss function
+        self.save_hyperparameters()
 
-        self.val_metrics = MetricCollection(
-            {...},  # TODO add metrics you want to compute
-            prefix="validation/",
-        )
+        # Gated attention mechanism
+        self.attention_V = nn.Sequential(nn.Linear(embed_dim, hidden_dim), nn.Tanh())
+        self.attention_U = nn.Sequential(nn.Linear(embed_dim, hidden_dim), nn.Sigmoid())
+        self.attention_weights = nn.Linear(hidden_dim, 1)
 
-        self.test_mterics = self.val_metrics.clone(prefix="test/")
+        self.classifier = nn.Sequential(nn.Linear(embed_dim, 1))
+        self.criterion = nn.BCEWithLogitsLoss()
 
-    def forward(self, x: Input) -> Outputs:
-        features = self.backbone(x)
-        return self.decode_head(features)
+        metrics = MetricCollection({"AUROC": BinaryAUROC()})
+        self.train_metrics = metrics.clone(prefix="train/")
+        self.val_metrics = metrics.clone(prefix="val/")
+        self.test_metrics = metrics.clone(prefix="test/")
 
-    def training_step(self, batch: Input) -> Tensor:
+    def forward(self, x: Tensor) -> tuple[Tensor, Tensor]:
+        """Args:
+            x: tile embeddings for a single bag, shape [n_tiles, embed_dim]
+
+        Returns:
+            logit: slide-level logit, scalar
+            attention: per-tile attention weights, shape [n_tiles]
+        """
+        v = self.attention_V(x)  # [n_tiles, hidden_dim]
+        u = self.attention_U(x)  # [n_tiles, hidden_dim]
+        a = self.attention_weights(v * u)  # [n_tiles, 1]
+        a = torch.softmax(a, dim=0)  # [n_tiles, 1]
+        z = (a * x).sum(dim=0, keepdim=True)  # [1, embed_dim]
+        return self.classifier(z).squeeze(), a.squeeze(1)
+
+    def training_step(self, batch: tuple[Tensor, Tensor], batch_idx: int = 0) -> Tensor:
         inputs, targets = batch
-        outputs = self(inputs)
+        inputs = inputs.squeeze(0)  # [n_tiles, embed_dim]
+        targets = targets.squeeze(0)  # scalar
 
-        loss = self.criterion(outputs, targets)
+        logits, _ = self(inputs)
+        loss = self.criterion(logits, targets.float())
         self.log("train/loss", loss, on_step=True, prog_bar=True)
-
+        self.train_metrics.update(torch.sigmoid(logits).unsqueeze(0), targets.unsqueeze(0))
         return loss
 
-    def validation_step(self, batch: Input) -> None:
+    def on_train_epoch_end(self) -> None:
+        self.log_dict(self.train_metrics.compute())
+        self.train_metrics.reset()
+
+    def validation_step(self, batch: tuple[Tensor, Tensor], batch_idx: int = 0) -> None:
         inputs, targets = batch
-        outputs = self(inputs)
+        inputs = inputs.squeeze(0)
+        targets = targets.squeeze(0)
 
-        loss = self.criterion(outputs, targets)
-        self.log("validation/loss", loss, on_epoch=True, prog_bar=True)
+        logits, _ = self(inputs)
+        loss = self.criterion(logits, targets.float())
+        self.log("val/loss", loss, on_epoch=True, prog_bar=True)
+        self.val_metrics.update(torch.sigmoid(logits).unsqueeze(0), targets.unsqueeze(0))
 
-        self.val_metrics.update(outputs, targets)
-        self.log_dict(self.val_metrics, on_epoch=True)
+    def on_validation_epoch_end(self) -> None:
+        self.log_dict(self.val_metrics.compute(), prog_bar=True)
+        self.val_metrics.reset()
 
-    def test_step(self, batch: Input) -> None:
+    def test_step(self, batch: tuple[Tensor, Tensor], batch_idx: int = 0) -> None:
         inputs, targets = batch
-        outputs = self(inputs)
-        self.test_metrics.update(outputs, targets)
-        self.log_dict(self.test_metrics, on_epoch=True)
+        inputs = inputs.squeeze(0)
+        targets = targets.squeeze(0)
+
+        logits, _ = self(inputs)
+        self.test_metrics.update(torch.sigmoid(logits).unsqueeze(0), targets.unsqueeze(0))
+
+    def on_test_epoch_end(self) -> None:
+        self.log_dict(self.test_metrics.compute())
+        self.test_metrics.reset()
 
     def configure_optimizers(self) -> Optimizer:
-        # TODO add your optimizer
-        ...
+        return torch.optim.Adam(self.parameters(), lr=self.hparams["lr"])
