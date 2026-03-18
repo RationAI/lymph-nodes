@@ -95,4 +95,3 @@ class TilesPredict(ConcatDataset[TilesPredictSample]):
 
     def generate_datasets(self) -> Iterable[_Tiles[TilesPredictSample]]:
         return iter(self._slide_datasets)
-
