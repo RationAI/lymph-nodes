@@ -1,10 +1,14 @@
 from collections.abc import Iterable
+from pathlib import Path
+from typing import Any
 
-import pandas as pd
 from albumentations.core.composition import TransformType
 from albumentations.pytorch import ToTensorV2
-from rationai.mlkit.data.datasets import MetaTiledSlides, OpenSlideTilesDataset
-from torch.utils.data import Dataset
+from datasets import Dataset as HFDataset
+from datasets import load_dataset
+from mlflow.artifacts import download_artifacts
+from rationai.mlkit.data.datasets import OpenSlideTilesDataset
+from torch.utils.data import ConcatDataset, Dataset
 
 from lymph_nodes.typing import TileMetadata, TilesPredictSample, TilesSample
 
@@ -12,20 +16,16 @@ from lymph_nodes.typing import TileMetadata, TilesPredictSample, TilesSample
 class _Tiles[T: TilesPredictSample | TilesSample](Dataset[T]):
     def __init__(
         self,
-        slide_metadata: pd.Series,
-        tiles: pd.DataFrame,
+        slide_metadata: dict[str, Any],
+        tiles: HFDataset,
         transforms: TransformType | None = None,
     ) -> None:
         super().__init__()
-
-        if "tile_x" in tiles.columns:
-            tiles = tiles.rename(columns={"tile_x": "x", "tile_y": "y"})
-
         self.slide_tiles = OpenSlideTilesDataset(
             slide_path=slide_metadata["path"],
             level=slide_metadata["level"],
-            tile_extent_x=slide_metadata["tile_extent_x"],
-            tile_extent_y=slide_metadata["tile_extent_y"],
+            tile_extent_x="tile_extent_x",
+            tile_extent_y="tile_extent_y",
             tiles=tiles,
         )
         self.slide_metadata = slide_metadata
@@ -37,7 +37,7 @@ class _Tiles[T: TilesPredictSample | TilesSample](Dataset[T]):
 
     def __getitem__(self, index: int) -> TilesPredictSample:  # | TilesSample
         image = self.slide_tiles[index]
-        tile_row = self.slide_tiles.tiles.iloc[index]
+        tile_row = self.slide_tiles.tiles[index]
         metadata: TileMetadata = {
             "slide_id": self.slide_tiles.slide_path.stem,
             "x": int(tile_row["x"]),
@@ -52,21 +52,47 @@ class _Tiles[T: TilesPredictSample | TilesSample](Dataset[T]):
         return image, metadata
 
 
-class TilesPredict(MetaTiledSlides[TilesPredictSample]):
+class TilesPredict(ConcatDataset[TilesPredictSample]):
     def __init__(
         self,
         uris: Iterable[str] | str,
         transforms: TransformType | None = None,
     ) -> None:
-        self.transforms = transforms
-        super().__init__(uris=(uris,) if isinstance(uris, str) else uris)
+        if isinstance(uris, str):
+            uris = [uris]
+
+        self._slide_datasets: list[_Tiles] = []
+
+        for uri in uris:
+            artifact_path = Path(download_artifacts(artifact_uri=uri))
+            slides = load_dataset(
+                "parquet",
+                data_files=str(artifact_path / "slides.parquet"),
+                split="train",
+            )
+            tiles = load_dataset(
+                "parquet",
+                data_files=str(artifact_path / "tiles.parquet"),
+                split="train",
+            )
+
+            if "tile_x" in tiles.column_names:
+                tiles = tiles.rename_columns({"tile_x": "x", "tile_y": "y"})
+
+            for slide in slides:
+                self._slide_datasets.append(
+                    _Tiles(
+                        slide_metadata=slide,
+                        tiles=tiles.filter(
+                            lambda row, sid=slide["id"]: row["slide_id"] == sid,
+                            keep_in_memory=False,
+                        ),
+                        transforms=transforms,
+                    )
+                )
+
+        super().__init__(self._slide_datasets)
 
     def generate_datasets(self) -> Iterable[_Tiles[TilesPredictSample]]:
-        return (
-            _Tiles(
-                slide_metadata=slide,
-                tiles=self.filter_tiles_by_slide(slide["id"]),
-                transforms=self.transforms,
-            )
-            for _, slide in self.slides.iterrows()
-        )
+        return iter(self._slide_datasets)
+
