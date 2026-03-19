@@ -49,17 +49,17 @@ class LymphNodesMIL(LightningModule):
 
         self.criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
 
-        metrics = {
+        metrics = MetricCollection({
             "AUC": BinaryAUROC(),
             "accuracy": BinaryAccuracy(),
             "sensitivity": BinaryRecall(),
             "specificity": BinarySpecificity(),
             "F1": BinaryF1Score(),
-        }
+        })
 
-        self.train_metrics = MetricCollection(metrics, prefix="train/")
-        self.val_metrics = MetricCollection(metrics, prefix="val/")
-        self.test_metrics = MetricCollection(metrics, prefix="test/")
+        self.train_metrics = metrics.clone(prefix="train/")
+        self.val_metrics = metrics.clone(prefix="val/")
+        self.test_metrics = metrics.clone(prefix="test/")
 
     def forward(self, x):
         a_v = self.attention_V(x)
@@ -92,13 +92,14 @@ class LymphNodesMIL(LightningModule):
         )
 
         probs = torch.sigmoid(logits)
+        if probs.dim() == 0:
+            probs = probs.unsqueeze(0)
+        if label.dim() == 0:
+            label = label.unsqueeze(0)
         self.train_metrics.update(probs, label.long())
+        self.log_dict(self.train_metrics, on_step=False, on_epoch=True)
 
         return loss
-
-    def on_train_epoch_end(self) -> None:
-        self.log_dict(self.train_metrics.compute())
-        self.train_metrics.reset()
 
     def validation_step(self, batch: TileEmbeddingsInput, batch_idx: int):
         features, label, _ = batch
@@ -106,22 +107,24 @@ class LymphNodesMIL(LightningModule):
         loss = self.criterion(logits, label.float())
 
         probs = torch.sigmoid(logits)
+        if probs.dim() == 0:
+            probs = probs.unsqueeze(0)
+        if label.dim() == 0:
+            label = label.unsqueeze(0)
         self.val_metrics.update(probs, label.long())
         self.log("val/loss", loss, prog_bar=True, batch_size=len(label))
-
-    def on_validation_epoch_end(self) -> None:
-        self.log_dict(self.val_metrics.compute(), prog_bar=True)
-        self.val_metrics.reset()
+        self.log_dict(self.val_metrics, on_step=False, on_epoch=True, prog_bar=True)
 
     def test_step(self, batch: TileEmbeddingsInput, batch_idx: int):
         features, label, _ = batch
         logits, _ = self(features)
         probs = torch.sigmoid(logits)
+        if probs.dim() == 0:
+            probs = probs.unsqueeze(0)
+        if label.dim() == 0:
+            label = label.unsqueeze(0)
         self.test_metrics.update(probs, label.long())
-
-    def on_test_epoch_end(self) -> None:
-        self.log_dict(self.test_metrics.compute())
-        self.test_metrics.reset()
+        self.log_dict(self.test_metrics, on_step=False, on_epoch=True)
 
     def predict_step(self, batch: TileEmbeddingsInput, batch_idx: int):
         features, label, _ = batch
