@@ -93,11 +93,12 @@ class LymphNodesMIL(LightningModule):
 
         probs = torch.sigmoid(logits)
         self.train_metrics.update(probs, label.long())
-        self.log_dict(
-            self.train_metrics, on_epoch=True, on_step=False, batch_size=len(label)
-        )
 
         return loss
+
+    def on_train_epoch_end(self) -> None:
+        self.log_dict(self.train_metrics.compute())
+        self.train_metrics.reset()
 
     def validation_step(self, batch: TileEmbeddingsInput, batch_idx: int):
         features, label, _ = batch
@@ -107,18 +108,20 @@ class LymphNodesMIL(LightningModule):
         probs = torch.sigmoid(logits)
         self.val_metrics.update(probs, label.long())
         self.log("val/loss", loss, prog_bar=True, batch_size=len(label))
-        self.log_dict(
-            self.val_metrics, on_epoch=True, on_step=False, batch_size=len(label)
-        )
+
+    def on_validation_epoch_end(self) -> None:
+        self.log_dict(self.val_metrics.compute(), prog_bar=True)
+        self.val_metrics.reset()
 
     def test_step(self, batch: TileEmbeddingsInput, batch_idx: int):
         features, label, _ = batch
         logits, _ = self(features)
         probs = torch.sigmoid(logits)
         self.test_metrics.update(probs, label.long())
-        self.log_dict(
-            self.test_metrics, on_epoch=True, on_step=False, batch_size=len(label)
-        )
+
+    def on_test_epoch_end(self) -> None:
+        self.log_dict(self.test_metrics.compute())
+        self.test_metrics.reset()
 
     def predict_step(self, batch: TileEmbeddingsInput, batch_idx: int):
         features, label, _ = batch
