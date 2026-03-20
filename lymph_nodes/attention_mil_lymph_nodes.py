@@ -49,13 +49,15 @@ class LymphNodesMIL(LightningModule):
 
         self.criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
 
-        metrics = MetricCollection({
-            "AUC": BinaryAUROC(),
-            "accuracy": BinaryAccuracy(),
-            "sensitivity": BinaryRecall(),
-            "specificity": BinarySpecificity(),
-            "F1": BinaryF1Score(),
-        })
+        metrics = MetricCollection(
+            {
+                "AUC": BinaryAUROC(),
+                "accuracy": BinaryAccuracy(),
+                "sensitivity": BinaryRecall(),
+                "specificity": BinarySpecificity(),
+                "F1": BinaryF1Score(),
+            }
+        )
 
         self.train_metrics = metrics.clone(prefix="train/")
         self.val_metrics = metrics.clone(prefix="val/")

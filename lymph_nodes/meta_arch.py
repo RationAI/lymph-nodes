@@ -49,13 +49,15 @@ class LymphNodesMIL(LightningModule):
 
         self.criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
 
-        metrics = MetricCollection({
-            "AUC": BinaryAUROC(),
-            "accuracy": BinaryAccuracy(),
-            "sensitivity": BinaryRecall(),
-            "specificity": BinarySpecificity(),
-            "F1": BinaryF1Score(),
-        })
+        metrics = MetricCollection(
+            {
+                "AUC": BinaryAUROC(),
+                "accuracy": BinaryAccuracy(),
+                "sensitivity": BinaryRecall(),
+                "specificity": BinarySpecificity(),
+                "F1": BinaryF1Score(),
+            }
+        )
 
         self.train_metrics = metrics.clone(prefix="train/")
         self.val_metrics = metrics.clone(prefix="val/")
@@ -96,13 +98,12 @@ class LymphNodesMIL(LightningModule):
             probs = probs.unsqueeze(0)
         if label.dim() == 0:
             label = label.unsqueeze(0)
-            
+
         self.train_metrics.update(probs, label.long())
-        
+
         self.log_dict(self.train_metrics, on_step=False, on_epoch=True)
 
         return loss
-
 
     def validation_step(self, batch: TileEmbeddingsInput, batch_idx: int):
         features, label, _ = batch
@@ -114,12 +115,11 @@ class LymphNodesMIL(LightningModule):
             probs = probs.unsqueeze(0)
         if label.dim() == 0:
             label = label.unsqueeze(0)
-            
+
         self.val_metrics.update(probs, label.long())
         self.log("val/loss", loss, prog_bar=True, batch_size=len(label))
-        
-        self.log_dict(self.val_metrics, on_step=False, on_epoch=True, prog_bar=True)
 
+        self.log_dict(self.val_metrics, on_step=False, on_epoch=True, prog_bar=True)
 
     def test_step(self, batch: TileEmbeddingsInput, batch_idx: int):
         features, label, _ = batch
@@ -129,11 +129,10 @@ class LymphNodesMIL(LightningModule):
             probs = probs.unsqueeze(0)
         if label.dim() == 0:
             label = label.unsqueeze(0)
-            
-        self.test_metrics.update(probs, label.long())
-        
-        self.log_dict(self.test_metrics, on_step=False, on_epoch=True)
 
+        self.test_metrics.update(probs, label.long())
+
+        self.log_dict(self.test_metrics, on_step=False, on_epoch=True)
 
     def predict_step(self, batch: TileEmbeddingsInput, batch_idx: int):
         features, label, _ = batch
