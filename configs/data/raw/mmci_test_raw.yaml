@@ -31,7 +31,7 @@ dataset:
       - "/mnt/data/MOU/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_2_SLIDE_1-1.mrxs"
       - "/mnt/data/MOU/lymph_nodes/dataset1-ihc-2023/SNB_IHC_CASE_7_SLIDE_2-1.mrxs"
 
-      # annotated ihc slides
+      # annotated positive ihc slides
       - "/mnt/data/MOU/lymph_nodes/annotated_ihc_test/SNB_IHC_TEST_CASE-2024_1011-15.mrxs"
       - "/mnt/data/MOU/lymph_nodes/annotated_ihc_test/SNB_IHC_TEST_CASE-2024_0960-20.mrxs"
       - "/mnt/data/MOU/lymph_nodes/annotated_ihc_test/SNB_IHC_TEST_CASE-2024_1001-19-1.mrxs"
