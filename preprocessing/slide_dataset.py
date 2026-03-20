@@ -12,7 +12,7 @@ from rationai.mlkit.lightning.loggers import MLFlowLogger
 
 
 def parse_mmci_filename(filename: str) -> dict[str, Any]:
-    # Regex pattern breakdown:
+    # Legacy MMCI pattern breakdown:
     # ^SNB_: Starts with 'SNB_'
     # ([A-Z]+): Group 1 (Staining - one or more capital letters)
     # _CASE_: Literal string '_CASE_'
@@ -21,22 +21,41 @@ def parse_mmci_filename(filename: str) -> dict[str, Any]:
     # ([A-Z0-9-]+): Group 3 (Slice ID - one or more capital letters, digits, or hyphens)
     # -(0|1): Group 4 (Tumor Indicator - '0' or '1')
     # \.mrxs$: Matches the literal '.mrxs' extension at the end
-    pattern = r"^SNB_([A-Z]+)_CASE_(\d+)_SLIDE_([A-Z0-9-]+)-(0|1)\.mrxs$"
-
-    match = re.match(pattern, Path(filename).name)
-
-    if match:
-        # Extract the captured groups
-        staining, case_id, slice_id, tumor_indicator = match.groups()
-
+    base_name = Path(filename).name
+    legacy_pattern = r"^SNB_([A-Z]+)_CASE_(\d+)_SLIDE_([A-Z0-9-]+)-(0|1)\.mrxs$"
+    legacy_match = re.match(legacy_pattern, base_name)
+    if legacy_match:
+        staining, case_id, slice_id, tumor_indicator = legacy_match.groups()
         return {
             "case_id": case_id,
             "slice_id": slice_id,
             "staining": staining,
             "tumor": tumor_indicator == "1",
         }
-    else:
-        raise ValueError(f"Filename does not match expected MMCI pattern: {filename}")
+
+    # Annotated MMCI pattern breakdown:
+    # ^SNB_: Starts with 'SNB_'
+    # ([A-Z]+): Group 1 (Staining - one or more capital letters)
+    # (?:_TEST)?: Optional '_TEST' suffix in the stain prefix
+    # _CASE-(\d{4})_: Group 2 (Year, e.g. 2024)
+    # (\d+): Group 3 (Case ID)
+    # -([A-Z0-9-]+?): Group 4 (Slice ID)
+    # (?:-(0|1))?: Optional Group 5 (Tumor Indicator, defaults to positive when missing)
+    # \.mrxs$: Matches the literal '.mrxs' extension at the end
+    annotated_pattern = (
+        r"^SNB_([A-Z]+)(?:_TEST)?_CASE-(\d{4})_(\d+)-([A-Z0-9-]+?)(?:-(0|1))?\.mrxs$"
+    )
+    annotated_match = re.match(annotated_pattern, base_name)
+    if annotated_match:
+        staining, year, case_id, slice_id, tumor_indicator = annotated_match.groups()
+        return {
+            "case_id": f"{year}-{case_id}",
+            "slice_id": slice_id,
+            "staining": staining,
+            "tumor": True,
+        }
+
+    raise ValueError(f"Filename does not match expected MMCI pattern: {filename}")
 
 
 def parse_fnb_filename(filename: str) -> dict[str, Any]:
