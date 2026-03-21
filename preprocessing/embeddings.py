@@ -161,7 +161,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     slide_count = 0
     for slide_dataset in dataset.generate_datasets():
         slide_count += 1
-        slide_name = Path(slide_dataset.slide_metadata["path"]).stem
+        slide_name = slide_dataset.slide_tiles.slide_path.stem
         n_tiles = len(slide_dataset)
 
         embeddings_path = (dest / slide_name).with_suffix(".parquet")
