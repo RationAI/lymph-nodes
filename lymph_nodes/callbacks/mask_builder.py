@@ -72,7 +72,7 @@ class MaskBuilderCallback(Callback):
         if slide_rows.empty:
             raise ValueError(f"Slide '{slide_name}' was not found in dataset metadata.")
 
-        slide = cast(pd.Series, slide_rows.iloc[0])
+        slide = cast("pd.Series", slide_rows.iloc[0])
 
         kwargs = {
             "filename": Path(str(slide["path"])).stem,
@@ -111,7 +111,9 @@ class MaskBuilderCallback(Callback):
                     artifact_path=str(mask_builder.save_dir),
                 )
 
-    def _extract_batch_items(self, batch: Any) -> list[tuple[torch.Tensor, dict[str, Any]]]:
+    def _extract_batch_items(
+        self, batch: Any
+    ) -> list[tuple[torch.Tensor, dict[str, Any]]]:
         if not isinstance(batch, (tuple, list)) or len(batch) < 2:
             return []
 
@@ -154,7 +156,9 @@ class MaskBuilderCallback(Callback):
             bag = bag[:item_count]
 
             encoded = pl_module.encoder(bag)
-            attention_weights = sigmoid_normalization(pl_module.attention(encoded)).cpu()
+            attention_weights = sigmoid_normalization(
+                pl_module.attention(encoded)
+            ).cpu()
             attention_weights = attention_weights.squeeze(-1)
 
             mask_builders["attention_rescaled"].update(
@@ -164,7 +168,9 @@ class MaskBuilderCallback(Callback):
             )
 
             classification = pl_module.classifier(encoded).cpu()
-            if classification.ndim == 1 or (classification.ndim == 2 and classification.shape[-1] == 1):
+            if classification.ndim == 1 or (
+                classification.ndim == 2 and classification.shape[-1] == 1
+            ):
                 positive_probability = classification.sigmoid().reshape(-1)
                 negative_probability = 1.0 - positive_probability
                 mask_builders["classification_positive"].update(
