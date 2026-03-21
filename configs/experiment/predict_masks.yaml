@@ -1,0 +1,15 @@
+# @package _global_
+
+mode: predict
+checkpoint: ???
+
+data:
+  predict: ???
+
+trainer:
+  callbacks:
+    - _target_: lymph_nodes.callbacks.MaskBuilderCallback
+
+metadata:
+  run_name: "🎯 Predicting masks"
+  description: "Lymph nodes prediction with mask visualization callback"
