@@ -1,17 +1,14 @@
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
 
-import albumentations as A
 from albumentations.core.composition import TransformType
 from albumentations.pytorch import ToTensorV2
-from datasets import Dataset as HFDataset
 from datasets import load_dataset
 from mlflow.artifacts import download_artifacts
 from rationai.mlkit.data.datasets import OpenSlideTilesDataset
 from torch.utils.data import ConcatDataset, Dataset
 
-from lymph_nodes.typing import TileMetadata, TilesPredictSample, TilesSample
+from lymph_nodes.typing import TileMetadata, TilesPredictSample
 
 
 class _Tiles(Dataset[TilesPredictSample]):
@@ -77,7 +74,7 @@ class TilesPredict(ConcatDataset[TilesPredictSample]):
                     lambda row, sid=slide["id"]: row["slide_id"] == sid,
                     keep_in_memory=False,
                 )
-                
+
                 slide_tiles = OpenSlideTilesDataset(
                     slide_path=slide["path"],
                     level=slide.get("level", 0),
@@ -85,9 +82,7 @@ class TilesPredict(ConcatDataset[TilesPredictSample]):
                     tile_extent_y=slide.get("tile_extent_y", 224),
                     tiles=slide_tiles_hf,
                 )
-                self._slide_datasets.append(
-                    _Tiles(slide_tiles, transforms=transforms)
-                )
+                self._slide_datasets.append(_Tiles(slide_tiles, transforms=transforms))
 
         super().__init__(self._slide_datasets)
 
