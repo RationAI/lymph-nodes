@@ -1,9 +1,9 @@
 # @package _global_
 tissue_mask_uri: mlflow-artifacts:/68/b45545c7d74f47d19620b584b3cd1cf1/artifacts/tissue_masks
-blur_mask_uri: mlflow-artifacts:/68/fadfd18d81e74cb6849a3e93f8bfdef3/artifacts/blur_per_pixel
+blur_mask_uri: mlflow-artifacts:/68/18f8cbd72b3442f59c953ae020d72b41/artifacts/blur_per_pixel
 
 dataset:
-  name: Test Inference Dataset
+  name: MMCI dataset - test set
   slides:
     _target_: preprocessing.data_source.ChainedDataSources
     sources:
