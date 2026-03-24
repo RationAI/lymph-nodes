@@ -1,7 +1,7 @@
 # @package _global_
 
 dataset:
-  name: Test Inference Dataset
+  name: MMCI dataset - train set
   institution: mmci
   level: 3
   mpp: 1.94

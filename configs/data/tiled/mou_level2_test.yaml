@@ -1,0 +1,9 @@
+# @package _global_
+
+dataset:
+  name: MMCI dataset - test set
+  institution: mmci
+  level: 2
+  mpp: 0.97
+  uris:
+    mou: "mlflow-artifacts:/68/62c1855642194223adae21781ac2405d/artifacts/MMCI dataset - test set"
