@@ -1,15 +1,23 @@
+import logging
 from collections.abc import Iterable
 
 import torch
 from hydra.utils import instantiate
 from lightning import LightningDataModule
 from omegaconf import DictConfig
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedGroupKFold
 from torch import Tensor
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
-from lymph_nodes.data.datasets import TileEmbeddingsSubset, create_subset
+from lymph_nodes.data.datasets import (
+    TileEmbeddings,
+    TileEmbeddingsSubset,
+    create_subset,
+)
 from lymph_nodes.typing import Metadata, TileEmbeddingsInput
+
+
+log = logging.getLogger(__name__)
 
 
 class DataModule(LightningDataModule):
@@ -35,12 +43,27 @@ class DataModule(LightningDataModule):
     def setup(self, stage: str) -> None:
         match stage:
             case "fit" | "validate":
-                assert self.kfold_splits is not None and self.k is not None
-                dataset = instantiate(self.datasets["train"])
-                kf = KFold(n_splits=self.kfold_splits, random_state=42, shuffle=True)
-                train_idx, val_idx = list(kf.split(range(len(dataset))))[self.k - 1]
-                self.train = create_subset(dataset, train_idx)
-                self.val = create_subset(dataset, val_idx)
+                if self.kfold_splits is not None:
+                    assert self.k is not None
+                    dataset = instantiate(self.datasets["train"])
+                    sgkf = StratifiedGroupKFold(
+                        n_splits=self.kfold_splits, shuffle=True, random_state=42
+                    )
+                    splits = list(
+                        sgkf.split(
+                            range(len(dataset)),
+                            dataset.labels,
+                            dataset.groups,
+                        )
+                    )
+                    train_idx, val_idx = splits[self.k - 1]
+                    self.train = create_subset(dataset, train_idx)
+                    self.val = create_subset(dataset, val_idx)
+                    _log_split(self.train, self.val, fold=self.k)
+                else:
+                    self.train = instantiate(self.datasets["train"])
+                    self.val = instantiate(self.datasets["val"])
+                    _log_split(self.train, self.val)
             case "test":
                 self.test = instantiate(self.datasets["test"])
             case "predict":
@@ -96,9 +119,41 @@ def collate_fn(
     return torch.stack(inputs), torch.stack(labels), metadatas
 
 
-def _weighted_sampler(subset: TileEmbeddingsSubset) -> WeightedRandomSampler:
+def _weighted_sampler(
+    subset: TileEmbeddings | TileEmbeddingsSubset,
+) -> WeightedRandomSampler:
     """Create a weighted random sampler to balance positive/negative classes."""
     labels = subset.labels
     class_counts = {c: labels.count(c) for c in set(labels)}
     weights = [1.0 / class_counts[label] for label in labels]
     return WeightedRandomSampler(weights, num_samples=len(labels), replacement=True)
+
+
+def _log_split(
+    train: TileEmbeddings | TileEmbeddingsSubset,
+    val: TileEmbeddings | TileEmbeddingsSubset,
+    fold: int | None = None,
+) -> None:
+    """Log a human-readable summary of the train/val split to stdout."""
+    prefix = f"Fold {fold} — " if fold is not None else ""
+
+    def _summarise(subset: TileEmbeddings | TileEmbeddingsSubset, name: str) -> None:
+        pos = sum(subset.labels)
+        neg = len(subset.labels) - pos
+        log.info(
+            "%s%s  (%d slides: %d pos, %d neg)",
+            prefix,
+            name,
+            len(subset.labels),
+            pos,
+            neg,
+        )
+        for slide in subset.slides:
+            marker = "+" if slide["label"] == 1 else "-"
+            log.info("    [%s] %s", marker, slide["name"])
+
+    log.info("=" * 60)
+    _summarise(train, "TRAIN")
+    log.info("-" * 60)
+    _summarise(val, "VAL")
+    log.info("=" * 60)

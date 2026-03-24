@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import mlflow.artifacts
@@ -10,13 +11,19 @@ from torch.utils.data import Dataset
 from lymph_nodes.typing import MetadataTileEmbeddings, TileEmbeddingsSample
 
 
-def _label_from_filename(stem: str) -> int:
-    """Extract binary label from the filename convention.
+def _group_from_stem(stem: str) -> str:
+    """Extract patient/case group ID from a slide stem for group-aware K-Fold splitting."""
+    mmci = re.match(r"^SNB_[A-Z]+_CASE_(\d+)_SLIDE_", stem)
+    if mmci:
+        return f"case_{mmci.group(1)}"
+    fnb = re.match(r"^FNB-?P?(\d+)-(\d+)-", stem)
+    if fnb:
+        return f"{fnb.group(1)}-{fnb.group(2)}"
+    return stem
 
-    Both MMCI and FNBrno slides encode label as the last character:
-      - ends with '-1' → positive (metastasis)
-      - ends with '-0' → negative
-    """
+
+def _label_from_filename(stem: str) -> int:
+    """Extract binary label from the filename convention."""
     if stem.endswith("-1"):
         return 1
     if stem.endswith("-0"):
@@ -28,16 +35,13 @@ def _label_from_filename(stem: str) -> int:
 
 
 class TileEmbeddings(Dataset[TileEmbeddingsSample]):
-    """Dataset for pre-computed tile embeddings stored as per-slide parquet files.
-
-    Each parquet file is expected to have columns: x, y, embedding
-    where 'embedding' contains numpy arrays of shape (embedding_dim,).
-    """
+    """Dataset for pre-computed tile embeddings stored as per-slide parquet files."""
 
     def __init__(
         self,
         embeddings_uri: str,
         padding: bool = True,
+        include_slides: list[str] | None = None,
     ) -> None:
         self.padding = padding
 
@@ -46,6 +50,15 @@ class TileEmbeddings(Dataset[TileEmbeddingsSample]):
         parquet_files = sorted(embeddings_dir.glob("*.parquet"))
         if not parquet_files:
             raise FileNotFoundError(f"No parquet files found in {embeddings_dir}")
+
+        if include_slides is not None:
+            include_set = set(include_slides)
+            parquet_files = [pf for pf in parquet_files if pf.stem in include_set]
+            if not parquet_files:
+                raise FileNotFoundError(
+                    f"No parquet files matched the include_slides filter in {embeddings_dir}. "
+                    f"Expected stems: {sorted(include_set)}"
+                )
 
         self.slides: list[dict] = []
         for pf in parquet_files:
@@ -59,6 +72,7 @@ class TileEmbeddings(Dataset[TileEmbeddingsSample]):
             )
 
         self.labels = [s["label"] for s in self.slides]
+        self.groups = [_group_from_stem(s["name"]) for s in self.slides]
 
         if self.padding:
             self.max_tiles = max(len(pd.read_parquet(s["path"])) for s in self.slides)

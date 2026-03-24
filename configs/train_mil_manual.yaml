@@ -1,9 +1,13 @@
 # @package _global_
+# Manual train/val split — fill in include_slides under data.train and data.val.
+# Run with:
+#   uv run -m lymph_nodes --config-name=train_mil_manual foundation=prov-gigapath level=level1
 
 defaults:
   - hydra: default
   - logger: mlflow
   - /data/datasets@data.train: tile_embeddings/tile_embeddings
+  - /data/datasets@data.val: tile_embeddings/tile_embeddings
   - /data/embeddings/uris
   - _self_
 
@@ -32,8 +36,10 @@ trainer:
 data:
   batch_size: 1
   num_workers: 4
-  kfold_splits: 5
-  k: null  # null = run all folds; set to 1-5 to run a single specific fold
+  train:
+    include_slides: ???
+  val:
+    include_slides: ???
 
 model:
   _target_: lymph_nodes.attention_mil_lymph_nodes.LymphNodesMIL
@@ -43,8 +49,8 @@ model:
 
 metadata:
   experiment_name: 'Lymph Nodes'
-  run_name: '🏋️‍♂️ Training: ${foundation} ${level} (fold ${data.k}/${data.kfold_splits}) MIL'
-  description: 'MIL for Lymph Node Metastasis Detection'
+  run_name: '🏋️‍♂️ Training (manual split): ${foundation} ${level}'
+  description: 'MIL for Lymph Node Metastasis Detection - Manual Train/Val Split'
   hyperparams:
     foundation: ${foundation}
     level: ${level}

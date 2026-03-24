@@ -15,6 +15,7 @@ class TileEmbeddingsSubset(Subset[TileEmbeddingsSample]):
         super().__init__(dataset, indices)
         self.slides = [dataset.slides[i] for i in indices]
         self.labels = [dataset.labels[i] for i in indices]
+        self.groups = [dataset.groups[i] for i in indices]
 
 
 def create_subset(

@@ -10,7 +10,7 @@ mode: test
 checkpoint: ???
 foundation: ???
 level: ???
-embeddings_uri: ${uris.embeddings.${key:${foundation}}.${level}}
+embeddings_uri: ${uris.test_embeddings.${key:${foundation}}.${level}}
 
 trainer: {}
 
