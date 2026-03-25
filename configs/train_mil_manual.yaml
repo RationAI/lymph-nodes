@@ -1,0 +1,56 @@
+# @package _global_
+# Manual train/val split — fill in include_slides under data.train and data.val.
+# Run with:
+#   uv run -m lymph_nodes --config-name=train_mil_manual foundation=prov-gigapath level=level1
+
+defaults:
+  - hydra: default
+  - logger: mlflow
+  - /data/datasets@data.train: tile_embeddings/tile_embeddings
+  - /data/datasets@data.val: tile_embeddings/tile_embeddings
+  - /data/embeddings/uris
+  - _self_
+
+seed: 42
+mode: fit
+checkpoint: null
+foundation: ???
+level: ???
+
+embeddings_uri: ${uris.embeddings.${key:${foundation}}.${level}}
+
+trainer:
+  enable_checkpointing: True
+  max_epochs: 50
+  log_every_n_steps: 3
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      save_top_k: 1
+      monitor: val/AUC
+      mode: max
+    - _target_: lightning.pytorch.callbacks.EarlyStopping
+      monitor: val/loss
+      mode: min
+      patience: 10
+
+data:
+  batch_size: 1
+  num_workers: 4
+  train:
+    include_slides: ???
+  val:
+    include_slides: ???
+
+model:
+  _target_: lymph_nodes.attention_mil_lymph_nodes.LymphNodesMIL
+  lr: 0.0001
+  pos_weight: 1.0
+  foundation: ${foundation}
+
+metadata:
+  experiment_name: 'Lymph Nodes'
+  run_name: '🏋️‍♂️ Training (manual split): ${foundation} ${level}'
+  description: 'MIL for Lymph Node Metastasis Detection - Manual Train/Val Split'
+  hyperparams:
+    foundation: ${foundation}
+    level: ${level}
