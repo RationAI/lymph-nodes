@@ -1,0 +1,61 @@
+# @package _global_
+# Patch-based MLP baseline — manual train/val split.
+#
+# Slide-level metrics are computed by aggregating per-tile probabilities
+# (configurable via model.aggregation) and logged as val/slide_*.
+# ModelCheckpoint and EarlyStopping monitor val/slide_AUC.
+
+defaults:
+  - hydra: default
+  - logger: mlflow
+  - /data/datasets@data.train: tile_patch/tile_patch
+  - /data/datasets@data.val: tile_patch/tile_patch
+  - /data/embeddings/uris
+  - _self_
+
+seed: 42
+mode: fit
+checkpoint: null
+foundation: ???
+level: ???
+
+embeddings_uri: ${uris.patch_embeddings.${key:${foundation}}.${level}}
+
+trainer:
+  enable_checkpointing: true
+  max_epochs: 50
+  log_every_n_steps: 10
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      save_top_k: 1
+      monitor: val/slide_AUC
+      mode: max
+    - _target_: lightning.pytorch.callbacks.EarlyStopping
+      monitor: val/slide_AUC
+      mode: max
+      patience: 10
+
+data:
+  batch_size: 64
+  num_workers: 4
+  train:
+    include_slides: ???
+  val:
+    include_slides: ???
+
+model:
+  _target_: lymph_nodes.patch_mlp.PatchMLP
+  foundation: ${foundation}
+  hidden_dims: [512, 256]
+  dropout: 0.25
+  aggregation: max
+  lr: 0.0001
+  pos_weight: 1.0
+
+metadata:
+  experiment_name: 'Lymph Nodes'
+  run_name: '🏋️‍♂️ Patch MLP: ${foundation} ${level}'
+  description: 'Patch-based MLP baseline for lymph node metastasis detection'
+  hyperparams:
+    foundation: ${foundation}
+    level: ${level}

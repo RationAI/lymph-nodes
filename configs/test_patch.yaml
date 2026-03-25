@@ -1,0 +1,37 @@
+# @package _global_
+# Patch-based MLP baseline — test / evaluation.
+# All tiles from all test slides are scored individually, then aggregated
+# per slide (via model.aggregation) to produce slide-level predictions.
+
+defaults:
+  - hydra: default
+  - logger: mlflow
+  - /data/datasets@data.test: tile_patch/tile_patch
+  - /data/embeddings/uris
+  - _self_
+
+seed: 42
+mode: test
+checkpoint: ???
+foundation: ???
+level: ???
+
+embeddings_uri: ${uris.test_embeddings.${key:${foundation}}.${level}}
+
+trainer: {}
+
+data:
+  batch_size: 64
+  num_workers: 4
+
+model:
+  _target_: lymph_nodes.patch_mlp.PatchMLP
+  foundation: ${foundation}
+
+metadata:
+  experiment_name: 'Lymph Nodes'
+  run_name: '🧪 Patch MLP Test: ${foundation} ${level}'
+  description: 'Patch-based MLP baseline test for lymph node metastasis detection'
+  hyperparams:
+    foundation: ${foundation}
+    level: ${level}

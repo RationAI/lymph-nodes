@@ -1,27 +1,71 @@
 # @package _global_
 uris:
-  # Embeddings for the train+val slides
-  embeddings:
+  # ----------------------------------------------------------------
+  # MIL train+val embeddings (all slides: positive + negative)
+  # ----------------------------------------------------------------
+  mil_embeddings:
     prov_gigapath:
       level1: "mlflow-artifacts:/68/7013ddba0e1a4f28810814947db96270/artifacts/embeddings"
       level2: ???
       level3: ???
+    uni:
+      level1: ???  # add link here
+      level2: ???
+      level3: ???
     uni2_h:
       level1: ???
+      level2: ???
+      level3: ???
+    virchow:
+      level1: ???  # add link here
       level2: ???
       level3: ???
     virchow2:
       level1: ???
       level2: ???
       level3: ???
-  # Embeddings for the test slides
+  # ----------------------------------------------------------------
+  # Patch MLP train+val embeddings (negative slides only)
+  # ----------------------------------------------------------------
+  patch_embeddings:
+    prov_gigapath:
+      level1: ???
+      level2: ???
+      level3: ???
+    uni:
+      level1: ???  # add link here
+      level2: ???
+      level3: ???
+    uni2_h:
+      level1: ???
+      level2: ???
+      level3: ???
+    virchow:
+      level1: ???  # add link here
+      level2: ???
+      level3: ???
+    virchow2:
+      level1: ???
+      level2: ???
+      level3: ???
+  # ----------------------------------------------------------------
+  # Test embeddings (shared — all test slides)
+  # ----------------------------------------------------------------
   test_embeddings:
     prov_gigapath:
       level1: "mlflow-artifacts:/68/14089407429d45fcb05e9808c3f421de/artifacts/embeddings"
       level2: ???
       level3: ???
+    uni:
+      level1: ???  # add link here
+      level2: ???
+      level3: ???
     uni2_h:
       level1: ???
+      level2: ???
+      level3: ???
+    virchow:
+      level1: ???  # add link here
       level2: ???
       level3: ???
     virchow2:

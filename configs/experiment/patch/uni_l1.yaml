@@ -1,0 +1,5 @@
+# @package _global_
+# Patch MLP — UNI, level 1
+# Run: python -m lymph_nodes --config-name train_patch +experiment=patch/uni_l1
+foundation: uni
+level: level1

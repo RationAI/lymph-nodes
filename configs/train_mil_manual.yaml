@@ -17,7 +17,7 @@ checkpoint: null
 foundation: ???
 level: ???
 
-embeddings_uri: ${uris.embeddings.${key:${foundation}}.${level}}
+embeddings_uri: ${uris.mil_embeddings.${key:${foundation}}.${level}}
 
 trainer:
   enable_checkpointing: True
