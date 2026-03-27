@@ -10,7 +10,16 @@ from torchmetrics.classification import (
     BinarySpecificity,
 )
 
+from lymph_nodes.modeling.aggregators import (
+    ABMILAggregator,
+    CLAMAggregator,
+    MaxPoolingAggregator,
+    TransMILAggregator,
+)
 from lymph_nodes.typing import TileEmbeddingsInput
+
+
+_MIL_TYPES = ("max_pooling", "abmil", "transmil", "clam")
 
 
 def _input_dim_for_foundation(foundation: str) -> int:
@@ -28,25 +37,49 @@ def _input_dim_for_foundation(foundation: str) -> int:
 class LymphNodesMIL(LightningModule):
     def __init__(
         self,
+        mil_type: str = "abmil",
         foundation: str = "prov-gigapath",
         lr: float = 1e-4,
         pos_weight: float = 1.0,
+        bag_weight: float = 0.7,
         input_dim: int | None = None,
     ):
+        """Initializes the attention MIL module for lymph nodes.
+
+        Args:
+            mil_type: Aggregation strategy. One of: max_pooling, abmil, transmil, clam.
+            foundation: Name of the tile encoder; used to infer input_dim when not set.
+            lr: Learning rate for Adam.
+            pos_weight: Positive-class weight for BCEWithLogitsLoss.
+            bag_weight: CLAM only — weight of the instance loss relative to the bag loss.
+                        Total loss = bag_loss + bag_weight * instance_loss.
+            input_dim: Override the embedding dimensionality (inferred from foundation
+                        by default).
+        """
         super().__init__()
         self.save_hyperparameters()
+
+        if mil_type not in _MIL_TYPES:
+            raise ValueError(f"mil_type must be one of {_MIL_TYPES}, got '{mil_type}'")
 
         if input_dim is None:
             input_dim = _input_dim_for_foundation(foundation)
 
         self.lr = lr
+        self.mil_type = mil_type
+        self.bag_weight = bag_weight
 
-        self.attention_V = nn.Sequential(nn.Linear(input_dim, 256), nn.Tanh())
-        self.attention_U = nn.Sequential(nn.Linear(input_dim, 256), nn.Sigmoid())
-        self.attention_weights = nn.Linear(256, 1)
+        match mil_type:
+            case "max_pooling":
+                self.aggregator = MaxPoolingAggregator()
+            case "abmil":
+                self.aggregator = ABMILAggregator(input_dim)
+            case "transmil":
+                self.aggregator = TransMILAggregator(input_dim)
+            case "clam":
+                self.aggregator = CLAMAggregator(input_dim)
 
-        self.classifier = nn.Sequential(nn.Linear(input_dim, 1))
-
+        self.classifier = nn.Linear(input_dim, 1)
         self.criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
 
         metrics = MetricCollection(
@@ -64,26 +97,30 @@ class LymphNodesMIL(LightningModule):
         self.test_metrics = metrics.clone(prefix="test/")
 
     def forward(self, x):
-        a_v = self.attention_V(x)
-        a_u = self.attention_U(x)
-
-        a = self.attention_weights(a_v * a_u)
-
-        mask = x.abs().sum(dim=-1, keepdim=True) > 1e-6
-        a = a.masked_fill(~mask, float("-inf"))
-
-        A = torch.softmax(a, dim=1)
-        M = torch.sum(A * x, dim=1)
-
-        logits = self.classifier(M)
-
-        return logits.squeeze(1), A.squeeze(2)
+        mask = x.abs().sum(dim=-1) > 1e-6  # (B, N)
+        M, A = self.aggregator(x, mask)
+        logits = self.classifier(M).squeeze(-1)
+        return logits, A
 
     def training_step(self, batch: TileEmbeddingsInput, batch_idx: int):
         features, label, _ = batch
-        logits, _ = self(features)
+        logits, A = self(features)
 
-        loss = self.criterion(logits, label.float())
+        bag_loss = self.criterion(logits, label.float())
+
+        if self.mil_type == "clam":
+            inst_loss = self.aggregator.compute_instance_loss(features, A, label)
+            loss = bag_loss + self.bag_weight * inst_loss
+            self.log(
+                "train/instance_loss",
+                inst_loss,
+                on_step=True,
+                on_epoch=True,
+                batch_size=len(label),
+            )
+        else:
+            loss = bag_loss
+
         self.log(
             "train/loss",
             loss,

@@ -12,6 +12,7 @@ mode: fit
 checkpoint: null
 foundation: ???
 level: ???
+mil_type: abmil  # one of: max_pooling | abmil | transmil | clam
 
 embeddings_uri: ${uris.embeddings.${key:${foundation}}.${level}}
 
@@ -37,14 +38,17 @@ data:
 
 model:
   _target_: lymph_nodes.attention_mil_lymph_nodes.LymphNodesMIL
+  mil_type: ${mil_type}
   lr: 0.0001
   pos_weight: 1.0
+  bag_weight: 0.7  # CLAM only
   foundation: ${foundation}
 
 metadata:
   experiment_name: 'Lymph Nodes'
-  run_name: '🏋️‍♂️ Training: ${foundation} ${level} (fold ${data.k}/${data.kfold_splits}) MIL'
+  run_name: '🏋️‍♂️ Training: ${foundation} ${level} ${mil_type} (fold ${data.k}/${data.kfold_splits})'
   description: 'MIL for Lymph Node Metastasis Detection'
   hyperparams:
     foundation: ${foundation}
     level: ${level}
+    mil_type: ${mil_type}
