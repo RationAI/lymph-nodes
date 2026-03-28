@@ -1,0 +1,10 @@
+# @package _global_
+
+dataset:
+  name: Colorectum dataset - TMAS
+  institution: mmci
+  level: 1
+  mpp: 0.5
+  uris:
+    tmas-train: "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/tmas/train"
+    tmas-test: "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/tmas/test"

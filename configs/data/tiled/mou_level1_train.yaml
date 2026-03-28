@@ -4,6 +4,6 @@ dataset:
   name: MMCI dataset - train set
   institution: mmci
   level: 1
-  mpp: 0.5
+  mpp: 0.48
   uris:
     mou: "mlflow-artifacts:/68/69a7669a299947fdb427b1d4a680cbcf/artifacts/Test Inference Dataset"
