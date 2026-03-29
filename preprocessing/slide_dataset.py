@@ -55,7 +55,27 @@ def parse_mmci_filename(filename: str) -> dict[str, Any]:
             "tumor": True,
         }
 
+    if not base_name.startswith("SNB_"):
+        return {
+            "case_id": "TMA_CASE",
+            "slice_id": Path(filename).stem,
+            "staining": "DAB",
+            "tumor": False,
+        }
+
     raise ValueError(f"Filename does not match expected MMCI pattern: {filename}")
+
+
+def parse_tma_filename(filename: str) -> dict[str, Any]:
+    # A simple parser for the TMA slides that skips complex regex.
+    base_name = Path(filename).stem
+
+    return {
+        "case_id": "TMA_CASE",
+        "slice_id": base_name,
+        "staining": "DAB",
+        "tumor": False,
+    }
 
 
 def parse_fnb_filename(filename: str) -> dict[str, Any]:
