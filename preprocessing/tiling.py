@@ -57,7 +57,7 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
 
 def extract_coverage(row: dict[str, Any]) -> dict[str, Any]:
     cyto_overlap = row.get("cytokeratin_overlap", {}).get("255", 0.0) or 0.0
-    
+
     return {
         **row,
         "tissue_coverage": 1.0 - (row.get("tissue_overlap", {}).get("0", 0.0) or 0.0),
