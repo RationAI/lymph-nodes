@@ -37,6 +37,7 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
         "tile_extent_y": row["tile_extent_y"],
         "tissue_mask_path": row["tissue_mask_path"],
         "blur_mask_path": row["blur_mask_path"],
+        "cytokeratin_mask_path": row.get("cytokeratin_mask_path"),
     }
 
     return [
@@ -55,10 +56,13 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def extract_coverage(row: dict[str, Any]) -> dict[str, Any]:
+    cyto_overlap = row.get("cytokeratin_overlap", {}).get("255", 0.0) or 0.0
+    
     return {
         **row,
         "tissue_coverage": 1.0 - (row.get("tissue_overlap", {}).get("0", 0.0) or 0.0),
         "blur_coverage": 1.0 - (row.get("blur_overlap", {}).get("0", 0.0) or 0.0),
+        "metastazis": cyto_overlap,
     }
 
 
@@ -92,6 +96,7 @@ def main(config: DictConfig, logger=MLFlowLogger):
 
     tissue_dir = download_artifacts(config.tissue_mask_uri)
     blur_dir = download_artifacts(config.blur_mask_uri)
+    cytokeratin_dir = download_artifacts(config.cytokeratin_mask_uri)
 
     def add_mask_paths(row):
         filename = os.path.basename(row["path"])
@@ -99,6 +104,7 @@ def main(config: DictConfig, logger=MLFlowLogger):
         mask_filename = f"{stem}.tiff"
         row["tissue_mask_path"] = os.path.join(tissue_dir, mask_filename)
         row["blur_mask_path"] = os.path.join(blur_dir, mask_filename)
+        row["cytokeratin_mask_path"] = os.path.join(cytokeratin_dir, mask_filename)
         return row
 
     slides_ds = slides_ds.map(add_mask_paths)
@@ -141,14 +147,28 @@ def main(config: DictConfig, logger=MLFlowLogger):
         ),
     )
 
+    tiles = tiles.with_column(
+        "cytokeratin_overlap",
+        tile_overlay_overlap(
+            tissue_roi,
+            col("cytokeratin_mask_path"),
+            col("tile_x"),
+            col("tile_y"),
+            col("mpp_x"),
+            col("mpp_y"),
+        ),
+    )
+
     tiles = tiles.map(extract_coverage)
 
     tiles = tiles.drop_columns(
         [
             "tissue_mask_path",
             "blur_mask_path",
+            "cytokeratin_mask_path",
             "tissue_overlap",
             "blur_overlap",
+            "cytokeratin_overlap",
         ]
     )
 

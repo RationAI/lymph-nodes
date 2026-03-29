@@ -8,6 +8,7 @@ data_name: ???
 
 tissue_mask_uri: ???
 blur_mask_uri: ???
+cytokeratin_mask_uri: ???
 
 min_tissue_coverage: 0
 max_blur_coverage: 0
@@ -22,3 +23,4 @@ metadata:
     stride: ${stride}
     tissue_mask_uri: ${tissue_mask_uri}
     blur_mask_uri: ${blur_mask_uri}
+    cytokeratin_mask_uri: ${cytokeratin_mask_uri}

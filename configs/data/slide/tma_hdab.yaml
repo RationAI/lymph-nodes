@@ -1,0 +1,12 @@
+# @package _global_
+tissue_mask_uri: 
+blur_mask_uri: 
+cytokeratin_mask_uri:
+
+dataset:
+  name: TMA HDAB dataset
+  slides:
+    _target_: preprocessing.data_source.ChainedDataSources
+    sources:
+      - _target_: preprocessing.data_source.MLFlowDataSource
+        uri: mlflow-artifacts:/68/2f9859d8cd4748af96a83ff60bc08f55/artifacts/slides.csv
