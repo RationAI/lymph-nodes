@@ -6,17 +6,17 @@ dataset:
   slides:
     _target_: preprocessing.data_source.ListDataSource
     paths:
-      - "/mnt/data/MOU/breast/tissue_microarray_TNB/ckae/TNBC-BF-1-PNG.tiff"
-      - "/mnt/data/MOU/breast/tissue_microarray_TNB/ckae/TNBC-BF-2-PNG.tiff"
-      - "/mnt/data/MOU/breast/tissue_microarray_TNB/ckae/TNBC-BF-3-PNG.tiff"
-      - "/mnt/data/MOU/breast/tissue_microarray_TNB/ckae/TNBC-BF-4-PNG.tiff"
-      - "/mnt/data/MOU/breast/tissue_microarray_TNB/ckae/TNBC-BF-5-PNG.tiff"
-      - "/mnt/data/MOU/breast/tissue_microarray_TNB/ckae/TNBC-BF-6-PNG.tiff"
+      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-1-PNG.tiff"
+      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-2-PNG.tiff"
+      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-3-PNG.tiff"
+      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-4-PNG.tiff"
+      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-5-PNG.tiff"
+      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-6-PNG.tiff"
 # ---- #
       - "/mnt/projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_final_scans/FIN-CK-HR2-19-ERA-DAB.tiff"
       - "/mnt/projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_final_scans/FIN-CK-HR2-19-PGRA-DAB.tiff"
 # ---- #
-      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/DAB-CK-KOS02.tiff"
-      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/DAB-CK-KOS03.tiff"
-      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/DAB-CK-KOS04.tiff"
-      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/DAB-CK-KOS05.tiff"
+      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/OS02.tiff"
+      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/KOS03.tiff"
+      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/KOS04.tiff"
+      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/KOS05.tiff"
