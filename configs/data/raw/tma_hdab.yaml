@@ -6,17 +6,17 @@ dataset:
   slides:
     _target_: preprocessing.data_source.ListDataSource
     paths:
-      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-1-PNG.tiff"
-      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-2-PNG.tiff"
-      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-3-PNG.tiff"
-      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-4-PNG.tiff"
-      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-5-PNG.tiff"
-      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-6-PNG.tiff"
+      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-1-PNG.mrxs"
+      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-2-PNG.mrxs"
+      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-3-PNG.mrxs"
+      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-4-PNG.mrxs"
+      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-5-PNG.mrxs"
+      - "/mnt/data/MOU/breast/tissue_microarray_TNBC/ckae/TNBC-BF-6-PNG.mrxs"
 # ---- #
-      - "/mnt/projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_final_scans/FIN-CK-HR2-19-ERA-DAB.tiff"
-      - "/mnt/projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_final_scans/FIN-CK-HR2-19-PGRA-DAB.tiff"
+      - "/mnt/projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_final_scans/FIN-CK-HR2-19-ERA-DAB.mrxs"
+      - "/mnt/projects/Lymph_nodes/MMCI/Immunohistochemistry/Cytokeratin_mask_final_scans/FIN-CK-HR2-19-PGRA-DAB.mrxs"
 # ---- #
-      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/OS02.tiff"
-      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/KOS03.tiff"
-      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/KOS04.tiff"
-      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/KOS05.tiff"
+      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/OS02.mrxs"
+      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/KOS03.mrxs"
+      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/KOS04.mrxs"
+      - "/mnt/data/MOU/colorectum/tissue_microarray/dab/KOS05.mrxs"

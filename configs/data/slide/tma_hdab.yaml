@@ -1,7 +1,7 @@
 # @package _global_
 tissue_mask_uri: 
 blur_mask_uri: 
-cytokeratin_mask_uri:
+cytokeratin_mask_uri: mlflow-artifacts:/68/8ad173ea482d4db999bee7686d9dc2d5/artifacts/cytokeratin_masks
 
 dataset:
   name: TMA HDAB dataset

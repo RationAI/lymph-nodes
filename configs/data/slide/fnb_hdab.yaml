@@ -1,0 +1,11 @@
+# @package _global_
+tissue_mask_uri: mlflow-artifacts:/68/f0bf2fec457e480e82a6a07c7cdad0bd/artifacts/tissue_masks
+blur_mask_uri: mlflow-artifacts:/68/fadfd18d81e74cb6849a3e93f8bfdef3/artifacts/blur_per_pixel
+
+dataset:
+  name: Test Inference Dataset
+  slides:
+    _target_: preprocessing.data_source.ChainedDataSources
+    sources:
+      - _target_: preprocessing.data_source.MLFlowDataSource
+        uri: mlflow-artifacts:/68/d35b70f56bcb400983fc88d8bcb7bc27/artifacts/slides.csv
