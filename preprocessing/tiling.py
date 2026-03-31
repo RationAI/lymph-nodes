@@ -116,14 +116,15 @@ def main(config: DictConfig, logger=MLFlowLogger):
             raise FileNotFoundError(f"Cannot find {tissue_path}")
         row["tissue_mask_path"] = tissue_path
 
-        possible_names = [f"{stem}.tiff", f"DAB-CK-{stem}.tiff"]
-        found_cyto_path = None
+        if cytokeratin_dir:
+            possible_names = [f"{stem}.tiff", f"DAB-CK-{stem}.tiff"]
+            found_cyto_path = None
 
-        for name in possible_names:
-            search_result = list(Path(cytokeratin_dir).rglob(name))
-            if search_result:
-                found_cyto_path = str(search_result[0])
-                break
+            for name in possible_names:
+                search_result = list(Path(cytokeratin_dir).rglob(name))
+                if search_result:
+                    found_cyto_path = str(search_result[0])
+                    break
 
         if found_cyto_path:
             row["cytokeratin_mask_path"] = found_cyto_path
