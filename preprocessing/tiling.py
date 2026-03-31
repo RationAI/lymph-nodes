@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Any
 
 import hydra
@@ -36,7 +37,7 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
         "tile_extent_x": row["tile_extent_x"],
         "tile_extent_y": row["tile_extent_y"],
         "tissue_mask_path": row["tissue_mask_path"],
-        "blur_mask_path": row["blur_mask_path"],
+        "blur_mask_path": row.get("blur_mask_path"),
         "cytokeratin_mask_path": row.get("cytokeratin_mask_path"),
     }
 
@@ -95,16 +96,31 @@ def main(config: DictConfig, logger=MLFlowLogger):
     )
 
     tissue_dir = download_artifacts(config.tissue_mask_uri)
-    blur_dir = download_artifacts(config.blur_mask_uri)
-    cytokeratin_dir = download_artifacts(config.cytokeratin_mask_uri)
+    blur_dir = (
+        download_artifacts(config.blur_mask_uri)
+        if config.get("blur_mask_uri")
+        else None
+    )
+    cytokeratin_dir = (
+        download_artifacts(config.cytokeratin_mask_uri)
+        if config.get("cytokeratin_mask_uri")
+        else None
+    )
 
     def add_mask_paths(row):
         filename = os.path.basename(row["path"])
         stem, _ = os.path.splitext(filename)
         mask_filename = f"{stem}.tiff"
         row["tissue_mask_path"] = os.path.join(tissue_dir, mask_filename)
-        row["blur_mask_path"] = os.path.join(blur_dir, mask_filename)
-        row["cytokeratin_mask_path"] = os.path.join(cytokeratin_dir, mask_filename)
+        cyto_search = list(Path(cytokeratin_dir).rglob(mask_filename))
+        if cyto_search:
+            row["cytokeratin_mask_path"] = str(cyto_search[0])
+        else:
+            row["cytokeratin_mask_path"] = os.path.join(cytokeratin_dir, mask_filename)
+
+        if blur_dir:
+            row["blur_mask_path"] = os.path.join(blur_dir, mask_filename)
+
         return row
 
     slides_ds = slides_ds.map(add_mask_paths)
@@ -135,42 +151,44 @@ def main(config: DictConfig, logger=MLFlowLogger):
         lambda r: tissue_coverage(r.get("tissue_overlap")) > config.min_tissue_coverage
     )
 
-    tiles = tiles.with_column(
-        "blur_overlap",
-        tile_overlay_overlap(
-            tissue_roi,
-            col("blur_mask_path"),
-            col("tile_x"),
-            col("tile_y"),
-            col("mpp_x"),
-            col("mpp_y"),
-        ),
-    )
+    if config.get("blur_mask_uri"):
+        tiles = tiles.with_column(
+            "blur_overlap",
+            tile_overlay_overlap(
+                tissue_roi,
+                col("blur_mask_path"),
+                col("tile_x"),
+                col("tile_y"),
+                col("mpp_x"),
+                col("mpp_y"),
+            ),
+        )
 
-    tiles = tiles.with_column(
-        "cytokeratin_overlap",
-        tile_overlay_overlap(
-            tissue_roi,
-            col("cytokeratin_mask_path"),
-            col("tile_x"),
-            col("tile_y"),
-            col("mpp_x"),
-            col("mpp_y"),
-        ),
-    )
+    if config.get("cytokeratin_mask_uri"):
+        tiles = tiles.with_column(
+            "cytokeratin_overlap",
+            tile_overlay_overlap(
+                tissue_roi,
+                col("cytokeratin_mask_path"),
+                col("tile_x"),
+                col("tile_y"),
+                col("mpp_x"),
+                col("mpp_y"),
+            ),
+        )
 
     tiles = tiles.map(extract_coverage)
 
-    tiles = tiles.drop_columns(
-        [
-            "tissue_mask_path",
-            "blur_mask_path",
-            "cytokeratin_mask_path",
-            "tissue_overlap",
-            "blur_overlap",
-            "cytokeratin_overlap",
-        ]
-    )
+    columns_to_drop = [
+        "tissue_mask_path",
+        "tissue_overlap",
+    ]
+    if config.get("blur_mask_uri"):
+        columns_to_drop.extend(["blur_mask_path", "blur_overlap"])
+    if config.get("cytokeratin_mask_uri"):
+        columns_to_drop.extend(["cytokeratin_mask_path", "cytokeratin_overlap"])
+
+    tiles = tiles.drop_columns(columns_to_drop)
 
     slides_df = slides_ds.to_pandas()
     tiles_df = tiles.to_pandas()

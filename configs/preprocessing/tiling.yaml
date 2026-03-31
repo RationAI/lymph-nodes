@@ -7,8 +7,8 @@ stride: ???
 data_name: ???
 
 tissue_mask_uri: ???
-blur_mask_uri: ???
-cytokeratin_mask_uri: ???
+blur_mask_uri: null
+cytokeratin_mask_uri: null
 
 min_tissue_coverage: 0
 max_blur_coverage: 0
