@@ -8,4 +8,4 @@ dataset:
     _target_: preprocessing.data_source.ChainedDataSources
     sources:
       - _target_: preprocessing.data_source.MLFlowDataSource
-        uri: mlflow-artifacts:/68/2f9859d8cd4748af96a83ff60bc08f55/artifacts/slides.csv
+        uri: mlflow-artifacts:/68/7a68625726924c078910f761cf48cac0/artifacts/slides.csv
