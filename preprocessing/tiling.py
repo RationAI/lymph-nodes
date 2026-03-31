@@ -108,18 +108,21 @@ def main(config: DictConfig, logger=MLFlowLogger):
     )
 
     def add_mask_paths(row):
+
         filename = os.path.basename(row["path"])
         stem, _ = os.path.splitext(filename)
 
         tissue_path = os.path.join(tissue_dir, f"{stem}.tiff")
         if not os.path.exists(tissue_path):
-            raise FileNotFoundError(f"Cannot find {tissue_path}")
+            raise FileNotFoundError(
+                f"🚨 TISSUE MASK MISSING: Cannot find {tissue_path}"
+            )
         row["tissue_mask_path"] = tissue_path
+
+        found_cyto_path = None
 
         if cytokeratin_dir:
             possible_names = [f"{stem}.tiff", f"DAB-CK-{stem}.tiff"]
-            found_cyto_path = None
-
             for name in possible_names:
                 search_result = list(Path(cytokeratin_dir).rglob(name))
                 if search_result:
@@ -129,7 +132,9 @@ def main(config: DictConfig, logger=MLFlowLogger):
         if found_cyto_path:
             row["cytokeratin_mask_path"] = found_cyto_path
         else:
-            print(f"No Cytokeratin mask found for {stem}. Assuming negative.")
+            print(
+                f"⚠️ Warning: No Cytokeratin mask found for {stem}. Assuming negative."
+            )
             row["cytokeratin_mask_path"] = None
 
         if blur_dir:
