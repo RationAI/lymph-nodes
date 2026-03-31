@@ -108,16 +108,39 @@ def main(config: DictConfig, logger=MLFlowLogger):
     )
 
     def add_mask_paths(row):
+
         filename = os.path.basename(row["path"])
+        # If the original slide was .mrxs, the stem is "FIN-CK-HR2-19-ERA-DAB"
         stem, _ = os.path.splitext(filename)
         mask_filename = f"{stem}.tiff"
-        row["tissue_mask_path"] = os.path.join(tissue_dir, mask_filename)
-        cyto_search = list(Path(cytokeratin_dir).rglob(mask_filename))
-        if cyto_search:
-            row["cytokeratin_mask_path"] = str(cyto_search[0])
-        else:
-            row["cytokeratin_mask_path"] = os.path.join(cytokeratin_dir, mask_filename)
 
+        # 1. Tissue Mask
+        tissue_path = os.path.join(tissue_dir, mask_filename)
+        if not os.path.exists(tissue_path):
+            raise FileNotFoundError(
+                f"🚨 TISSUE MASK MISSING: Cannot find {tissue_path}"
+            )
+        row["tissue_mask_path"] = tissue_path
+
+        # 2. Cytokeratin Mask (SMART SEARCH)
+        cyto_search = list(Path(cytokeratin_dir).rglob(mask_filename))
+
+        if cyto_search:
+            # We found it in a subfolder!
+            cyto_path = str(cyto_search[0])
+        else:
+            # We didn't find it anywhere in the MLflow artifact.
+            cyto_path = os.path.join(cytokeratin_dir, mask_filename)
+
+        # THE TRIPWIRE: Verify it exists before OpenSlide tries to read it!
+        if not os.path.exists(cyto_path):
+            raise FileNotFoundError(
+                f"🚨 CYTO MASK MISSING: Looked in {cytokeratin_dir} and all subfolders "
+                f"for '{mask_filename}', but it does not exist!"
+            )
+        row["cytokeratin_mask_path"] = cyto_path
+
+        # 3. Blur Mask (Optional)
         if blur_dir:
             row["blur_mask_path"] = os.path.join(blur_dir, mask_filename)
 
