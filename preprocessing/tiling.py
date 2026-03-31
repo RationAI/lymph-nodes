@@ -110,39 +110,38 @@ def main(config: DictConfig, logger=MLFlowLogger):
     def add_mask_paths(row):
 
         filename = os.path.basename(row["path"])
-        # If the original slide was .mrxs, the stem is "FIN-CK-HR2-19-ERA-DAB"
         stem, _ = os.path.splitext(filename)
-        mask_filename = f"{stem}.tiff"
 
-        # 1. Tissue Mask
-        tissue_path = os.path.join(tissue_dir, mask_filename)
+        # 1. Tissue Mask (Required)
+        tissue_path = os.path.join(tissue_dir, f"{stem}.tiff")
         if not os.path.exists(tissue_path):
             raise FileNotFoundError(
                 f"🚨 TISSUE MASK MISSING: Cannot find {tissue_path}"
             )
         row["tissue_mask_path"] = tissue_path
 
-        # 2. Cytokeratin Mask (SMART SEARCH)
-        cyto_search = list(Path(cytokeratin_dir).rglob(mask_filename))
+        # 2. Cytokeratin Mask (SMART SEARCH for prefixes)
+        # We explicitly tell it to look for both the normal name and the DAB-CK- version
+        possible_names = [f"{stem}.tiff", f"DAB-CK-{stem}.tiff"]
+        found_cyto_path = None
 
-        if cyto_search:
-            # We found it in a subfolder!
-            cyto_path = str(cyto_search[0])
+        for name in possible_names:
+            search_result = list(Path(cytokeratin_dir).rglob(name))
+            if search_result:
+                found_cyto_path = str(search_result[0])
+                break  # Stop searching once we find it!
+
+        if found_cyto_path:
+            row["cytokeratin_mask_path"] = found_cyto_path
         else:
-            # We didn't find it anywhere in the MLflow artifact.
-            cyto_path = os.path.join(cytokeratin_dir, mask_filename)
-
-        # THE TRIPWIRE: Verify it exists before OpenSlide tries to read it!
-        if not os.path.exists(cyto_path):
-            raise FileNotFoundError(
-                f"🚨 CYTO MASK MISSING: Looked in {cytokeratin_dir} and all subfolders "
-                f"for '{mask_filename}', but it does not exist!"
+            print(
+                f"⚠️ Warning: No Cytokeratin mask found for {stem}. Assuming negative."
             )
-        row["cytokeratin_mask_path"] = cyto_path
+            row["cytokeratin_mask_path"] = None
 
         # 3. Blur Mask (Optional)
         if blur_dir:
-            row["blur_mask_path"] = os.path.join(blur_dir, mask_filename)
+            row["blur_mask_path"] = os.path.join(blur_dir, f"{stem}.tiff")
 
         return row
 
