@@ -108,20 +108,14 @@ def main(config: DictConfig, logger=MLFlowLogger):
     )
 
     def add_mask_paths(row):
-
         filename = os.path.basename(row["path"])
         stem, _ = os.path.splitext(filename)
 
-        # 1. Tissue Mask (Required)
         tissue_path = os.path.join(tissue_dir, f"{stem}.tiff")
         if not os.path.exists(tissue_path):
-            raise FileNotFoundError(
-                f"🚨 TISSUE MASK MISSING: Cannot find {tissue_path}"
-            )
+            raise FileNotFoundError(f"Cannot find {tissue_path}")
         row["tissue_mask_path"] = tissue_path
 
-        # 2. Cytokeratin Mask (SMART SEARCH for prefixes)
-        # We explicitly tell it to look for both the normal name and the DAB-CK- version
         possible_names = [f"{stem}.tiff", f"DAB-CK-{stem}.tiff"]
         found_cyto_path = None
 
@@ -129,17 +123,14 @@ def main(config: DictConfig, logger=MLFlowLogger):
             search_result = list(Path(cytokeratin_dir).rglob(name))
             if search_result:
                 found_cyto_path = str(search_result[0])
-                break  # Stop searching once we find it!
+                break
 
         if found_cyto_path:
             row["cytokeratin_mask_path"] = found_cyto_path
         else:
-            print(
-                f"⚠️ Warning: No Cytokeratin mask found for {stem}. Assuming negative."
-            )
+            print(f"No Cytokeratin mask found for {stem}. Assuming negative.")
             row["cytokeratin_mask_path"] = None
 
-        # 3. Blur Mask (Optional)
         if blur_dir:
             row["blur_mask_path"] = os.path.join(blur_dir, f"{stem}.tiff")
 
