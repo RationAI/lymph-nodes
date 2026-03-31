@@ -6,5 +6,4 @@ dataset:
   level: 1
   mpp: 0.5
   uris:
-    tmas-train: "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/tmas/train"
-    tmas-test: "mlflow-artifacts:/68/10bfc155a303465882aada4928487822/artifacts/tmas/test"
+    mou: "mlflow-artifacts:/68/e2213721126342a098dc2dfc5abcb2ac/artifacts/TMA HDAB dataset"
