@@ -10,6 +10,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from lymph_nodes.data.datasets import (
+    DatasetSubset,
     TileEmbeddings,
     TileEmbeddingsSubset,
     create_subset,
@@ -120,7 +121,7 @@ def collate_fn(
 
 
 def _weighted_sampler(
-    subset: TileEmbeddings | TileEmbeddingsSubset,
+    subset: TileEmbeddings | TileEmbeddingsSubset | DatasetSubset,
 ) -> WeightedRandomSampler:
     """Create a weighted random sampler to balance positive/negative classes."""
     labels = subset.labels
@@ -130,14 +131,16 @@ def _weighted_sampler(
 
 
 def _log_split(
-    train: TileEmbeddings | TileEmbeddingsSubset,
-    val: TileEmbeddings | TileEmbeddingsSubset,
+    train: TileEmbeddings | TileEmbeddingsSubset | DatasetSubset,
+    val: TileEmbeddings | TileEmbeddingsSubset | DatasetSubset,
     fold: int | None = None,
 ) -> None:
     """Log a human-readable summary of the train/val split to stdout."""
     prefix = f"Fold {fold} — " if fold is not None else ""
 
-    def _summarise(subset: TileEmbeddings | TileEmbeddingsSubset, name: str) -> None:
+    def _summarise(
+        subset: TileEmbeddings | TileEmbeddingsSubset | DatasetSubset, name: str
+    ) -> None:
         pos = sum(subset.labels)
         neg = len(subset.labels) - pos
         log.info(
