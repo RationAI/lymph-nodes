@@ -45,7 +45,7 @@ uris:
       level2: ???
       level3: ???
     virchow2:
-      level1: ???
+      level1: "mlflow-artifacts:/68/d253d5b5479c494cb6efe422d0cdf709/artifacts/embeddings"
       level2: ???
       level3: ???
   # ----------------------------------------------------------------
