@@ -24,9 +24,23 @@ class DatasetSubset(Subset[Any]):
 
     def __init__(self, dataset: Dataset, indices: Sequence[int]) -> None:
         super().__init__(dataset, indices)
-        self.slides = [dataset.slides[i] for i in indices]  # type: ignore[attr-defined]
         self.labels = [dataset.labels[i] for i in indices]  # type: ignore[attr-defined]
         self.groups = [dataset.groups[i] for i in indices]  # type: ignore[attr-defined]
+
+        # For tile-level datasets (e.g. TilePatchDataset), dataset.slides contains
+        # one entry per unique slide while indices are tile indices — direct indexing
+        # would be out of range.  Rebuild the unique-slide list from tile metadata.
+        if hasattr(dataset, "_tile_meta"):
+            slide_lookup = {s["name"]: s for s in dataset.slides}  # type: ignore[attr-defined]
+            seen: set[str] = set()
+            self.slides: list[dict] = []
+            for i in indices:
+                slide_name = dataset._tile_meta[i][0]  # type: ignore[attr-defined]
+                if slide_name not in seen:
+                    seen.add(slide_name)
+                    self.slides.append(slide_lookup[slide_name])
+        else:
+            self.slides = [dataset.slides[i] for i in indices]  # type: ignore[attr-defined]
 
 
 def create_subset(

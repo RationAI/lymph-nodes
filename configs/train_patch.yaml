@@ -39,7 +39,7 @@ data:
   batch_size: 64
   num_workers: 4
   kfold_splits: 5
-  k: null  # null = run all folds; set to 1-5 to run a single specific fold
+  k: ???  # required: set to 1-5, e.g. data.k=1
 
 model:
   _target_: lymph_nodes.patch_mlp.PatchMLP
