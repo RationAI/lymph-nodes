@@ -60,21 +60,20 @@ def parse_mmci_filename(filename: str) -> dict[str, Any]:
             "case_id": "TMA_CASE",
             "slice_id": Path(filename).stem,
             "staining": "DAB",
-            "tumor": False,
+            "tumor": True,
         }
 
     raise ValueError(f"Filename does not match expected MMCI pattern: {filename}")
 
 
 def parse_tma_filename(filename: str) -> dict[str, Any]:
-    # A simple parser for the TMA slides that skips complex regex.
     base_name = Path(filename).stem
 
     return {
         "case_id": "TMA_CASE",
         "slice_id": base_name,
         "staining": "DAB",
-        "tumor": False,
+        "tumor": True,
     }
 
 
