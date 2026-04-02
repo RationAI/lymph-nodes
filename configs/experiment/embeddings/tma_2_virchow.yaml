@@ -1,0 +1,6 @@
+# @package _global_
+
+defaults:
+  - /data/tiled/tmas_level2
+  - /preprocessing/tile_encoder/virchow2
+  - _self_
