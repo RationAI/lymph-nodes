@@ -6,4 +6,4 @@ dataset:
   level: 1
   mpp: 0.5
   uris:
-    mou: "mlflow-artifacts:/68/e2213721126342a098dc2dfc5abcb2ac/artifacts/TMA HDAB dataset"
+    mou: "mlflow-artifacts:/68/7fc942a0956749c29a901691954de4d8/artifacts/TMA HDAB dataset"
