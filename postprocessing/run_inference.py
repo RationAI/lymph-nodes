@@ -106,7 +106,7 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     _register_omegaconf_safe_globals()
 
-    model = mlflow.pytorch.load_model(args.model_uri, map_location=device)
+    model = mlflow.pytorch.load_model(args.model_uri, map_location=device, weights_only=False)
     model.to(device)
     model.eval()
 
