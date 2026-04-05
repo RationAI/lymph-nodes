@@ -108,7 +108,6 @@ def main(config: DictConfig, logger=MLFlowLogger):
     )
 
     def add_mask_paths(row):
-
         filename = os.path.basename(row["path"])
         stem, _ = os.path.splitext(filename)
 
