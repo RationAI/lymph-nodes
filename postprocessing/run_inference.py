@@ -84,8 +84,8 @@ def main():
 
     print(f"  Found {len(parquet_files)} slide embedding file(s).")
 
-    model = mlflow.pytorch.load_model(args.model_uri)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = mlflow.pytorch.load_model(args.model_uri, map_location=device)
     model.to(device)
     model.eval()
 
