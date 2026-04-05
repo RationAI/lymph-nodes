@@ -3,7 +3,9 @@ from kube_jobs import storage, submit_job
 
 # -- Fill in your URIs before submitting --------------------------------------
 EMBEDDINGS_URI = "mlflow-artifacts:/68/<run_id>/artifacts/embeddings"
-MODEL_URI = "runs:/<run_id>/model"
+MODEL_URI = "mlflow-artifacts:/68/<run_id>/artifacts/checkpoints/epoch=1-step=74688"
+# The model architecture config is fetched automatically from the same MLflow
+# run that owns the checkpoint (artifacts/configs/config.yaml, saved by autolog).
 
 
 submit_job(

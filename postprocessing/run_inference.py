@@ -3,7 +3,11 @@ r"""Inference pipeline: embeddings -> model -> tile probabilities -> heatmap TIF
 Usage:
     uv run -m postprocessing.run_inference \
         --embeddings-uri "mlflow-artifacts:/68/<run_id>/artifacts/embeddings" \
-        --model-uri "runs:/<run_id>/model"
+        --model-uri "mlflow-artifacts:/68/<run_id>/artifacts/checkpoints/epoch=1-step=74688"
+
+    The model architecture config is pulled automatically from the same MLflow
+    run that owns the checkpoint (from artifacts/configs/config.yaml, logged by
+    autolog at training time).
 
     Optional flags:
         --tile-extent 224   (pixels per tile side, default: 224)
@@ -14,10 +18,12 @@ Usage:
 import argparse
 from pathlib import Path
 
+import hydra
 import mlflow
 import numpy as np
 import pandas as pd
 import torch
+from omegaconf import OmegaConf
 
 
 # Tile parameters - defaults matching configs/preprocessing/tiling.yaml
@@ -38,7 +44,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model-uri",
         required=True,
-        help="MLflow model URI (e.g. 'runs:/<run_id>/model').",
+        help="MLflow artifact URI of the checkpoint folder "
+        "(mlflow-artifacts:/68/<run_id>/artifacts/checkpoints/<name>). "
+        "The run_id is extracted automatically to fetch the training config.",
     )
     parser.add_argument(
         "--tile-extent",
@@ -106,17 +114,25 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     _register_omegaconf_safe_globals()
 
-    # The artifact folder contains an MLmodel manifest and a .ckpt file.
-    # mlflow.pytorch.load_model() returns a dict for Lightning checkpoints,
-    # so we download the folder and load via Lightning instead.
+    # autolog saves the full Hydra config to artifacts/configs/config.yaml in
+    # the training run. Parse the run_id out of the model URI and fetch it.
     from lymph_nodes.meta_arch import MetaArch
+
+    # mlflow-artifacts:/68/<run_id>/artifacts/...
+    uri_parts = args.model_uri.split("/")
+    run_id = uri_parts[3]  # index 3 after splitting on /
+    config_uri = f"mlflow-artifacts:/68/{run_id}/artifacts/configs/config.yaml"
+    config_path = Path(mlflow.artifacts.download_artifacts(artifact_uri=config_uri))
+    model_cfg = OmegaConf.load(config_path)
+    model = hydra.utils.instantiate(model_cfg.model, _target_=MetaArch)
 
     ckpt_dir = Path(mlflow.artifacts.download_artifacts(artifact_uri=args.model_uri))
     ckpt_files = sorted(ckpt_dir.glob("*.ckpt"))
     if not ckpt_files:
         raise FileNotFoundError(f"No .ckpt file found in {ckpt_dir}")
 
-    model = MetaArch.load_from_checkpoint(ckpt_files[0], map_location=device, weights_only=False)
+    ckpt = torch.load(ckpt_files[0], map_location=device, weights_only=False)
+    model.load_state_dict(ckpt["state_dict"])
     model.to(device)
     model.eval()
 
