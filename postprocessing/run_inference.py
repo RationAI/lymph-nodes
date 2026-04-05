@@ -116,7 +116,7 @@ def main() -> None:
     if not ckpt_files:
         raise FileNotFoundError(f"No .ckpt file found in {ckpt_dir}")
 
-    model = MetaArch.load_from_checkpoint(ckpt_files[0], map_location=device)
+    model = MetaArch.load_from_checkpoint(ckpt_files[0], map_location=device, weights_only=False)
     model.to(device)
     model.eval()
 
