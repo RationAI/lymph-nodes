@@ -106,7 +106,17 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     _register_omegaconf_safe_globals()
 
-    model = mlflow.pytorch.load_model(args.model_uri, map_location=device, weights_only=False)
+    # The artifact folder contains an MLmodel manifest and a .ckpt file.
+    # mlflow.pytorch.load_model() returns a dict for Lightning checkpoints,
+    # so we download the folder and load via Lightning instead.
+    from lymph_nodes.meta_arch import MetaArch
+
+    ckpt_dir = Path(mlflow.artifacts.download_artifacts(artifact_uri=args.model_uri))
+    ckpt_files = sorted(ckpt_dir.glob("*.ckpt"))
+    if not ckpt_files:
+        raise FileNotFoundError(f"No .ckpt file found in {ckpt_dir}")
+
+    model = MetaArch.load_from_checkpoint(ckpt_files[0], map_location=device)
     model.to(device)
     model.eval()
 
