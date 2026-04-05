@@ -85,6 +85,31 @@ def main():
     print(f"  Found {len(parquet_files)} slide embedding file(s).")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # The Lightning checkpoint embeds OmegaConf objects in saved hyperparams.
+    # PyTorch 2.6 blocks these under weights_only=True — allowlist them explicitly.
+    from omegaconf import DictConfig, ListConfig
+    from omegaconf.nodes import (
+        BooleanNode,
+        BytesNode,
+        EnumNode,
+        FloatNode,
+        IntegerNode,
+        StringNode,
+        ValueNode,
+    )
+    torch.serialization.add_safe_globals([
+        DictConfig,
+        ListConfig,
+        ValueNode,
+        BooleanNode,
+        BytesNode,
+        EnumNode,
+        FloatNode,
+        IntegerNode,
+        StringNode,
+    ])
+
     model = mlflow.pytorch.load_model(args.model_uri, map_location=device)
     model.to(device)
     model.eval()
