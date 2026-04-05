@@ -57,8 +57,6 @@ def heatmap_assembler_avg(slide: Any, tiles: pd.DataFrame) -> pyvips.Image:
 
         counts = np.where(counts == 0, 1, counts)
 
-        # t = np.asarray(np.where(counts != 0, heatmap / counts, 0) * 255, dtype=np.uint8)
-
         return pyvips.Image.new_from_array((heatmap / counts) * 255)
 
     return slide_assembler(slide, tiles, init, aggregate, finalize)
@@ -88,4 +86,4 @@ def prediction_heatmap(slides: pd.DataFrame, tiles: pd.DataFrame, dest: str) -> 
         list(slides.itertuples()), process_item=process_slide, max_concurrent=10
     )
 
-    mlflow.log_artifacts(dest, "heatmaps")
+    mlflow.log_artifacts(dest, "classifcation_heatmaps")

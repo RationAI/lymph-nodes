@@ -1,15 +1,14 @@
-r"""Inference pipeline: PyTorch inference -> Heatmap generation -> Pixel evaluation.
+r"""Inference pipeline: embeddings -> model -> tile probabilities -> heatmap TIFFs.
 
 Usage:
     uv run -m postprocessing.run_inference \
         --embeddings-uri "mlflow-artifacts:/68/<run_id>/artifacts/embeddings" \
-        --model-uri "mlflow-artifacts:/68/<run_id>/artifacts/checkpoints/epoch=1-step=74688"
+        --model-uri "runs:/<run_id>/model"
 
     Optional flags:
         --tile-extent 224   (pixels per tile side, default: 224)
         --mpp 0.5           (microns per pixel, default: 0.5)
         --heatmap-dest ./my_heatmaps
-        --skip-evaluation   (skip Phase 3)
 """
 
 import argparse
@@ -39,7 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model-uri",
         required=True,
-        help="MLflow artifact URI of the PyTorch checkpoint.",
+        help="MLflow model URI (e.g. 'runs:/<run_id>/model').",
     )
     parser.add_argument(
         "--tile-extent",
@@ -58,18 +57,38 @@ def parse_args() -> argparse.Namespace:
         default="./my_heatmaps",
         help="Local directory for heatmap TIFFs (default: ./my_heatmaps).",
     )
-    parser.add_argument(
-        "--skip-evaluation",
-        action="store_true",
-        help="Skip Phase 3 (pixel evaluation).",
-    )
     return parser.parse_args()
 
 
-def main():
+def _register_omegaconf_safe_globals() -> None:
+    """Allow OmegaConf types embedded in Lightning checkpoints to be unpickled.
+
+    PyTorch 2.6's weights_only=True default blocks them otherwise.
+    """
+    import omegaconf.base
+    import omegaconf.nodes
+    from omegaconf import DictConfig, ListConfig
+
+    torch.serialization.add_safe_globals([
+        DictConfig,
+        ListConfig,
+        omegaconf.base.ContainerMetadata,
+        omegaconf.base.Metadata,
+        omegaconf.nodes.ValueNode,
+        omegaconf.nodes.BooleanNode,
+        omegaconf.nodes.BytesNode,
+        omegaconf.nodes.EnumNode,
+        omegaconf.nodes.FloatNode,
+        omegaconf.nodes.IntegerNode,
+        omegaconf.nodes.StringNode,
+        omegaconf.nodes.InterpolationResultNode,
+    ])
+
+
+def main() -> None:
     args = parse_args()
 
-    # ── Phase 1: PyTorch Inference ───────────────────────────────────────
+    # -- Phase 1: PyTorch Inference ----------------------------------------
     print("Phase 1: Downloading embeddings & running inference...")
 
     embeddings_dir = mlflow.artifacts.download_artifacts(
@@ -85,30 +104,7 @@ def main():
     print(f"  Found {len(parquet_files)} slide embedding file(s).")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # The Lightning checkpoint embeds OmegaConf objects in saved hyperparams.
-    # PyTorch 2.6 blocks these under weights_only=True — allowlist them explicitly.
-    from omegaconf import DictConfig, ListConfig
-    from omegaconf.nodes import (
-        BooleanNode,
-        BytesNode,
-        EnumNode,
-        FloatNode,
-        IntegerNode,
-        StringNode,
-        ValueNode,
-    )
-    torch.serialization.add_safe_globals([
-        DictConfig,
-        ListConfig,
-        ValueNode,
-        BooleanNode,
-        BytesNode,
-        EnumNode,
-        FloatNode,
-        IntegerNode,
-        StringNode,
-    ])
+    _register_omegaconf_safe_globals()
 
     model = mlflow.pytorch.load_model(args.model_uri, map_location=device)
     model.to(device)
@@ -141,7 +137,7 @@ def main():
     tiles_df = pd.concat(all_tiles, ignore_index=True)
     print(f"  Total: {len(tiles_df)} tiles across {len(parquet_files)} slides.")
 
-    # ── Phase 2: Heatmap Generation ──────────────────────────────────────
+    # -- Phase 2: Heatmap Generation ---------------------------------------
     print("Phase 2: Generating heatmaps...")
 
     from postprocessing.prediction_heatmap import prediction_heatmap
@@ -170,16 +166,6 @@ def main():
         run_id = run.info.run_id
 
     print(f"  MLflow run_id: {run_id}")
-
-    # ── Phase 3: Pixel Evaluation ────────────────────────────────────────
-    if args.skip_evaluation:
-        print("Phase 3: Skipped (--skip-evaluation).")
-    else:
-        print("Phase 3: Running pixel evaluation...")
-        from postprocessing.evaluation import main as evaluate
-
-        evaluate(seg_run_ids=[], cls_run_ids=[run_id])
-
     print("Pipeline complete.")
 
 
