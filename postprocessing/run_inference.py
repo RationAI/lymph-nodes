@@ -10,8 +10,10 @@ Usage:
     autolog at training time).
 
     Optional flags:
-        --tile-extent 224   (pixels per tile side, default: 224)
-        --mpp 0.5           (microns per pixel, default: 0.5)
+        --slide-id KOS02_1234  process only this one slide (by parquet stem)
+        --all-slides           process every parquet (default: first parquet only)
+        --tile-extent 224      (pixels per tile side, default: 224)
+        --mpp 0.5              (microns per pixel, default: 0.5)
         --heatmap-dest ./my_heatmaps
 """
 
@@ -47,6 +49,18 @@ def parse_args() -> argparse.Namespace:
         help="MLflow artifact URI of the checkpoint folder "
         "(mlflow-artifacts:/68/<run_id>/artifacts/checkpoints/<name>). "
         "The run_id is extracted automatically to fetch the training config.",
+    )
+    parser.add_argument(
+        "--slide-id",
+        default=None,
+        help="Process only the parquet whose stem matches this slide ID. "
+        "If omitted, only the first parquet found is processed.",
+    )
+    parser.add_argument(
+        "--all-slides",
+        action="store_true",
+        help="Process every parquet in the embeddings directory "
+        "(default: single-slide mode for quick testing).",
     )
     parser.add_argument(
         "--tile-extent",
@@ -113,18 +127,43 @@ def main() -> None:
 
     print(f"  Found {len(parquet_files)} slide embedding file(s).")
 
+    # Filter to a single parquet for quick test runs
+    if args.all_slides:
+        pass  # use full list
+    elif args.slide_id is not None:
+        matched = [p for p in parquet_files if p.stem == args.slide_id]
+        if not matched:
+            available = ", ".join(p.stem for p in parquet_files)
+            raise FileNotFoundError(
+                f"No parquet found for slide_id '{args.slide_id}'. "
+                f"Available: {available}"
+            )
+        parquet_files = matched
+    else:
+        parquet_files = parquet_files[:1]
+        print(
+            f"  Single-slide mode: processing '{parquet_files[0].stem}' only. "
+            f"Pass --all-slides to process all slides."
+        )
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     _register_omegaconf_safe_globals()
 
     # autolog saves the full Hydra config to artifacts/configs/config.yaml in
-    # the training run. Parse the run_id out of the model URI and fetch it.
+    # the training run. Parse the model_run_id out of the model URI and fetch it.
     from lymph_nodes.meta_arch import MetaArch
 
-    # mlflow-artifacts:/68/<run_id>/artifacts/...
+    # mlflow-artifacts:/68/<model_run_id>/artifacts/...
     uri_parts = args.model_uri.split("/")
-    run_id = uri_parts[3]  # index 3 after splitting on /
-    config_uri = f"mlflow-artifacts:/68/{run_id}/artifacts/configs/config.yaml"
-    config_path = Path(mlflow.artifacts.download_artifacts(artifact_uri=config_uri))
+    model_run_id = uri_parts[3]  # index 3 after splitting on /
+    # Use run_id + artifact_path form to avoid the double-artifacts URL bug
+    # that occurs when building URI strings with an explicit artifacts/ segment.
+    config_path = Path(
+        mlflow.artifacts.download_artifacts(
+            run_id=model_run_id,
+            artifact_path="configs/config.yaml",
+        )
+    )
     model_cfg = OmegaConf.load(config_path)
     model = hydra.utils.instantiate(model_cfg.model, _target_=MetaArch)
 
@@ -189,11 +228,10 @@ def main() -> None:
 
     mlflow.set_experiment("Lymph Nodes")
 
-    with mlflow.start_run() as run:
+    with mlflow.start_run() as inference_run:
         prediction_heatmap(slides_df, tiles_df, dest=args.heatmap_dest)
-        run_id = run.info.run_id
 
-    print(f"  MLflow run_id: {run_id}")
+    print(f"  MLflow run_id: {inference_run.info.run_id}")
     print("Pipeline complete.")
 
 
