@@ -155,7 +155,8 @@ def main() -> None:
 
     # mlflow-artifacts:/68/<model_run_id>/artifacts/...
     uri_parts = args.model_uri.split("/")
-    model_run_id = uri_parts[3]  # index 3 after splitting on /
+    model_run_id = uri_parts[2]  # mlflow-artifacts:/68/<run_id>/artifacts/...
+    #                                              0  1    2        3
     # Use run_id + artifact_path form to avoid the double-artifacts URL bug
     # that occurs when building URI strings with an explicit artifacts/ segment.
     config_path = Path(
