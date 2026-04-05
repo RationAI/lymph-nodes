@@ -77,20 +77,22 @@ def _register_omegaconf_safe_globals() -> None:
     import omegaconf.nodes
     from omegaconf import DictConfig, ListConfig
 
-    torch.serialization.add_safe_globals([
-        DictConfig,
-        ListConfig,
-        omegaconf.base.ContainerMetadata,
-        omegaconf.base.Metadata,
-        omegaconf.nodes.ValueNode,
-        omegaconf.nodes.BooleanNode,
-        omegaconf.nodes.BytesNode,
-        omegaconf.nodes.EnumNode,
-        omegaconf.nodes.FloatNode,
-        omegaconf.nodes.IntegerNode,
-        omegaconf.nodes.StringNode,
-        omegaconf.nodes.InterpolationResultNode,
-    ])
+    torch.serialization.add_safe_globals(
+        [
+            DictConfig,
+            ListConfig,
+            omegaconf.base.ContainerMetadata,
+            omegaconf.base.Metadata,
+            omegaconf.nodes.ValueNode,
+            omegaconf.nodes.BooleanNode,
+            omegaconf.nodes.BytesNode,
+            omegaconf.nodes.EnumNode,
+            omegaconf.nodes.FloatNode,
+            omegaconf.nodes.IntegerNode,
+            omegaconf.nodes.StringNode,
+            omegaconf.nodes.InterpolationResultNode,
+        ]
+    )
 
 
 def main() -> None:
