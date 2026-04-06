@@ -1,0 +1,8 @@
+# @package _global_
+
+data_name: mmci_3_224
+institute: mmci
+mpp: 1.9405
+level: 3
+tile_extent: 224
+stride: 112

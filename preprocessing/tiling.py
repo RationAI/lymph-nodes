@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Any
 
 import hydra
@@ -36,7 +37,8 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
         "tile_extent_x": row["tile_extent_x"],
         "tile_extent_y": row["tile_extent_y"],
         "tissue_mask_path": row["tissue_mask_path"],
-        "blur_mask_path": row["blur_mask_path"],
+        "blur_mask_path": row.get("blur_mask_path"),
+        "cytokeratin_mask_path": row.get("cytokeratin_mask_path"),
     }
 
     return [
@@ -55,10 +57,13 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def extract_coverage(row: dict[str, Any]) -> dict[str, Any]:
+    cyto_overlap = row.get("cytokeratin_overlap", {}).get("255", 0.0) or 0.0
+
     return {
         **row,
         "tissue_coverage": 1.0 - (row.get("tissue_overlap", {}).get("0", 0.0) or 0.0),
         "blur_coverage": 1.0 - (row.get("blur_overlap", {}).get("0", 0.0) or 0.0),
+        "metastazis": cyto_overlap,
     }
 
 
@@ -91,14 +96,49 @@ def main(config: DictConfig, logger=MLFlowLogger):
     )
 
     tissue_dir = download_artifacts(config.tissue_mask_uri)
-    blur_dir = download_artifacts(config.blur_mask_uri)
+    blur_dir = (
+        download_artifacts(config.blur_mask_uri)
+        if config.get("blur_mask_uri")
+        else None
+    )
+    cytokeratin_dir = (
+        download_artifacts(config.cytokeratin_mask_uri)
+        if config.get("cytokeratin_mask_uri")
+        else None
+    )
 
     def add_mask_paths(row):
         filename = os.path.basename(row["path"])
         stem, _ = os.path.splitext(filename)
-        mask_filename = f"{stem}.tiff"
-        row["tissue_mask_path"] = os.path.join(tissue_dir, mask_filename)
-        row["blur_mask_path"] = os.path.join(blur_dir, mask_filename)
+
+        tissue_results = list(Path(tissue_dir).rglob(f"{stem}.tiff"))
+        if not tissue_results:
+            raise FileNotFoundError(
+                f"🚨 TISSUE MASK MISSING: Cannot find {stem}.tiff under {tissue_dir}"
+            )
+        row["tissue_mask_path"] = str(tissue_results[0])
+
+        found_cyto_path = None
+
+        if cytokeratin_dir:
+            possible_names = [f"{stem}.tiff", f"DAB-CK-{stem}.tiff"]
+            for name in possible_names:
+                search_result = list(Path(cytokeratin_dir).rglob(name))
+                if search_result:
+                    found_cyto_path = str(search_result[0])
+                    break
+
+        if found_cyto_path:
+            row["cytokeratin_mask_path"] = found_cyto_path
+        else:
+            print(
+                f"⚠️ Warning: No Cytokeratin mask found for {stem}. Assuming negative."
+            )
+            row["cytokeratin_mask_path"] = None
+
+        if blur_dir:
+            row["blur_mask_path"] = os.path.join(blur_dir, f"{stem}.tiff")
+
         return row
 
     slides_ds = slides_ds.map(add_mask_paths)
@@ -129,28 +169,44 @@ def main(config: DictConfig, logger=MLFlowLogger):
         lambda r: tissue_coverage(r.get("tissue_overlap")) > config.min_tissue_coverage
     )
 
-    tiles = tiles.with_column(
-        "blur_overlap",
-        tile_overlay_overlap(
-            tissue_roi,
-            col("blur_mask_path"),
-            col("tile_x"),
-            col("tile_y"),
-            col("mpp_x"),
-            col("mpp_y"),
-        ),
-    )
+    if config.get("blur_mask_uri"):
+        tiles = tiles.with_column(
+            "blur_overlap",
+            tile_overlay_overlap(
+                tissue_roi,
+                col("blur_mask_path"),
+                col("tile_x"),
+                col("tile_y"),
+                col("mpp_x"),
+                col("mpp_y"),
+            ),
+        )
+
+    if config.get("cytokeratin_mask_uri"):
+        tiles = tiles.with_column(
+            "cytokeratin_overlap",
+            tile_overlay_overlap(
+                tissue_roi,
+                col("cytokeratin_mask_path"),
+                col("tile_x"),
+                col("tile_y"),
+                col("mpp_x"),
+                col("mpp_y"),
+            ),
+        )
 
     tiles = tiles.map(extract_coverage)
 
-    tiles = tiles.drop_columns(
-        [
-            "tissue_mask_path",
-            "blur_mask_path",
-            "tissue_overlap",
-            "blur_overlap",
-        ]
-    )
+    columns_to_drop = [
+        "tissue_mask_path",
+        "tissue_overlap",
+    ]
+    if config.get("blur_mask_uri"):
+        columns_to_drop.extend(["blur_mask_path", "blur_overlap"])
+    if config.get("cytokeratin_mask_uri"):
+        columns_to_drop.extend(["cytokeratin_mask_path", "cytokeratin_overlap"])
+
+    tiles = tiles.drop_columns(columns_to_drop)
 
     slides_df = slides_ds.to_pandas()
     tiles_df = tiles.to_pandas()

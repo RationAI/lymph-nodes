@@ -1,0 +1,7 @@
+dataset:
+  institute: mmci
+  name: MMCI_HDAB_2024_Negative
+  slides:
+    _target_: preprocessing.data_source.GlobDataSource
+    src_dir: "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative"
+    glob_pattern: "*.mrxs"

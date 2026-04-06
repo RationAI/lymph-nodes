@@ -1,6 +1,5 @@
 # @package _global_
-tissue_mask_uri: ???
-blur_mask_uri: ???
+tissue_mask_uri: mlflow-artifacts:/68/11a33ac3c3ca4c9684ecf4faed96492e/artifacts/tissue_masks
 
 dataset:
   name: Test Inference Dataset
@@ -8,6 +7,4 @@ dataset:
     _target_: preprocessing.data_source.ChainedDataSources
     sources:
       - _target_: preprocessing.data_source.MLFlowDataSource
-        uri: ??? # TODO: mmci dataset uri
-      - _target_: preprocessing.data_source.MLFlowDataSource
-        uri: ??? # TODO: fnbrno dataset uri
+        uri: mlflow-artifacts:/68/e117d18049694030a7e03edac5bf81ff/artifacts/slides.csv

@@ -1,12 +1,14 @@
 # @package _global_
 
 
-mpp: 0.5
-tile_extent: 224
-stride: 112
+mpp: ???
+tile_extent: ???
+stride: ???
+data_name: ???
 
 tissue_mask_uri: ???
-blur_mask_uri: ???
+blur_mask_uri: null
+cytokeratin_mask_uri: null
 
 min_tissue_coverage: 0
 max_blur_coverage: 0
@@ -16,7 +18,9 @@ metadata:
   description: Tile extraction for ${dataset.name}
   hyperparams:
     mpp: ${mpp}
+    level: ${level}
     tile_extent: ${tile_extent}
     stride: ${stride}
     tissue_mask_uri: ${tissue_mask_uri}
     blur_mask_uri: ${blur_mask_uri}
+    cytokeratin_mask_uri: ${cytokeratin_mask_uri}

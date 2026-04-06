@@ -1,0 +1,11 @@
+# @package _global_
+tissue_mask_uri: mlflow-artifacts:/68/b45545c7d74f47d19620b584b3cd1cf1/artifacts/tissue_masks
+blur_mask_uri: mlflow-artifacts:/68/18f8cbd72b3442f59c953ae020d72b41/artifacts/blur_per_pixel
+
+dataset:
+  name: MMCI dataset - test set
+  slides:
+    _target_: preprocessing.data_source.ChainedDataSources
+    sources:
+      - _target_: preprocessing.data_source.MLFlowDataSource
+        uri: mlflow-artifacts:/68/46584f31ecdb4588a44b056424fa8844/artifacts/slides.csv
