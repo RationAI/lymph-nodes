@@ -1,0 +1,17 @@
+# @package _global_
+tissue_mask_uri: mlflow-artifacts:/68/6028b49f626f4367b9eb1fdc446f8fea/artifacts/datasets
+
+dataset:
+  name: Train Dataset
+  slides:
+    _target_: preprocessing.data_source.ChainedDataSources
+    sources:
+      # FNBrno HDAB dataset
+      - _target_: preprocessing.data_source.MLFlowDataSource
+        uri: mlflow-artifacts:/68/6028b49f626f4367b9eb1fdc446f8fea/artifacts/datasets/FNBrno_HDAB/slides.csv
+      # MMCI HDAB dataset
+      - _target_: preprocessing.data_source.MLFlowDataSource
+        uri: mlflow-artifacts:/68/6028b49f626f4367b9eb1fdc446f8fea/artifacts/datasets/MMCI_HDAB/slides.csv
+      # TMA Breast + Colorectal dataset
+      - _target_: preprocessing.data_source.MLFlowDataSource
+        uri: mlflow-artifacts:/68/6028b49f626f4367b9eb1fdc446f8fea/artifacts/datasets/TMA_Breast_Colorectal/slides.csv

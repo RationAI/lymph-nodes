@@ -111,12 +111,12 @@ def main(config: DictConfig, logger=MLFlowLogger):
         filename = os.path.basename(row["path"])
         stem, _ = os.path.splitext(filename)
 
-        tissue_path = os.path.join(tissue_dir, f"{stem}.tiff")
-        if not os.path.exists(tissue_path):
+        tissue_results = list(Path(tissue_dir).rglob(f"{stem}.tiff"))
+        if not tissue_results:
             raise FileNotFoundError(
-                f"🚨 TISSUE MASK MISSING: Cannot find {tissue_path}"
+                f"🚨 TISSUE MASK MISSING: Cannot find {stem}.tiff under {tissue_dir}"
             )
-        row["tissue_mask_path"] = tissue_path
+        row["tissue_mask_path"] = str(tissue_results[0])
 
         found_cyto_path = None
 
