@@ -6,8 +6,6 @@ import torch
 from lightning import seed_everything
 from lightning.pytorch.loggers import Logger, MLFlowLogger
 from omegaconf import DictConfig, OmegaConf
-from omegaconf.dictconfig import DictConfig as OmegaDictConfig
-from omegaconf.listconfig import ListConfig
 from rationai.mlkit import Trainer, autolog
 
 from lymph_nodes.data import DataModule
@@ -15,8 +13,35 @@ from lymph_nodes.data import DataModule
 
 # PyTorch 2.6 changed torch.load default to weights_only=True.
 # Checkpoints saved with older Lightning versions embed omegaconf objects in
-# hyperparameters; register them as safe so deserialization succeeds.
-torch.serialization.add_safe_globals([ListConfig, OmegaDictConfig])
+# save_hyperparameters(); allowlist every class in the omegaconf package so
+# deserialization succeeds regardless of which internal types were pickled.
+def _register_omegaconf_safe_globals() -> None:
+    import inspect
+
+    import omegaconf
+    import omegaconf.base
+    import omegaconf.basecontainer
+    import omegaconf.dictconfig
+    import omegaconf.listconfig
+    import omegaconf.nodes
+
+    classes = [
+        cls
+        for module in (
+            omegaconf,
+            omegaconf.base,
+            omegaconf.basecontainer,
+            omegaconf.dictconfig,
+            omegaconf.listconfig,
+            omegaconf.nodes,
+        )
+        for _, cls in inspect.getmembers(module, inspect.isclass)
+        if cls.__module__.startswith("omegaconf")
+    ]
+    torch.serialization.add_safe_globals(classes)
+
+
+_register_omegaconf_safe_globals()
 
 
 OmegaConf.register_new_resolver(
