@@ -1,0 +1,9 @@
+# @package _global_
+
+dataset:
+  name: MMCI dataset - train set
+  institution: mmci
+  level: 2
+  mpp: 0.97
+  uris:
+    mou: "mlflow-artifacts:/68/57be7093c61e47df8c3b9422aea5165c/artifacts/Test Inference Dataset"

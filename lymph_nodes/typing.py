@@ -1,5 +1,16 @@
-type Sample = ...  # TODO define the type returned by Dataset
+from typing import TypedDict
 
-type Input = ...  # TODO define the model input type
+from torch import Tensor
 
-type Outputs = ...  # TODO define the model output type
+
+class TileMetadata(TypedDict):
+    slide_id: str
+    x: int
+    y: int
+
+
+type TilesPredictSample = tuple[Tensor, TileMetadata]
+type TilesSample = tuple[Tensor, TileMetadata, Tensor]
+
+type Input = tuple[Tensor, Tensor]
+type Outputs = Tensor
