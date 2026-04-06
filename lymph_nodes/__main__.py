@@ -12,36 +12,19 @@ from lymph_nodes.data import DataModule
 
 
 # PyTorch 2.6 changed torch.load default to weights_only=True.
-# Checkpoints saved with older Lightning versions embed omegaconf objects in
-# save_hyperparameters(); allowlist every class in the omegaconf package so
-# deserialization succeeds regardless of which internal types were pickled.
-def _register_omegaconf_safe_globals() -> None:
-    import inspect
-
-    import omegaconf
-    import omegaconf.base
-    import omegaconf.basecontainer
-    import omegaconf.dictconfig
-    import omegaconf.listconfig
-    import omegaconf.nodes
-
-    classes = [
-        cls
-        for module in (
-            omegaconf,
-            omegaconf.base,
-            omegaconf.basecontainer,
-            omegaconf.dictconfig,
-            omegaconf.listconfig,
-            omegaconf.nodes,
-        )
-        for _, cls in inspect.getmembers(module, inspect.isclass)
-        if cls.__module__.startswith("omegaconf")
-    ]
-    torch.serialization.add_safe_globals(classes)
+# Checkpoints saved with older Lightning/omegaconf versions pickle arbitrary
+# types (omegaconf internals, typing.Any, etc.) into save_hyperparameters().
+# Those checkpoints come from our own trusted MLflow server, so loading with
+# weights_only=False is safe.  Patch torch.load once here so every downstream
+# call (including rationai-mlkit's trainer) picks it up without modification.
+_original_torch_load = torch.load
 
 
-_register_omegaconf_safe_globals()
+def _torch_load_weights_only_false(f, *args, weights_only=True, **kwargs):
+    return _original_torch_load(f, *args, weights_only=False, **kwargs)
+
+
+torch.load = _torch_load_weights_only_false
 
 
 OmegaConf.register_new_resolver(
