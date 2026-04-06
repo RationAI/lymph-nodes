@@ -1,9 +1,0 @@
-# @package _global_
-
-dataset:
-  name: FNBrno AE dataset (negative slides)
-  institution: fnb
-  level: 1
-  mpp: 0.5
-  uris:
-    mou: "mlflow-artifacts:/68/d97742eb8de548cb9a28f2f44026792d/artifacts/Test Inference Dataset"
