@@ -1,0 +1,9 @@
+# @package _global_
+
+dataset:
+  name: Colorectum dataset - TMAS
+  institution: mmci
+  level: 1
+  mpp: 0.5
+  uris:
+    mou: "mlflow-artifacts:/68/7fc942a0956749c29a901691954de4d8/artifacts/TMA HDAB dataset"
