@@ -2,12 +2,21 @@ from random import randint
 
 import hydra
 import mlflow
+import torch
 from lightning import seed_everything
 from lightning.pytorch.loggers import Logger, MLFlowLogger
 from omegaconf import DictConfig, OmegaConf
+from omegaconf.dictconfig import DictConfig as OmegaDictConfig
+from omegaconf.listconfig import ListConfig
 from rationai.mlkit import Trainer, autolog
 
 from lymph_nodes.data import DataModule
+
+
+# PyTorch 2.6 changed torch.load default to weights_only=True.
+# Checkpoints saved with older Lightning versions embed omegaconf objects in
+# hyperparameters; register them as safe so deserialization succeeds.
+torch.serialization.add_safe_globals([ListConfig, OmegaDictConfig])
 
 
 OmegaConf.register_new_resolver(
