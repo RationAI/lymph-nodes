@@ -23,17 +23,24 @@ class TilePatchDataset(Dataset):
     Args:
         embeddings_uri:
             MLflow artifact URI pointing to a directory of per-slide ``.parquet``
-            files.  Files must follow the ``<name>-<0|1>.parquet`` naming convention
-            used throughout the project.
+            files.  During training files must follow the ``<name>-<0|1>.parquet``
+            naming convention.  For inference you may supply files with arbitrary
+            names as long as ``default_label`` is set.
         include_slides:
             Optional whitelist of parquet file stems.  Only slides whose stem
             appears in this list are loaded.
+        default_label:
+            Fallback label used when a filename does not carry a ``-0`` / ``-1``
+            suffix.  Set to ``0`` for inference-only runs where ground-truth
+            labels are unavailable.  When ``None`` (default), the convention is
+            enforced and a ``ValueError`` is raised for unlabelled filenames.
     """
 
     def __init__(
         self,
         embeddings_uri: str,
         include_slides: list[str] | None = None,
+        default_label: int | None = None,
     ) -> None:
         embeddings_dir = Path(mlflow.artifacts.download_artifacts(embeddings_uri))
         parquet_files = sorted(embeddings_dir.glob("*.parquet"))
@@ -50,9 +57,13 @@ class TilePatchDataset(Dataset):
 
         slide_infos: list[tuple[Path, int, str]] = []  # (path, label, group)
         for pf in parquet_files:
-            slide_infos.append(
-                (pf, _label_from_filename(pf.stem), _group_from_stem(pf.stem))
-            )
+            try:
+                label = _label_from_filename(pf.stem)
+            except ValueError:
+                if default_label is None:
+                    raise
+                label = default_label
+            slide_infos.append((pf, label, _group_from_stem(pf.stem)))
 
         # Load all tile embeddings into a single contiguous numpy array.
         # This avoids opening parquet files on every __getitem__ call.

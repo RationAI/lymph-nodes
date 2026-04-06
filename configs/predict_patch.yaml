@@ -1,0 +1,62 @@
+# @package _global_
+# Patch-based MLP — inference + heatmap generation.
+#
+# Runs predict mode across all slides in the embeddings URI, then assembles
+# a per-slide probability heatmap and writes it as a BigTIFF.
+#
+# Required overrides:
+#   checkpoint   — path to a .ckpt file or MLflow artifact URI
+#   foundation   — embedding model (e.g. prov-gigapath, virchow2)
+#   level        — tiling level (e.g. level1)
+#
+# Optional overrides:
+#   embeddings_uri          — direct URI; bypasses the uris.yaml lookup
+#   data.predict.include_slides — list of parquet stems to restrict to a single slide
+#   heatmap_dest            — output directory for TIFF heatmaps (default: heatmaps)
+#   tile_extent             — must match the value used during tiling (default: 224)
+
+defaults:
+  - hydra: default
+  - logger: mlflow
+  - /data/datasets@data.predict: tile_patch/tile_patch
+  - /data/embeddings/uris
+  - _self_
+
+seed: 42
+mode: predict
+checkpoint: ???
+foundation: ???
+level: ???
+tile_extent: 224
+heatmap_dest: heatmaps
+
+embeddings_uri: ${uris.test_embeddings.${key:${foundation}}.${level}}
+
+# Override these two on the CLI when running on a single unlabelled slide:
+# embeddings_uri: mlflow-artifacts:/.../<run_id>/artifacts/embeddings
+# 'data.predict.include_slides=[<parquet_stem>]'
+
+trainer:
+  callbacks:
+    - _target_: postprocessing.heatmap.HeatmapWriter
+      dest: ${heatmap_dest}
+      tile_extent: ${tile_extent}
+
+data:
+  batch_size: 64
+  num_workers: 4
+  predict:
+    default_label: 0  # inference slides may not carry a -0/-1 suffix
+
+model:
+  _target_: lymph_nodes.patch_mlp.PatchMLP
+  foundation: ${foundation}
+
+metadata:
+  experiment_name: 'Lymph Nodes'
+  run_name: '🗺️ Patch MLP Heatmap: ${foundation} ${level}'
+  description: 'Patch-based MLP probability heatmap for lymph node metastasis'
+  hyperparams:
+    foundation: ${foundation}
+    level: ${level}
+    tile_extent: ${tile_extent}
