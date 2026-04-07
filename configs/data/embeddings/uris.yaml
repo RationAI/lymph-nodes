@@ -45,7 +45,10 @@ uris:
       level2: ???
       level3: ???
     virchow2:
-      level1: "mlflow-artifacts:/68/d253d5b5479c494cb6efe422d0cdf709/artifacts/embeddings"
+      level1: 
+        - "mlflow-artifacts:/68/6a8dca21bc6a44efb48364c6ab408ca1/artifacts/embeddings"  #FNBrno
+        - "mlflow-artifacts:/68/149c1f462e4a4fff9dde6b7696fe89e5/artifacts/embeddings"  #TMA
+        - "mlflow-artifacts:/68/6fab2798d1b74dc6a39898297b472850/artifacts/embeddings"  #MMCI
       level2: ???
       level3: ???
   # ----------------------------------------------------------------

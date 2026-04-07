@@ -36,7 +36,7 @@ class TilePatchDataset(Dataset):
         include_slides: list[str] | None = None,
     ) -> None:
         embeddings_dir = Path(mlflow.artifacts.download_artifacts(embeddings_uri))
-        parquet_files = sorted(embeddings_dir.glob("*.parquet"))
+        parquet_files = sorted(embeddings_dir.rglob("*.parquet"))
         if not parquet_files:
             raise FileNotFoundError(f"No parquet files found in {embeddings_dir}")
 

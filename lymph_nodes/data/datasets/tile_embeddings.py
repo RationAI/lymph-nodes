@@ -39,17 +39,20 @@ class TileEmbeddings(Dataset[TileEmbeddingsSample]):
 
     def __init__(
         self,
-        embeddings_uri: str,
+        embeddings_uri: str | list[str],
         padding: bool = True,
         include_slides: list[str] | None = None,
     ) -> None:
         self.padding = padding
 
-        embeddings_dir = Path(mlflow.artifacts.download_artifacts(embeddings_uri))
-
-        parquet_files = sorted(embeddings_dir.glob("*.parquet"))
+        uris = [embeddings_uri] if isinstance(embeddings_uri, str) else embeddings_uri
+        parquet_files: list[Path] = []
+        for uri in uris:
+            embeddings_dir = Path(mlflow.artifacts.download_artifacts(uri))
+            parquet_files.extend(embeddings_dir.rglob("*.parquet"))
+        parquet_files = sorted(set(parquet_files))
         if not parquet_files:
-            raise FileNotFoundError(f"No parquet files found in {embeddings_dir}")
+            raise FileNotFoundError(f"No parquet files found in any of: {uris}")
 
         if include_slides is not None:
             include_set = set(include_slides)
