@@ -28,10 +28,8 @@ def _label_from_filename(stem: str) -> int:
         return 1
     if stem.endswith("-0"):
         return 0
-    raise ValueError(
-        f"Cannot determine label from filename '{stem}'. "
-        "Expected filename to end with '-0' (negative) or '-1' (positive)."
-    )
+    # Files without an explicit label suffix are assumed positive.
+    return 1
 
 
 class TileEmbeddings(Dataset[TileEmbeddingsSample]):
