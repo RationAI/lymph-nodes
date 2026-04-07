@@ -15,19 +15,8 @@ from lymph_nodes.data.datasets.tile_embeddings import (
 class TilePatchDataset(Dataset):
     """Per-tile dataset for patch-based MLP classification.
 
-    Each sample is a single tile embedding with its slide-level label propagated
-    as the tile label.  All embeddings are loaded into memory during construction.
-    For very large datasets (> ~10k tiles x 2560-dim) this may consume several
-    gigabytes; reduce scope via ``include_slides`` if needed.
-
-    Args:
-        embeddings_uri:
-            MLflow artifact URI pointing to a directory of per-slide ``.parquet``
-            files.  Files must follow the ``<name>-<0|1>.parquet`` naming convention
-            used throughout the project.
-        include_slides:
-            Optional whitelist of parquet file stems.  Only slides whose stem
-            appears in this list are loaded.
+    Embeddings are loaded lazily from parquet files on each __getitem__ call
+    to keep memory usage low regardless of dataset size.
     """
 
     def __init__(
@@ -49,74 +38,59 @@ class TilePatchDataset(Dataset):
             parquet_files = [pf for pf in parquet_files if pf.stem in include_set]
             if not parquet_files:
                 raise FileNotFoundError(
-                    f"No parquet files matched include_slides in {embeddings_dir}"
+                    "No parquet files matched include_slides in provided URIs"
                 )
 
-        slide_infos: list[tuple[Path, int, str]] = []  # (path, label, group)
-        for pf in parquet_files:
-            slide_infos.append(
-                (pf, _label_from_filename(pf.stem), _group_from_stem(pf.stem))
-            )
-
-        # Load all tile embeddings into a single contiguous numpy array.
-        # This avoids opening parquet files on every __getitem__ call.
-        all_embs: list[np.ndarray] = []
+        # Build a flat index: (parquet_path, row, x, y).
+        # Only coordinate columns are read at init; embeddings fetched lazily.
         tile_labels: list[int] = []
         tile_groups: list[str] = []
-        tile_meta: list[
-            tuple[str, Path, int, int]
-        ] = []  # (slide_name, slide_path, x, y)
+        tile_index: list[tuple[Path, int, int, int]] = []
         unique_slides: list[dict] = []
 
-        for pf, label, group in slide_infos:
-            df = pd.read_parquet(pf)
-            embs = np.stack(df["embedding"].tolist()).astype(np.float32)
-            n = len(embs)
-            xs = (
-                df["x"].to_numpy(dtype=np.int64)
-                if "x" in df.columns
-                else np.zeros(n, dtype=np.int64)
-            )
-            ys = (
-                df["y"].to_numpy(dtype=np.int64)
-                if "y" in df.columns
-                else np.zeros(n, dtype=np.int64)
-            )
-
-            all_embs.append(embs)
-            tile_labels.extend([label] * n)
-            tile_groups.extend([group] * n)
-            for i in range(n):
-                tile_meta.append((pf.stem, pf, int(xs[i]), int(ys[i])))
-
+        for pf in parquet_files:
+            label = _label_from_filename(pf.stem)
+            group = _group_from_stem(pf.stem)
+            all_cols = pd.read_parquet(pf, columns=[]).columns
+            coord_cols = [c for c in ("x", "y") if c in all_cols]
+            if coord_cols:
+                coord_df = pd.read_parquet(pf, columns=coord_cols)
+                xs = (
+                    coord_df["x"].to_numpy(dtype=np.int64)
+                    if "x" in coord_df.columns
+                    else np.zeros(len(coord_df), dtype=np.int64)
+                )
+                ys = (
+                    coord_df["y"].to_numpy(dtype=np.int64)
+                    if "y" in coord_df.columns
+                    else np.zeros(len(coord_df), dtype=np.int64)
+                )
+            else:
+                n = len(pd.read_parquet(pf, columns=[]))
+                xs = np.zeros(n, dtype=np.int64)
+                ys = np.zeros(n, dtype=np.int64)
+            for i in range(len(xs)):
+                tile_index.append((pf, i, int(xs[i]), int(ys[i])))
+                tile_labels.append(label)
+                tile_groups.append(group)
             unique_slides.append({"name": pf.stem, "path": pf, "label": label})
 
-        self._embeddings: np.ndarray = (
-            np.concatenate(all_embs, axis=0)
-            if all_embs
-            else np.empty((0, 0), dtype=np.float32)
-        )
-        self._tile_meta = tile_meta
-
-        # Public attributes expected by DataModule / _log_split / _weighted_sampler.
+        self._tile_index = tile_index
         self.labels: list[int] = tile_labels
         self.groups: list[str] = tile_groups
-        self.slides: list[dict] = unique_slides  # unique slides — used by _log_split
-
-    # ------------------------------------------------------------------
-    # Dataset protocol
-    # ------------------------------------------------------------------
+        self.slides: list[dict] = unique_slides
 
     def __len__(self) -> int:
-        return len(self._tile_meta)
+        return len(self._tile_index)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, dict]:
-        embedding = torch.from_numpy(self._embeddings[idx].copy())
-        slide_name, slide_path, x, y = self._tile_meta[idx]
+        pf, row, x, y = self._tile_index[idx]
+        df = pd.read_parquet(pf)
+        embedding = torch.tensor(df["embedding"].iloc[row], dtype=torch.float32)
         label = torch.tensor(self.labels[idx], dtype=torch.float32)
         metadata = {
-            "slide_name": slide_name,
-            "slide_path": slide_path,
+            "slide_name": pf.stem,
+            "slide_path": pf,
             "tile_x": x,
             "tile_y": y,
         }
