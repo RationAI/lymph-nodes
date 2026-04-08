@@ -3,6 +3,7 @@ from pathlib import Path
 import mlflow.artifacts
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 import torch
 from torch.utils.data import Dataset
 
@@ -13,11 +14,7 @@ from lymph_nodes.data.datasets.tile_embeddings import (
 
 
 class TilePatchDataset(Dataset):
-    """Per-tile dataset for patch-based MLP classification.
-
-    Embeddings are loaded lazily from parquet files on each __getitem__ call
-    to keep memory usage low regardless of dataset size.
-    """
+    """Per-tile dataset for patch-based MLP classification."""
 
     def __init__(
         self,
@@ -41,8 +38,6 @@ class TilePatchDataset(Dataset):
                     "No parquet files matched include_slides in provided URIs"
                 )
 
-        # Build a flat index: (parquet_path, row, x, y).
-        # Only coordinate columns are read at init; embeddings fetched lazily.
         tile_labels: list[int] = []
         tile_groups: list[str] = []
         tile_index: list[tuple[Path, int, int, int]] = []
@@ -51,24 +46,25 @@ class TilePatchDataset(Dataset):
         for pf in parquet_files:
             label = _label_from_filename(pf.stem)
             group = _group_from_stem(pf.stem)
-            all_cols = pd.read_parquet(pf, columns=[]).columns
-            coord_cols = [c for c in ("x", "y") if c in all_cols]
+            schema = pq.read_schema(pf)
+            n_rows = pq.read_metadata(pf).num_rows
+            col_names = schema.names
+            coord_cols = [c for c in ("x", "y") if c in col_names]
             if coord_cols:
                 coord_df = pd.read_parquet(pf, columns=coord_cols)
                 xs = (
                     coord_df["x"].to_numpy(dtype=np.int64)
-                    if "x" in coord_df.columns
-                    else np.zeros(len(coord_df), dtype=np.int64)
+                    if "x" in col_names
+                    else np.zeros(n_rows, dtype=np.int64)
                 )
                 ys = (
                     coord_df["y"].to_numpy(dtype=np.int64)
-                    if "y" in coord_df.columns
-                    else np.zeros(len(coord_df), dtype=np.int64)
+                    if "y" in col_names
+                    else np.zeros(n_rows, dtype=np.int64)
                 )
             else:
-                n = len(pd.read_parquet(pf, columns=[]))
-                xs = np.zeros(n, dtype=np.int64)
-                ys = np.zeros(n, dtype=np.int64)
+                xs = np.zeros(n_rows, dtype=np.int64)
+                ys = np.zeros(n_rows, dtype=np.int64)
             for i in range(len(xs)):
                 tile_index.append((pf, i, int(xs[i]), int(ys[i])))
                 tile_labels.append(label)
