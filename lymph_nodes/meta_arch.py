@@ -15,7 +15,7 @@ from lymph_nodes.typing import TileEmbeddingsInput
 
 def _input_dim_for_foundation(foundation: str) -> int:
     match foundation:
-        case "prov-gigapath" | "uni2-h":
+        case "prov_gigapath" | "uni2_h":
             return 1536
         case "uni":
             return 1024
