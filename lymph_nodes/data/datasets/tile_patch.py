@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from pathlib import Path
 
 import mlflow.artifacts
@@ -75,8 +76,9 @@ class TilePatchDataset(Dataset):
         self.labels: list[int] = tile_labels
         self.groups: list[str] = tile_groups
         self.slides: list[dict] = unique_slides
-        # Per-process cache: populated lazily by workers, each worker builds its own copy.
-        self._emb_cache: dict[Path, np.ndarray] = {}
+        # Bounded LRU cache: keep at most 2 parquet files in memory per worker.
+        self._emb_cache: OrderedDict[Path, np.ndarray] = OrderedDict()
+        self._cache_max = 2
 
     def __len__(self) -> int:
         return len(self._tile_index)
@@ -84,9 +86,13 @@ class TilePatchDataset(Dataset):
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, dict]:
         pf, row, x, y = self._tile_index[idx]
         if pf not in self._emb_cache:
+            if len(self._emb_cache) >= self._cache_max:
+                self._emb_cache.popitem(last=False)  # evict least recently used
             self._emb_cache[pf] = np.stack(
                 pd.read_parquet(pf, columns=["embedding"])["embedding"].tolist()
             ).astype(np.float32)
+        else:
+            self._emb_cache.move_to_end(pf)  # mark as recently used
         embedding = torch.from_numpy(self._emb_cache[pf][row].copy())
         label = torch.tensor(self.labels[idx], dtype=torch.float32)
         metadata = {
