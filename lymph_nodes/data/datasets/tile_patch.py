@@ -75,14 +75,19 @@ class TilePatchDataset(Dataset):
         self.labels: list[int] = tile_labels
         self.groups: list[str] = tile_groups
         self.slides: list[dict] = unique_slides
+        # Per-process cache: populated lazily by workers, each worker builds its own copy.
+        self._emb_cache: dict[Path, np.ndarray] = {}
 
     def __len__(self) -> int:
         return len(self._tile_index)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, dict]:
         pf, row, x, y = self._tile_index[idx]
-        df = pd.read_parquet(pf)
-        embedding = torch.tensor(df["embedding"].iloc[row], dtype=torch.float32)
+        if pf not in self._emb_cache:
+            self._emb_cache[pf] = np.stack(
+                pd.read_parquet(pf, columns=["embedding"])["embedding"].tolist()
+            ).astype(np.float32)
+        embedding = torch.from_numpy(self._emb_cache[pf][row].copy())
         label = torch.tensor(self.labels[idx], dtype=torch.float32)
         metadata = {
             "slide_name": pf.stem,
