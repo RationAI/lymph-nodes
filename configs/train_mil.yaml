@@ -13,6 +13,9 @@ checkpoint: null
 foundation: ???
 level: ???
 
+# Override to download artifacts from a different MLflow server than MLFLOW_TRACKING_URI.
+source_tracking_uri: null
+
 embeddings_uri: ${uris.mil_embeddings.${key:${foundation}}.${level}}
 
 trainer:

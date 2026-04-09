@@ -19,6 +19,10 @@ checkpoint: null
 foundation: ???
 level: ???
 
+# Override to download artifacts from a different MLflow server than MLFLOW_TRACKING_URI.
+# e.g. source_tracking_uri=http://old-mlflow when training logs go to a new server.
+source_tracking_uri: null
+
 embeddings_uri: ${uris.patch_embeddings.${key:${foundation}}.${level}}
 
 trainer:
