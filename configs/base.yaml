@@ -5,3 +5,9 @@ defaults:
 
 metadata:
   experiment_name: Lymph Nodes
+
+# Set this to the MLflow URL where your source artifacts (embeddings) live
+# when it differs from MLFLOW_TRACKING_URI (e.g. when training logs to a new server
+# but embeddings were computed against the old one).
+# Example: source_tracking_uri: http://mlflow.rationai-mlflow
+source_tracking_uri: null

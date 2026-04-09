@@ -40,13 +40,16 @@ class TileEmbeddings(Dataset[TileEmbeddingsSample]):
         embeddings_uri: str | list[str],
         padding: bool = True,
         include_slides: list[str] | None = None,
+        tracking_uri: str | None = None,
     ) -> None:
         self.padding = padding
 
         uris = [embeddings_uri] if isinstance(embeddings_uri, str) else embeddings_uri
         parquet_files: list[Path] = []
         for uri in uris:
-            embeddings_dir = Path(mlflow.artifacts.download_artifacts(uri))
+            embeddings_dir = Path(
+                mlflow.artifacts.download_artifacts(uri, tracking_uri=tracking_uri)
+            )
             parquet_files.extend(embeddings_dir.rglob("*.parquet"))
         parquet_files = sorted(set(parquet_files))
         if not parquet_files:
