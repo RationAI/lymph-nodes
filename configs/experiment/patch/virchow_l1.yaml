@@ -1,0 +1,5 @@
+# @package _global_
+# Patch MLP — Virchow, level 1
+# Run: python -m lymph_nodes --config-name train_patch +experiment=patch/virchow_l1
+foundation: virchow
+level: level1

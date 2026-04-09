@@ -1,0 +1,5 @@
+# @package _global_
+# MIL — Virchow, level 1
+# Run: python -m lymph_nodes --config-name train_mil +experiment=mil/virchow_l1
+foundation: virchow
+level: level1

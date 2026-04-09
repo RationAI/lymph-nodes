@@ -1,0 +1,4 @@
+_target_: lymph_nodes.data.datasets.TilePatchDataset
+embeddings_uri: ${embeddings_uri}
+include_slides: null
+tracking_uri: ${source_tracking_uri}

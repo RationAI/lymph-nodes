@@ -1,0 +1,5 @@
+# @package _global_
+# MIL — UNI, level 1
+# Run: python -m lymph_nodes --config-name train_mil +experiment=mil/uni_l1
+foundation: uni
+level: level1

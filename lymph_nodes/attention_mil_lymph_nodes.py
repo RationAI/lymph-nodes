@@ -98,9 +98,7 @@ class LymphNodesMIL(LightningModule):
             probs = probs.unsqueeze(0)
         if label.dim() == 0:
             label = label.unsqueeze(0)
-
         self.train_metrics.update(probs, label.long())
-
         self.log_dict(self.train_metrics, on_step=False, on_epoch=True)
 
         return loss
@@ -115,10 +113,8 @@ class LymphNodesMIL(LightningModule):
             probs = probs.unsqueeze(0)
         if label.dim() == 0:
             label = label.unsqueeze(0)
-
         self.val_metrics.update(probs, label.long())
         self.log("val/loss", loss, prog_bar=True, batch_size=len(label))
-
         self.log_dict(self.val_metrics, on_step=False, on_epoch=True, prog_bar=True)
 
     def test_step(self, batch: TileEmbeddingsInput, batch_idx: int):
@@ -129,9 +125,7 @@ class LymphNodesMIL(LightningModule):
             probs = probs.unsqueeze(0)
         if label.dim() == 0:
             label = label.unsqueeze(0)
-
         self.test_metrics.update(probs, label.long())
-
         self.log_dict(self.test_metrics, on_step=False, on_epoch=True)
 
     def predict_step(self, batch: TileEmbeddingsInput, batch_idx: int):

@@ -1,0 +1,62 @@
+# @package _global_
+# Patch-based MLP — k-fold cross-validation with group-aware splits.
+#
+# StratifiedGroupKFold ensures all slides from the same patient stay
+# in the same fold (train or val, never both).
+# Per-tile metrics are logged as val/AUC, val/loss, etc.
+# Use predict mode to get per-tile probabilities for heatmap generation.
+
+defaults:
+  - hydra: default
+  - logger: mlflow
+  - /data/datasets@data.train: tile_patch/tile_patch
+  - /data/embeddings/uris
+  - _self_
+
+seed: 42
+mode: fit
+checkpoint: null
+foundation: ???
+level: ???
+
+# Override to download artifacts from a different MLflow server than MLFLOW_TRACKING_URI.
+# e.g. source_tracking_uri=http://old-mlflow when training logs go to a new server.
+source_tracking_uri: null
+
+embeddings_uri: ${uris.patch_embeddings.${key:${foundation}}.${level}}
+
+trainer:
+  enable_checkpointing: true
+  max_epochs: 50
+  log_every_n_steps: 10
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      save_top_k: 1
+      monitor: val/AUC
+      mode: max
+    - _target_: lightning.pytorch.callbacks.EarlyStopping
+      monitor: val/AUC
+      mode: max
+      patience: 10
+
+data:
+  batch_size: 512
+  num_workers: 8
+  kfold_splits: 5
+  k: null  # null = run all 5 folds; set to 1-5 for a single fold, e.g. data.k=1
+
+model:
+  _target_: lymph_nodes.patch_mlp.PatchMLP
+  foundation: ${foundation}
+  hidden_dims: [512, 256]
+  dropout: 0.25
+  lr: 0.0001
+  pos_weight: 1.0
+
+metadata:
+  experiment_name: 'Lymph Nodes'
+  run_name: '🏋️‍♂️ Patch MLP: ${foundation} ${level} (fold ${data.k}/${data.kfold_splits})'
+  description: 'Patch-based MLP for lymph node metastasis detection'
+  hyperparams:
+    foundation: ${foundation}
+    level: ${level}
