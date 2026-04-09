@@ -106,6 +106,21 @@ class DataModule(LightningDataModule):
             num_workers=self.num_workers,
         )
 
+    @property
+    def pos_weight(self) -> float:
+        """Negative-to-positive tile ratio for use as BCEWithLogitsLoss ``pos_weight``.
+
+        Computed from the training subset after :meth:`setup` has been called.
+        With heavily imbalanced data this value will be >> 1, reflecting how
+        many negative tiles exist per positive tile.
+        """
+        labels = self.train.labels
+        n_pos = sum(labels)
+        n_neg = len(labels) - n_pos
+        if n_pos == 0:
+            return 1.0
+        return n_neg / n_pos
+
 
 def collate_fn(
     batch: list[tuple[Tensor, Tensor, Metadata]],
@@ -145,16 +160,21 @@ def _log_split(
         n_slides = len(subset.slides)
         if n_samples != n_slides:
             # Tile-level dataset: report both tile and slide counts.
+            pos_tiles = sum(subset.labels)
+            neg_tiles = n_samples - pos_tiles
             pos_slides = sum(s["label"] for s in subset.slides)
             neg_slides = n_slides - pos_slides
             log.info(
-                "%s%s  (%d tiles from %d slides: %d+ / %d- slides)",
+                "%s%s  (%d tiles [%d+ / %d-] from %d slides [%d+ / %d-]; pos_weight=%.1f)",
                 prefix,
                 name,
                 n_samples,
+                pos_tiles,
+                neg_tiles,
                 n_slides,
                 pos_slides,
                 neg_slides,
+                neg_tiles / pos_tiles if pos_tiles > 0 else float("inf"),
             )
         else:
             pos = sum(subset.labels)

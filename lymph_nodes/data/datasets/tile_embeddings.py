@@ -11,6 +11,20 @@ from torch.utils.data import Dataset
 from lymph_nodes.typing import MetadataTileEmbeddings, TileEmbeddingsSample
 
 
+def _resolve_artifacts(uri: str, tracking_uri: str | None) -> Path:
+    """Return a local directory :class:`~pathlib.Path` for *uri*.
+
+    Absolute filesystem paths (starting with ``/`` or ``~``) are returned
+    directly, so pre-downloaded artifacts can be used without a live MLflow
+    server.  This is useful when the tracking server is unreachable (e.g.
+    proxy errors) but the parquet files already exist on disk.  All other
+    URIs are resolved via ``mlflow.artifacts.download_artifacts``.
+    """
+    if uri.startswith(("/", "~")):
+        return Path(uri).expanduser()
+    return Path(mlflow.artifacts.download_artifacts(uri, tracking_uri=tracking_uri))
+
+
 def _group_from_stem(stem: str) -> str:
     """Extract patient/case group ID from a slide stem for group-aware K-Fold splitting."""
     mmci = re.match(r"^SNB_[A-Z]+_CASE_(\d+)_SLIDE_", stem)
@@ -47,9 +61,7 @@ class TileEmbeddings(Dataset[TileEmbeddingsSample]):
         uris = [embeddings_uri] if isinstance(embeddings_uri, str) else embeddings_uri
         parquet_files: list[Path] = []
         for uri in uris:
-            embeddings_dir = Path(
-                mlflow.artifacts.download_artifacts(uri, tracking_uri=tracking_uri)
-            )
+            embeddings_dir = _resolve_artifacts(uri, tracking_uri)
             parquet_files.extend(embeddings_dir.rglob("*.parquet"))
         parquet_files = sorted(set(parquet_files))
         if not parquet_files:

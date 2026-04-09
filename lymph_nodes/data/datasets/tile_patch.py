@@ -1,15 +1,21 @@
-import logging
-from pathlib import Path
+from __future__ import annotations
 
-import mlflow.artifacts
+import logging
+from typing import TYPE_CHECKING
+
 import pyarrow.parquet as pq
 import torch
 from datasets import load_dataset
 from torch.utils.data import Dataset
 
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
 from lymph_nodes.data.datasets.tile_embeddings import (
     _group_from_stem,
     _label_from_filename,
+    _resolve_artifacts,
 )
 
 
@@ -33,9 +39,7 @@ class TilePatchDataset(Dataset):
         uris = [embeddings_uri] if isinstance(embeddings_uri, str) else embeddings_uri
         parquet_files: list[Path] = []
         for uri in uris:
-            embeddings_dir = Path(
-                mlflow.artifacts.download_artifacts(uri, tracking_uri=tracking_uri)
-            )
+            embeddings_dir = _resolve_artifacts(uri, tracking_uri)
             parquet_files.extend(embeddings_dir.rglob("*.parquet"))
         parquet_files = sorted(set(parquet_files))
         if not parquet_files:
