@@ -141,16 +141,32 @@ def _log_split(
     def _summarise(
         subset: TileEmbeddings | TileEmbeddingsSubset | DatasetSubset, name: str
     ) -> None:
-        pos = sum(subset.labels)
-        neg = len(subset.labels) - pos
-        log.info(
-            "%s%s  (%d slides: %d pos, %d neg)",
-            prefix,
-            name,
-            len(subset.labels),
-            pos,
-            neg,
-        )
+        n_samples = len(subset.labels)
+        n_slides = len(subset.slides)
+        if n_samples != n_slides:
+            # Tile-level dataset: report both tile and slide counts.
+            pos_slides = sum(s["label"] for s in subset.slides)
+            neg_slides = n_slides - pos_slides
+            log.info(
+                "%s%s  (%d tiles from %d slides: %d+ / %d- slides)",
+                prefix,
+                name,
+                n_samples,
+                n_slides,
+                pos_slides,
+                neg_slides,
+            )
+        else:
+            pos = sum(subset.labels)
+            neg = n_samples - pos
+            log.info(
+                "%s%s  (%d slides: %d pos, %d neg)",
+                prefix,
+                name,
+                n_samples,
+                pos,
+                neg,
+            )
         for slide in subset.slides:
             marker = "+" if slide["label"] == 1 else "-"
             log.info("    [%s] %s", marker, slide["name"])

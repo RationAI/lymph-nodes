@@ -1,11 +1,10 @@
-from collections import OrderedDict
+import logging
 from pathlib import Path
 
 import mlflow.artifacts
-import numpy as np
-import pandas as pd
 import pyarrow.parquet as pq
 import torch
+from datasets import load_dataset
 from torch.utils.data import Dataset
 
 from lymph_nodes.data.datasets.tile_embeddings import (
@@ -14,8 +13,16 @@ from lymph_nodes.data.datasets.tile_embeddings import (
 )
 
 
+log = logging.getLogger(__name__)
+
+
 class TilePatchDataset(Dataset):
-    """Per-tile dataset for patch-based MLP classification."""
+    """Per-tile dataset for patch-based MLP classification.
+
+    Uses HuggingFace ``datasets`` for lazy (memory-mapped) Parquet loading so
+    that embeddings are read from disk on demand instead of being materialized
+    in RAM all at once.
+    """
 
     def __init__(
         self,
@@ -41,64 +48,51 @@ class TilePatchDataset(Dataset):
 
         tile_labels: list[int] = []
         tile_groups: list[str] = []
-        tile_index: list[tuple[Path, int, int, int]] = []
+        tile_slide_names: list[str] = []
         unique_slides: list[dict] = []
 
         for pf in parquet_files:
-            label = _label_from_filename(pf.stem)
-            group = _group_from_stem(pf.stem)
-            schema = pq.read_schema(pf)
             n_rows = pq.read_metadata(pf).num_rows
-            col_names = schema.names
-            coord_cols = [c for c in ("x", "y") if c in col_names]
-            if coord_cols:
-                coord_df = pd.read_parquet(pf, columns=coord_cols)
-                xs = (
-                    coord_df["x"].to_numpy(dtype=np.int64)
-                    if "x" in col_names
-                    else np.zeros(n_rows, dtype=np.int64)
-                )
-                ys = (
-                    coord_df["y"].to_numpy(dtype=np.int64)
-                    if "y" in col_names
-                    else np.zeros(n_rows, dtype=np.int64)
-                )
-            else:
-                xs = np.zeros(n_rows, dtype=np.int64)
-                ys = np.zeros(n_rows, dtype=np.int64)
-            for i in range(len(xs)):
-                tile_index.append((pf, i, int(xs[i]), int(ys[i])))
-                tile_labels.append(label)
-                tile_groups.append(group)
-            unique_slides.append({"name": pf.stem, "path": pf, "label": label})
+            slide_name = pf.stem
+            label = _label_from_filename(slide_name)
+            group = _group_from_stem(slide_name)
 
-        self._tile_index = tile_index
+            unique_slides.append({"name": slide_name, "path": pf, "label": label})
+            tile_labels.extend([label] * n_rows)
+            tile_groups.extend([group] * n_rows)
+            tile_slide_names.extend([slide_name] * n_rows)
+
+        log.info(
+            "Loading %d parquet files via HuggingFace datasets (lazy) …",
+            len(parquet_files),
+        )
+        self._ds = load_dataset(
+            "parquet",
+            data_files=[str(pf) for pf in parquet_files],
+            split="train",
+        )
+
         self.labels: list[int] = tile_labels
         self.groups: list[str] = tile_groups
         self.slides: list[dict] = unique_slides
-        # Bounded LRU cache: keep at most 2 parquet files in memory per worker.
-        self._emb_cache: OrderedDict[Path, np.ndarray] = OrderedDict()
-        self._cache_max = 2
+        self._tile_slide_names: list[str] = tile_slide_names
+
+        log.info(
+            "TilePatchDataset ready: %d tiles from %d slides",
+            len(self._ds),
+            len(unique_slides),
+        )
 
     def __len__(self) -> int:
-        return len(self._tile_index)
+        return len(self._ds)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, dict]:
-        pf, row, x, y = self._tile_index[idx]
-        if pf not in self._emb_cache:
-            if len(self._emb_cache) >= self._cache_max:
-                self._emb_cache.popitem(last=False)  # evict least recently used
-            self._emb_cache[pf] = np.stack(
-                pd.read_parquet(pf, columns=["embedding"])["embedding"].tolist()
-            ).astype(np.float32)
-        else:
-            self._emb_cache.move_to_end(pf)  # mark as recently used
-        embedding = torch.from_numpy(self._emb_cache[pf][row].copy())
+        row = self._ds[idx]
+        embedding = torch.tensor(row["embedding"], dtype=torch.float32)
         label = torch.tensor(self.labels[idx], dtype=torch.float32)
         metadata = {
-            "slide_name": pf.stem,
-            "slide_path": pf,
-            "tile_x": x,
-            "tile_y": y,
+            "slide_name": self._tile_slide_names[idx],
+            "tile_x": row.get("x", 0),
+            "tile_y": row.get("y", 0),
         }
         return embedding, label, metadata

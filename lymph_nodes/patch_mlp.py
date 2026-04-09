@@ -51,7 +51,6 @@ class PatchMLP(LightningModule):
 
         self.lr = lr
 
-        # Build MLP layers
         layers: list[nn.Module] = []
         in_features = input_dim
         for hidden_dim in hidden_dims:
@@ -131,7 +130,7 @@ class PatchMLP(LightningModule):
         self.log_dict(self.test_metrics, on_step=False, on_epoch=True)
 
     # ------------------------------------------------------------------
-    # Predict — returns per-tile probs + coordinates for heatmaps
+    # Predict
     # ------------------------------------------------------------------
 
     def predict_step(self, batch: tuple, batch_idx: int) -> dict:
