@@ -44,7 +44,7 @@ uris:
       level1: ???  # add link here
       level2: ???
       level3: ???
-    ç:
+    virchow2:
       level1: 
       # FNBrno
         - "/mnt/projects/lymph_nodes/embeddings/FNBrno_AE_negative/0.5mpp/virchow2"
