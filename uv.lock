@@ -1212,7 +1212,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.3.5" },
     { name = "omegaconf", specifier = ">=2.3.0" },
     { name = "rationai-masks", git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git" },
-    { name = "rationai-mlkit", git = "https://github.com/RationAI/mlkit.git" },
+    { name = "rationai-mlkit", git = "https://github.com/RationAI/mlkit.git?branch=feature%2Flarge-meta-dataset" },
     { name = "rationai-sdk", git = "https://gitlab.ics.muni.cz/rationai/infrastructure/rationai-sdk-python.git" },
     { name = "rationai-tiling", git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/tiling.git" },
     { name = "ratiopath", specifier = ">=1.0.3" },
@@ -2464,7 +2464,7 @@ dependencies = [
 [[package]]
 name = "rationai-mlkit"
 version = "0.4.0"
-source = { git = "https://github.com/RationAI/mlkit.git#91156fa9ea19fbd2b1fa80940465b74c4e378d2d" }
+source = { git = "https://github.com/RationAI/mlkit.git?branch=feature%2Flarge-meta-dataset#0818342368530eaa002f97a8d153ca96d13087ee" }
 dependencies = [
     { name = "datasets" },
     { name = "gitpython" },
