@@ -23,9 +23,6 @@ class DatasetSubset(Subset[Any]):
         self.labels = [dataset.labels[i] for i in indices]  # type: ignore[attr-defined]
         self.groups = [dataset.groups[i] for i in indices]  # type: ignore[attr-defined]
 
-        # For tile-level datasets (e.g. TilePatchDataset), dataset.slides contains
-        # one entry per unique slide while indices are tile indices — direct indexing
-        # would be out of range.  Rebuild the unique-slide list from tile metadata.
         if hasattr(dataset, "_tile_slide_names"):
             slide_lookup = {s["name"]: s for s in dataset.slides}  # type: ignore[attr-defined]
             seen: set[str] = set()

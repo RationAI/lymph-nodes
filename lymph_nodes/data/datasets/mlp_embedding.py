@@ -17,6 +17,7 @@ log = logging.getLogger(__name__)
 
 
 def _label_from_filename(stem: str) -> int:
+    """Helper to extract slide-level labels from slide IDs."""
     if stem.endswith("-1"):
         return 1
     if stem.endswith("-0"):
@@ -25,6 +26,8 @@ def _label_from_filename(stem: str) -> int:
 
 
 class SlideEmbeddingDataset(Dataset):
+    """The leaf dataset representing a single slide."""
+
     def __init__(self, tiles: HFDataset, name: str, label: int) -> None:
         self._tiles = tiles.with_format("numpy")
         self.name = name
@@ -48,12 +51,12 @@ class SlideEmbeddingDataset(Dataset):
 
 class MLPEmbeddingDataset(MetaTiledSlides):
     def __init__(self, paths: list[str], uris: list[str] | None = None) -> None:
+        # This calls generate_datasets internally
         super().__init__(paths=paths, uris=uris)
 
     def generate_datasets(self) -> Iterable[Dataset]:
         for slide in self.slides:
             slide_id = slide["id"]
-
             slide_tiles_view = self.filter_tiles_by_slide(slide_id)
 
             if len(slide_tiles_view) > 0:
@@ -65,12 +68,22 @@ class MLPEmbeddingDataset(MetaTiledSlides):
 
     @property
     def labels(self) -> np.ndarray:
+        """Required for WeightedRandomSampler."""
         return np.array(self.tiles["metastazis"], dtype=np.int8)
 
     @property
     def groups(self) -> np.ndarray:
+        """Required for StratifiedGroupKFold."""
         return np.array(self.tiles["slide_id"])
 
     @property
-    def slides_list(self) -> list[dict]:
-        return [{"name": ds.name, "label": ds.label} for ds in self.datasets]
+    def slides(self) -> Any:
+        if hasattr(self, "datasets") and self.datasets:
+            return [{"name": ds.name, "label": ds.label} for ds in self.datasets]
+
+        return self.__dict__.get("slides")
+
+    @slides.setter
+    def slides(self, value: Any) -> None:
+        """Allows the parent class to set self.slides during init."""
+        self.__dict__["slides"] = value
