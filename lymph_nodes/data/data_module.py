@@ -50,8 +50,6 @@ class DataModule(LightningDataModule):
                     assert self.k is not None
                     dataset = instantiate(self.datasets["train"])
 
-                    # Prefer slide-level splitting when the dataset supports it
-                    # (avoids materialising 13 M+ element Python lists).
                     if hasattr(dataset, "kfold_split"):
                         self.train, self.val = dataset.kfold_split(
                             self.kfold_splits, self.k, pos_weight=self.pos_weight
@@ -135,8 +133,6 @@ def collate_fn(
 def _weighted_sampler(
     subset: TileEmbeddings | TileEmbeddingsSubset | DatasetSubset,
 ) -> WeightedRandomSampler:
-    """Create a weighted random sampler to balance positive/negative classes."""
-    # Fast path: subset pre-computes weights without huge Python lists.
     if hasattr(subset, "sample_weights"):
         pw = getattr(subset, "_pos_weight", 1.0)
         weights = subset.sample_weights(pos_weight=pw)
@@ -155,7 +151,6 @@ def _log_split(
     val: TileEmbeddings | TileEmbeddingsSubset | DatasetSubset,
     fold: int | None = None,
 ) -> None:
-    """Log a human-readable summary of the train/val split to stdout."""
     prefix = f"Fold {fold} — " if fold is not None else ""
 
     def _summarise(
