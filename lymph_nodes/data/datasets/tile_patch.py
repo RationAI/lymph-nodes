@@ -1,11 +1,21 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+import pyarrow as pa
+import pyarrow.parquet as pq
 import torch
 from datasets import Dataset as HFDataset
+from datasets.table import InMemoryTable
+from mlflow.artifacts import download_artifacts
 from rationai.mlkit.data.datasets.meta_tiled_slides import MetaTiledSlides
 from torch.utils.data import Dataset
 
@@ -14,9 +24,6 @@ from lymph_nodes.data.datasets.tile_embeddings import (
     _label_from_filename,
 )
 
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
 
 log = logging.getLogger(__name__)
 
@@ -88,6 +95,42 @@ class TilePatchDataset(MetaTiledSlides):
                 tiles=self.filter_tiles_by_slide(slide["id"]),
             )
             for slide in self.slides
+        )
+
+    @staticmethod
+    def load_slides_and_tiles(
+        paths: Iterable[str | Path], uris: Iterable[str]
+    ) -> tuple[HFDataset, HFDataset]:
+        """Load slides/tiles with schema promotion to handle null-type columns."""
+        with ThreadPoolExecutor() as executor:
+            artifact_paths = list(
+                executor.map(lambda uri: download_artifacts(artifact_uri=uri), uris)
+            )
+
+        search_dirs = [Path(p) for p in (*paths, *artifact_paths)]
+
+        slide_files = [
+            p / "slides.parquet" for p in search_dirs if (p / "slides.parquet").exists()
+        ]
+        tile_files = [
+            p / "tiles.parquet" for p in search_dirs if (p / "tiles.parquet").exists()
+        ]
+
+        if not slide_files or not tile_files:
+            return HFDataset.from_dict({}), HFDataset.from_dict({})
+
+        slides_table = pa.concat_tables(
+            [pq.read_table(str(f)) for f in slide_files],
+            promote_options="default",
+        )
+        tiles_table = pa.concat_tables(
+            [pq.read_table(str(f)) for f in tile_files],
+            promote_options="default",
+        )
+
+        return (
+            HFDataset(InMemoryTable(slides_table)),
+            HFDataset(InMemoryTable(tiles_table)),
         )
 
     @cached_property
