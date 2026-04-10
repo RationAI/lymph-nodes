@@ -1,2 +1,2 @@
-_target_: lymph_nodes.data.datasets.TilePatchDataset
+_target_: lymph_nodes.data.datasets.MLPEmbeddingDataset
 paths: ${embeddings_uri}
