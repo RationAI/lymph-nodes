@@ -3,103 +3,73 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import pyarrow.parquet as pq
 import torch
-from datasets import load_dataset
+from datasets import Dataset as HFDataset
+from rationai.mlkit.data.datasets.meta_tiled_slides import MetaTiledSlides
 from torch.utils.data import Dataset
+
+from lymph_nodes.data.datasets.tile_embeddings import _group_from_stem
 
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
-from lymph_nodes.data.datasets.tile_embeddings import (
-    _group_from_stem,
-    _label_from_filename,
-    _resolve_artifacts,
-)
-
+    from collections.abc import Iterable
 
 log = logging.getLogger(__name__)
 
 
-class TilePatchDataset(Dataset):
-    """Per-tile dataset for patch-based MLP classification.
+class _SlideTiles(Dataset):
+    """Per-tile dataset for a single slide, used internally by TilePatchDataset."""
 
-    Uses HuggingFace ``datasets`` for lazy (memory-mapped) Parquet loading so
-    that embeddings are read from disk on demand instead of being materialized
-    in RAM all at once.
-    """
-
-    def __init__(
-        self,
-        embeddings_uri: str | list[str],
-        include_slides: list[str] | None = None,
-        tracking_uri: str | None = None,
-    ) -> None:
-        uris = [embeddings_uri] if isinstance(embeddings_uri, str) else embeddings_uri
-        parquet_files: list[Path] = []
-        for uri in uris:
-            embeddings_dir = _resolve_artifacts(uri, tracking_uri)
-            parquet_files.extend(embeddings_dir.rglob("*.parquet"))
-        parquet_files = sorted(set(parquet_files))
-        if not parquet_files:
-            raise FileNotFoundError(f"No parquet files found in any of: {uris}")
-
-        if include_slides is not None:
-            include_set = set(include_slides)
-            parquet_files = [pf for pf in parquet_files if pf.stem in include_set]
-            if not parquet_files:
-                raise FileNotFoundError(
-                    "No parquet files matched include_slides in provided URIs"
-                )
-
-        tile_labels: list[int] = []
-        tile_groups: list[str] = []
-        tile_slide_names: list[str] = []
-        unique_slides: list[dict] = []
-
-        for pf in parquet_files:
-            n_rows = pq.read_metadata(pf).num_rows
-            slide_name = pf.stem
-            label = _label_from_filename(slide_name)
-            group = _group_from_stem(slide_name)
-
-            unique_slides.append({"name": slide_name, "path": pf, "label": label})
-            tile_labels.extend([label] * n_rows)
-            tile_groups.extend([group] * n_rows)
-            tile_slide_names.extend([slide_name] * n_rows)
-
-        log.info(
-            "Loading %d parquet files via HuggingFace datasets (lazy) …",
-            len(parquet_files),
-        )
-        self._ds = load_dataset(
-            "parquet",
-            data_files=[str(pf) for pf in parquet_files],
-            split="train",
-        )
-
-        self.labels: list[int] = tile_labels
-        self.groups: list[str] = tile_groups
-        self.slides: list[dict] = unique_slides
-        self._tile_slide_names: list[str] = tile_slide_names
-
-        log.info(
-            "TilePatchDataset ready: %d tiles from %d slides",
-            len(self._ds),
-            len(unique_slides),
-        )
+    def __init__(self, label: int, name: str, group: str, tiles: HFDataset) -> None:
+        self._label = label
+        self._name = name
+        self._group = group
+        self._tiles = tiles
 
     def __len__(self) -> int:
-        return len(self._ds)
+        return len(self._tiles)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, dict]:
-        row = self._ds[idx]
-        embedding = torch.tensor(row["embedding"], dtype=torch.float32)
-        label = torch.tensor(self.labels[idx], dtype=torch.float32)
+        tile = self._tiles[idx]
+        embedding = torch.tensor(tile["embedding"], dtype=torch.float32)
+        label = torch.tensor(self._label, dtype=torch.float32)
         metadata = {
-            "slide_name": self._tile_slide_names[idx],
-            "tile_x": row.get("x", 0),
-            "tile_y": row.get("y", 0),
+            "slide_name": self._name,
+            "tile_x": tile["x"],
+            "tile_y": tile["y"],
         }
         return embedding, label, metadata
+
+
+class TilePatchDataset(MetaTiledSlides):
+    """Per-tile dataset for patch-based MLP classification.
+
+    Backed by :class:`MetaTiledSlides` which loads slides and tiles from
+    parquet files (via local paths or MLflow artifact URIs).
+    Each item is a single tile: ``(embedding, label, metadata)``.
+
+    Expected parquet schema:
+        ``slides.parquet``: ``slide_id``, ``name``, ``label``
+        ``tiles.parquet``:  ``slide_id``, ``embedding``, ``x``, ``y``
+    """
+
+    def generate_datasets(self) -> Iterable[Dataset]:
+        return (
+            _SlideTiles(
+                label=slide["label"],
+                name=slide["name"],
+                group=_group_from_stem(slide["name"]),
+                tiles=self.filter_tiles_by_slide(slide["slide_id"]),
+            )
+            for slide in self.slides
+        )
+
+    @property
+    def labels(self) -> list[int]:
+        """Flat per-tile label list (compatible with StratifiedGroupKFold)."""
+        return [ds._label for ds in self.datasets for _ in range(len(ds))]
+
+    @property
+    def groups(self) -> list[str]:
+        """Flat per-tile group list (compatible with StratifiedGroupKFold)."""
+        return [ds._group for ds in self.datasets for _ in range(len(ds))]
