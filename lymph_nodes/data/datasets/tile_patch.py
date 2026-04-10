@@ -4,7 +4,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 
 if TYPE_CHECKING:
@@ -14,6 +14,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import torch
 from datasets import Dataset as HFDataset
+from datasets import load_dataset
 from datasets.table import InMemoryTable
 from mlflow.artifacts import download_artifacts
 from rationai.mlkit.data.datasets.meta_tiled_slides import MetaTiledSlides
@@ -29,19 +30,33 @@ log = logging.getLogger(__name__)
 
 
 class _SlideTiles(Dataset):
-    """Per-tile dataset for a single slide's pre-computed embeddings."""
+    """Per-tile dataset for a single slide's pre-computed embeddings.
 
-    def __init__(self, name: str, label: int, group: str, tiles: HFDataset) -> None:
+    Holds a reference to the shared, memory-mapped full tiles HFDataset and a
+    list of row indices for this slide.  Access is lazy: each __getitem__ reads
+    exactly one row from the Arrow mmap cache, so no slide's embeddings are
+    materialised into RAM upfront.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        label: int,
+        group: str,
+        tiles: HFDataset,
+        indices: list[int],
+    ) -> None:
         self._name = name
         self._label = label
         self._group = group
-        self._tiles = tiles
+        self._tiles = tiles  # shared reference — never copied
+        self._indices = indices  # per-slide row pointers into _tiles
 
     def __len__(self) -> int:
-        return len(self._tiles)
+        return len(self._indices)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, dict]:
-        tile = self._tiles[idx]
+        tile = self._tiles[self._indices[idx]]  # single lazy row read
         embedding = torch.tensor(tile["embedding"], dtype=torch.float32)
         label = torch.tensor(self._label, dtype=torch.float32)
         metadata = {
@@ -87,12 +102,16 @@ class TilePatchDataset(MetaTiledSlides):
             log.info("  [%s] %-40s  %d tiles", marker, ds._name, len(ds))
 
     def generate_datasets(self) -> Iterable[Dataset]:
+        # Capture both references eagerly so the generator closure is safe.
+        tiles = self.tiles
+        index = self._slide_id_to_indices
         return (
             _SlideTiles(
                 name=slide["id"],
                 label=_label_from_filename(slide["id"]),
                 group=_group_from_stem(slide["id"]),
-                tiles=self.filter_tiles_by_slide(slide["id"]),
+                tiles=tiles,
+                indices=index.get(slide["id"], []),
             )
             for slide in self.slides
         )
@@ -113,25 +132,31 @@ class TilePatchDataset(MetaTiledSlides):
             p / "slides.parquet" for p in search_dirs if (p / "slides.parquet").exists()
         ]
         tile_files = [
-            p / "tiles.parquet" for p in search_dirs if (p / "tiles.parquet").exists()
+            str(p / "tiles.parquet")
+            for p in search_dirs
+            if (p / "tiles.parquet").exists()
         ]
 
         if not slide_files or not tile_files:
             return HFDataset.from_dict({}), HFDataset.from_dict({})
 
+        # Slides: only ~1 row per slide — use PyArrow concat with schema promotion
+        # to handle null-typed columns (e.g. cytokeratin_mask_path) that differ
+        # across sources.
         slides_table = pa.concat_tables(
             [pq.read_table(str(f)) for f in slide_files],
             promote_options="default",
         )
-        tiles_table = pa.concat_tables(
-            [pq.read_table(str(f)) for f in tile_files],
-            promote_options="default",
+        slides_ds = HFDataset(InMemoryTable(slides_table))
+
+        # Tiles: millions of rows with large embeddings — load lazily via HuggingFace
+        # memory-mapping so embeddings are only read from disk on access.
+        tiles_ds = cast(
+            "HFDataset",
+            load_dataset(path="parquet", split="train", data_files=tile_files),
         )
 
-        return (
-            HFDataset(InMemoryTable(slides_table)),
-            HFDataset(InMemoryTable(tiles_table)),
-        )
+        return slides_ds, tiles_ds
 
     @cached_property
     def labels(self) -> list[int]:
