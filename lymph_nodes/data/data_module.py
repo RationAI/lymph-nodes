@@ -93,16 +93,18 @@ class DataModule(LightningDataModule):
             num_workers=self.num_workers,
             collate_fn=collate_fn,
             persistent_workers=self.num_workers > 0,
+            prefetch_factor=4 if self.num_workers > 0 else None,
             pin_memory=True,
         )
 
     def val_dataloader(self) -> Iterable[TileEmbeddingsInput]:
         return DataLoader(
             self.val,
-            batch_size=self.batch_size,
+            batch_size=self.batch_size * 4,
             num_workers=self.num_workers,
             collate_fn=collate_fn,
             persistent_workers=self.num_workers > 0,
+            prefetch_factor=4 if self.num_workers > 0 else None,
             pin_memory=True,
         )
 

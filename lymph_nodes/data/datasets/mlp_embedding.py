@@ -44,8 +44,8 @@ class SlideEmbeddingDataset(Dataset):
         self, idx: int
     ) -> tuple[torch.Tensor, torch.Tensor, dict[str, Any]]:
         row = self._tiles[self.indices[idx]]
-        embedding = torch.tensor(row["embedding"], dtype=torch.float32)
-        label = torch.tensor(row["metastazis"], dtype=torch.float32)
+        embedding = torch.from_numpy(row["embedding"].copy())
+        label = torch.tensor(float(row["metastazis"]), dtype=torch.float32)
         metadata = {"x": row["x"], "y": row["y"], "slide_id": row["slide_id"]}
         return embedding, label, metadata
 
@@ -87,6 +87,8 @@ class MLPEmbeddingDataset(ConcatDataset):
         index_map: dict[str, list[int]] = defaultdict(list)
         for idx, sid in enumerate(self.tiles_ds["slide_id"]):
             index_map[sid].append(idx)
+
+        self.tiles_ds = self.tiles_ds.with_format("numpy")
 
         datasets = [
             SlideEmbeddingDataset(
