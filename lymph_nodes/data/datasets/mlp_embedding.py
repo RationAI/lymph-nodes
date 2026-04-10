@@ -16,12 +16,16 @@ from datasets import load_dataset
 from mlflow.artifacts import download_artifacts
 from torch.utils.data import ConcatDataset, Dataset
 
-from lymph_nodes.data.datasets.tile_embeddings import (
-    _label_from_filename,
-)
-
 
 log = logging.getLogger(__name__)
+
+
+def _label_from_filename(stem: str) -> int:
+    if stem.endswith("-1"):
+        return 1
+    if stem.endswith("-0"):
+        return 0
+    return 1
 
 
 class SlideEmbeddingDataset(Dataset):
