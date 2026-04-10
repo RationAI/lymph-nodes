@@ -30,14 +30,6 @@ log = logging.getLogger(__name__)
 
 
 class _SlideTiles(Dataset):
-    """Per-tile dataset for a single slide's pre-computed embeddings.
-
-    Holds a reference to the shared, memory-mapped full tiles HFDataset and a
-    list of row indices for this slide.  Access is lazy: each __getitem__ reads
-    exactly one row from the Arrow mmap cache, so no slide's embeddings are
-    materialised into RAM upfront.
-    """
-
     def __init__(
         self,
         name: str,
@@ -49,14 +41,14 @@ class _SlideTiles(Dataset):
         self._name = name
         self._label = label
         self._group = group
-        self._tiles = tiles  # shared reference — never copied
-        self._indices = indices  # per-slide row pointers into _tiles
+        self._tiles = tiles
+        self._indices = indices
 
     def __len__(self) -> int:
         return len(self._indices)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, dict]:
-        tile = self._tiles[self._indices[idx]]  # single lazy row read
+        tile = self._tiles[self._indices[idx]]
         embedding = torch.tensor(tile["embedding"], dtype=torch.float32)
         label = torch.tensor(self._label, dtype=torch.float32)
         metadata = {
@@ -68,22 +60,9 @@ class _SlideTiles(Dataset):
 
 
 class TilePatchDataset(MetaTiledSlides):
-    """Per-tile dataset for patch-based MLP classification.
-
-    Subclasses :class:`MetaTiledSlides` which loads ``slides.parquet`` and
-    ``tiles.parquet`` from local directories or MLflow artifact URIs.
-    Each item is ``(embedding, label, metadata)``.
-
-    Expected parquet schema:
-        ``slides.parquet``: columns including ``id`` (slide identifier)
-        ``tiles.parquet``:  ``slide_id``, ``embedding``, ``x``, ``y``
-    """
-
     def __init__(self, **kwargs) -> None:
         log.info("TilePatchDataset: loading slides and tiles …")
         super().__init__(**kwargs)
-        # Replace HFDataset self.slides with list-of-dicts expected by
-        # DatasetSubset and _log_split.
         self.slides = [  # type: ignore[assignment]
             {"name": ds._name, "label": ds._label} for ds in self.datasets
         ]
@@ -102,7 +81,6 @@ class TilePatchDataset(MetaTiledSlides):
             log.info("  [%s] %-40s  %d tiles", marker, ds._name, len(ds))
 
     def generate_datasets(self) -> Iterable[Dataset]:
-        # Capture both references eagerly so the generator closure is safe.
         tiles = self.tiles
         index = self._slide_id_to_indices
         return (
@@ -120,7 +98,6 @@ class TilePatchDataset(MetaTiledSlides):
     def load_slides_and_tiles(
         paths: Iterable[str | Path], uris: Iterable[str]
     ) -> tuple[HFDataset, HFDataset]:
-        """Load slides/tiles with schema promotion to handle null-type columns."""
         with ThreadPoolExecutor() as executor:
             artifact_paths = list(
                 executor.map(lambda uri: download_artifacts(artifact_uri=uri), uris)
@@ -140,17 +117,12 @@ class TilePatchDataset(MetaTiledSlides):
         if not slide_files or not tile_files:
             return HFDataset.from_dict({}), HFDataset.from_dict({})
 
-        # Slides: only ~1 row per slide — use PyArrow concat with schema promotion
-        # to handle null-typed columns (e.g. cytokeratin_mask_path) that differ
-        # across sources.
         slides_table = pa.concat_tables(
             [pq.read_table(str(f)) for f in slide_files],
             promote_options="default",
         )
         slides_ds = HFDataset(InMemoryTable(slides_table))
 
-        # Tiles: millions of rows with large embeddings — load lazily via HuggingFace
-        # memory-mapping so embeddings are only read from disk on access.
         tiles_ds = cast(
             "HFDataset",
             load_dataset(path="parquet", split="train", data_files=tile_files),

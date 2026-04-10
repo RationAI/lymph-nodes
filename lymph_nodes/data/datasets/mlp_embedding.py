@@ -23,6 +23,7 @@ from lymph_nodes.data.datasets.tile_embeddings import (
     _label_from_filename,
 )
 
+
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
