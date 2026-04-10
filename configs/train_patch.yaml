@@ -30,6 +30,8 @@ trainer:
   max_epochs: 50
   log_every_n_steps: 10
   callbacks:
+    - _target_: lightning.pytorch.callbacks.TQDMProgressBar
+      refresh_rate: 1
     - _target_: lightning.pytorch.callbacks.ModelCheckpoint
       save_top_k: 1
       monitor: val/AUC
