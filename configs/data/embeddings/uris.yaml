@@ -39,7 +39,7 @@ uris:
     uni2_h:
       level1:
        # - "/mnt/projects/lymph_nodes/processed_embeddings/FNBrno_AE_negative/0.5mpp/uni2"
-        - "/mnt/projects/lymph_nodes/processed_embeddings/tmas_train/0.5mpp/uni2"
+       # - "/mnt/projects/lymph_nodes/processed_embeddings/tmas_train/0.5mpp/uni2"
       level2: ???
       level3: ???
     virchow:
@@ -49,13 +49,13 @@ uris:
     virchow2:
       level1: 
       # FNBrno
-        - "/mnt/projects/lymph_nodes/processed_embeddings/FNBrno_AE_negative/0.5mpp/virchow2"
+      #  - "/mnt/projects/lymph_nodes/processed_embeddings/FNBrno_AE_negative/0.5mpp/virchow2"
       # - "mlflow-artifacts:/68/6a8dca21bc6a44efb48364c6ab408ca1/artifacts/embeddings"
         # TMA
         - "/mnt/projects/lymph_nodes/processed_embeddings/tmas_train/0.5mpp/virchow2"
         #- "mlflow-artifacts:/68/149c1f462e4a4fff9dde6b7696fe89e5/artifacts/embeddings"
         # MMCI
-        - "/mnt/projects/lymph_nodes/processed_embeddings/MMCI_train/0.5mpp/virchow2"
+      #  - "/mnt/projects/lymph_nodes/processed_embeddings/MMCI_train/0.5mpp/virchow2"
         #- "mlflow-artifacts:/68/6fab2798d1b74dc6a39898297b472850/artifacts/embeddings"  #MMCI
       level2: ???
       level3: ???
