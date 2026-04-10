@@ -1,12 +1,9 @@
 from __future__ import annotations
 
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
-
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, cast
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -19,12 +16,16 @@ from rationai.mlkit.data.datasets.meta_tiled_slides import MetaTiledSlides
 from torch.utils.data import Dataset
 
 
-class SlideEmbeddingDataset(Dataset):
-    """Per-slide dataset for pre-computed tile embeddings.
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
-    Wraps a HuggingFace Dataset subset containing tiles for a single slide.
-    Data is lazily converted to tensors in ``__getitem__`` to keep memory
-    usage low via Arrow memory-mapping.
+logger = logging.getLogger(__name__)
+
+
+class SlideEmbeddingDataset(Dataset):
+    """Worker Dataset: Returns (embedding, label, metadata).
+
+    Matches PatchMLP.training_step expectations.
     """
 
     def __init__(self, tiles: HFDataset) -> None:
@@ -33,46 +34,50 @@ class SlideEmbeddingDataset(Dataset):
     def __len__(self) -> int:
         return len(self._tiles)
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(
+        self, idx: int
+    ) -> tuple[torch.Tensor, torch.Tensor, dict[str, Any]]:
         row = self._tiles[idx]
+
+        # 1. Feature Vector (2560-dim)
         embedding = torch.tensor(row["embedding"], dtype=torch.float32)
+
+        # 2. Target Label
         label = torch.tensor(row["metastazis"], dtype=torch.float32)
-        return embedding, label
+
+        # 3. Metadata for heatmap generation and training_step unpacking
+        metadata = {"x": row["x"], "y": row["y"], "slide_id": row["slide_id"]}
+
+        return embedding, label, metadata
 
 
 class MLPEmbeddingDataset(MetaTiledSlides):
-    """Concrete :class:`MetaTiledSlides` for MLP training on pre-computed embeddings.
-
-    Loads ``slides.parquet`` and ``tiles.parquet`` via the parent class, then
-    partitions tiles per slide using :meth:`filter_tiles_by_slide`.  All tile
-    data stays memory-mapped (Apache Arrow) so 1.1 M tiles across 30 slides
-    fit within a 16 GiB RAM budget.
-    """
+    """Manager Dataset: Handles artifact retrieval and lazy-loading schema fixes."""
 
     def generate_datasets(self) -> Iterable[Dataset]:
+        print(f"📦 Generating datasets for {len(self.slides)} slides...")
         for slide in self.slides:
             slide_tiles = self.filter_tiles_by_slide(slide["id"])
-            yield SlideEmbeddingDataset(tiles=slide_tiles)
+            if len(slide_tiles) > 0:
+                yield SlideEmbeddingDataset(tiles=slide_tiles)
 
     @staticmethod
     def load_slides_and_tiles(
         paths: Iterable[str | Path], uris: Iterable[str]
     ) -> tuple[HFDataset, HFDataset]:
-        """Load slides/tiles with schema promotion to handle null-type columns.
+        """Custom loader for schema promotion and strict column filtering.
 
-        The base-class implementation uses ``load_dataset`` for both slides and
-        tiles, which fails when multiple parquet files have incompatible
-        null-typed columns (e.g. ``cytokeratin_mask_path``).  This override
-        uses PyArrow ``concat_tables`` with schema promotion for the small
-        slides table, and ``load_dataset`` (memory-mapped) for the large tiles.
+        Handles:
+        1. PyArrow concat with schema promotion for slides.
+        2. Strict column filtering for tiles to avoid CastErrors.
         """
+        print("🔍 Locating artifacts...")
         with ThreadPoolExecutor() as executor:
             artifact_paths = list(
                 executor.map(lambda uri: download_artifacts(artifact_uri=uri), uris)
             )
 
         search_dirs = [Path(p) for p in (*paths, *artifact_paths)]
-
         slide_files = [
             p / "slides.parquet" for p in search_dirs if (p / "slides.parquet").exists()
         ]
@@ -83,20 +88,28 @@ class MLPEmbeddingDataset(MetaTiledSlides):
         ]
 
         if not slide_files or not tile_files:
+            print("⚠️ No Parquet files found in the specified paths/URIs.")
             return HFDataset.from_dict({}), HFDataset.from_dict({})
 
-        # Slides: small table — use PyArrow concat with schema promotion
-        # to handle null-typed columns that differ across sources.
+        # --- SLIDES PROCESSING ---
+        print(f"📊 Loading {len(slide_files)} slide metadata files...")
         slides_table = pa.concat_tables(
             [pq.read_table(str(f)) for f in slide_files],
             promote_options="default",
         )
         slides_ds = HFDataset(InMemoryTable(slides_table))
+        print(f"✅ Slides Loaded. Total slides: {len(slides_ds)}")
 
-        # Tiles: large table — load lazily via HuggingFace memory-mapping.
+        # --- TILES PROCESSING ---
+        print(f"🏗️ Loading {len(tile_files)} tile embedding files (Lazy Mode)...")
+        TILE_COLS = ["x", "y", "embedding", "slide_id", "metastazis"]
+
         tiles_ds = cast(
             "HFDataset",
-            load_dataset(path="parquet", split="train", data_files=tile_files),
+            load_dataset(
+                path="parquet", split="train", data_files=tile_files, columns=TILE_COLS
+            ),
         )
+        print(f"✅ Tiles Mapped. Total tiles: {len(tiles_ds):,}")
 
         return slides_ds, tiles_ds
