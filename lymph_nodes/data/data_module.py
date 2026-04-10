@@ -28,6 +28,7 @@ class DataModule(LightningDataModule):
         num_workers: int = 0,
         kfold_splits: int | None = None,
         k: int | None = None,
+        pos_weight: float = 1.0,
         **datasets: DictConfig,
     ) -> None:
         super().__init__()
@@ -35,6 +36,7 @@ class DataModule(LightningDataModule):
         self.num_workers = num_workers
         self.kfold_splits = kfold_splits
         self.k = k
+        self.pos_weight = pos_weight
 
         if self.kfold_splits is None and self.k is not None:
             raise ValueError("kfold_splits cannot be None if k is set.")
@@ -47,19 +49,29 @@ class DataModule(LightningDataModule):
                 if self.kfold_splits is not None:
                     assert self.k is not None
                     dataset = instantiate(self.datasets["train"])
-                    sgkf = StratifiedGroupKFold(
-                        n_splits=self.kfold_splits, shuffle=True, random_state=42
-                    )
-                    splits = list(
-                        sgkf.split(
-                            range(len(dataset)),
-                            dataset.labels,
-                            dataset.groups,
+
+                    # Prefer slide-level splitting when the dataset supports it
+                    # (avoids materialising 13 M+ element Python lists).
+                    if hasattr(dataset, "kfold_split"):
+                        self.train, self.val = dataset.kfold_split(
+                            self.kfold_splits, self.k, pos_weight=self.pos_weight
                         )
-                    )
-                    train_idx, val_idx = splits[self.k - 1]
-                    self.train = create_subset(dataset, train_idx)
-                    self.val = create_subset(dataset, val_idx)
+                    else:
+                        sgkf = StratifiedGroupKFold(
+                            n_splits=self.kfold_splits,
+                            shuffle=True,
+                            random_state=42,
+                        )
+                        splits = list(
+                            sgkf.split(
+                                range(len(dataset)),
+                                dataset.labels,
+                                dataset.groups,
+                            )
+                        )
+                        train_idx, val_idx = splits[self.k - 1]
+                        self.train = create_subset(dataset, train_idx)
+                        self.val = create_subset(dataset, val_idx)
                     _log_split(self.train, self.val, fold=self.k)
                 else:
                     self.train = instantiate(self.datasets["train"])
@@ -124,6 +136,14 @@ def _weighted_sampler(
     subset: TileEmbeddings | TileEmbeddingsSubset | DatasetSubset,
 ) -> WeightedRandomSampler:
     """Create a weighted random sampler to balance positive/negative classes."""
+    # Fast path: subset pre-computes weights without huge Python lists.
+    if hasattr(subset, "sample_weights"):
+        pw = getattr(subset, "_pos_weight", 1.0)
+        weights = subset.sample_weights(pos_weight=pw)
+        return WeightedRandomSampler(
+            weights, num_samples=len(weights), replacement=True
+        )
+
     labels = subset.labels
     class_counts = {c: labels.count(c) for c in set(labels)}
     weights = [1.0 / class_counts[label] for label in labels]

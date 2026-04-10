@@ -44,6 +44,7 @@ data:
   num_workers: 8
   kfold_splits: 5
   k: null  # null = run all 5 folds; set to 1-5 for a single fold, e.g. data.k=1
+  pos_weight: 1.0  # Positive slide sampling weight (1.0 = balanced, <1 = partial, >1 = oversample)
 
 model:
   _target_: lymph_nodes.patch_mlp.PatchMLP
