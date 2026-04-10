@@ -1,21 +1,17 @@
 from __future__ import annotations
 
 import logging
-from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
-from functools import cached_property
-from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pyarrow as pa
-import pyarrow.parquet as pq
 import torch
 from datasets import Dataset as HFDataset
-from datasets import load_dataset
-from mlflow.artifacts import download_artifacts
-from torch.utils.data import ConcatDataset, Dataset
+from rationai.mlkit.data.datasets import MetaTiledSlides
+from torch.utils.data import Dataset
 
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 log = logging.getLogger(__name__)
 
@@ -29,88 +25,52 @@ def _label_from_filename(stem: str) -> int:
 
 
 class SlideEmbeddingDataset(Dataset):
-    def __init__(
-        self, tiles: HFDataset, name: str, indices: list[int], label: int
-    ) -> None:
-        self._tiles = tiles
+    def __init__(self, tiles: HFDataset, name: str, label: int) -> None:
+        self._tiles = tiles.with_format("numpy")
         self.name = name
-        self.indices = indices
         self.label = label
 
     def __len__(self) -> int:
-        return len(self.indices)
+        return len(self._tiles)
 
     def __getitem__(
         self, idx: int
     ) -> tuple[torch.Tensor, torch.Tensor, dict[str, Any]]:
-        row = self._tiles[self.indices[idx]]
+        row = self._tiles[idx]
+
         embedding = torch.from_numpy(row["embedding"].copy())
         label = torch.tensor(float(row["metastazis"]), dtype=torch.float32)
-        metadata = {"x": row["x"], "y": row["y"], "slide_id": row["slide_id"]}
+
+        metadata = {"x": row["x"], "y": row["y"], "slide_id": self.name}
+
         return embedding, label, metadata
 
 
-class MLPEmbeddingDataset(ConcatDataset):
+class MLPEmbeddingDataset(MetaTiledSlides):
     def __init__(self, paths: list[str], uris: list[str] | None = None) -> None:
-        uris = uris or []
-        with ThreadPoolExecutor() as executor:
-            artifact_paths = list(
-                executor.map(lambda u: download_artifacts(artifact_uri=u), uris)
-            )
-        all_dirs = [Path(p) for p in (*paths, *artifact_paths)]
+        super().__init__(paths=paths, uris=uris)
 
-        tile_files = [
-            str(p / "tiles.parquet") for p in all_dirs if (p / "tiles.parquet").exists()
-        ]
-        slide_files = [
-            str(p / "slides.parquet")
-            for p in all_dirs
-            if (p / "slides.parquet").exists()
-        ]
+    def generate_datasets(self) -> Iterable[Dataset]:
+        for slide in self.slides:
+            slide_id = slide["id"]
 
-        slides_table = pa.concat_tables(
-            [pq.read_table(f) for f in slide_files],
-            promote_options="default",
-        )
-        self._slides_raw = slides_table.to_pandas().to_dict("records")
+            slide_tiles_view = self.filter_tiles_by_slide(slide_id)
 
-        self.tiles_ds = cast(
-            "HFDataset",
-            load_dataset(
-                "parquet",
-                data_files=tile_files,
-                split="train",
-                columns=["x", "y", "embedding", "slide_id", "metastazis"],
-            ),
-        )
-
-        index_map: dict[str, list[int]] = defaultdict(list)
-        for idx, sid in enumerate(self.tiles_ds["slide_id"]):
-            index_map[sid].append(idx)
-
-        self.tiles_ds = self.tiles_ds.with_format("numpy")
-
-        datasets = [
-            SlideEmbeddingDataset(
-                tiles=self.tiles_ds,
-                name=sid,
-                indices=index_map[sid],
-                label=_label_from_filename(sid),
-            )
-            for s in self._slides_raw
-            if (sid := s["id"]) in index_map
-        ]
-        super().__init__(datasets)
-        self.datasets = datasets
-
-    @cached_property
-    def labels(self) -> np.ndarray:
-        return np.array(self.tiles_ds["metastazis"], dtype=np.int8)
-
-    @cached_property
-    def groups(self) -> np.ndarray:
-        return np.array(self.tiles_ds["slide_id"])
+            if len(slide_tiles_view) > 0:
+                yield SlideEmbeddingDataset(
+                    tiles=slide_tiles_view,
+                    name=slide_id,
+                    label=_label_from_filename(slide_id),
+                )
 
     @property
-    def slides(self) -> list[dict]:
+    def labels(self) -> np.ndarray:
+        return np.array(self.tiles["metastazis"], dtype=np.int8)
+
+    @property
+    def groups(self) -> np.ndarray:
+        return np.array(self.tiles["slide_id"])
+
+    @property
+    def slides_list(self) -> list[dict]:
         return [{"name": ds.name, "label": ds.label} for ds in self.datasets]
