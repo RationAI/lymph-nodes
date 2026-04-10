@@ -7,7 +7,6 @@ dataset:
     _target_: preprocessing.data_source.ListDataSource
     paths:
       # 2024 selected negative slides
-      - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_152_SLIDE_10-0.mrxs"
       - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_152_SLIDE_11-0.mrxs"
       - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_139_SLIDE_1-0.mrxs"
       - "/mnt/data/MOU/lymph_nodes/dataset2-ihc-2024/negative/SNB_IHC_CASE_157_SLIDE_3-0.mrxs"
