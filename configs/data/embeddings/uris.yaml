@@ -39,7 +39,7 @@ uris:
     uni2_h:
       level1:
        # - "/mnt/projects/lymph_nodes/processed_embeddings/FNBrno_AE_negative/0.5mpp/uni2"
-        - "/mnt/projects/lymph_nodes/processed_embeddings/tmas_train/0.5mpp/virchow2"
+        - "/mnt/projects/lymph_nodes/processed_embeddings/tmas_train/0.5mpp/uni2"
       level2: ???
       level3: ???
     virchow:
