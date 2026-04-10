@@ -1,3 +1,2 @@
 _target_: lymph_nodes.data.datasets.TilePatchDataset
-uris:
-  - ${embeddings_uri}
+paths: ${embeddings_uri}
