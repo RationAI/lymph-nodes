@@ -1,3 +1,5 @@
+# @package _global_
+
 dataset:
   institute: mmci
   name: MMCI_HDAB_2024_Negative
