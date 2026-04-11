@@ -10,7 +10,7 @@ from lightning import LightningDataModule
 from omegaconf import DictConfig
 from sklearn.model_selection import StratifiedGroupKFold
 from torch import Tensor
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
 
 
 if TYPE_CHECKING:
@@ -30,6 +30,7 @@ class DataModule(LightningDataModule):
         kfold_splits: int | None = None,
         k: int | None = None,
         pos_weight: float = 1.0,
+        sampler_num_samples: int | None = None,
         **datasets: DictConfig,
     ) -> None:
         super().__init__()
@@ -39,6 +40,7 @@ class DataModule(LightningDataModule):
         self.kfold_splits = kfold_splits
         self.k = k
         self.pos_weight = pos_weight
+        self.sampler_num_samples = sampler_num_samples
         self.datasets_cfg = datasets
 
     def setup(self, stage: str) -> None:
@@ -75,6 +77,10 @@ class DataModule(LightningDataModule):
                     self.val = instantiate(self.datasets_cfg["val"])
                     _log_split(self.train, self.val)
 
+                self._train_sampler = _build_weighted_sampler(
+                    self.train, self.pos_weight, self.sampler_num_samples
+                )
+
             case "test":
                 self.test = instantiate(self.datasets_cfg["test"])
             case "predict":
@@ -84,7 +90,7 @@ class DataModule(LightningDataModule):
         return DataLoader(
             self.train,
             batch_size=self.batch_size,
-            # sampler=_weighted_sampler(self.train, self.pos_weight),
+            sampler=self._train_sampler,
             drop_last=True,
             num_workers=self.num_workers,
             collate_fn=collate_fn,
@@ -119,6 +125,54 @@ class DataModule(LightningDataModule):
             collate_fn=collate_fn,
             num_workers=self.num_workers,
         )
+
+
+def _build_weighted_sampler(
+    dataset: Subset | Any,
+    pos_weight: float,
+    num_samples: int | None,
+) -> WeightedRandomSampler:
+    """Build a WeightedRandomSampler that oversamples the minority class.
+
+    Per-sample weight = inverse class frequency, with the positive class
+    additionally scaled by *pos_weight* (1.0 → 50/50, 0.5 → ~25/75 pos/neg).
+    *num_samples* caps the epoch length so validation runs more often.
+    """
+    if isinstance(dataset, Subset):
+        labels = np.asarray(dataset.dataset.labels)[dataset.indices]
+    else:
+        labels = np.asarray(dataset.labels)
+
+    n_pos = int(labels.sum())
+    n_neg = len(labels) - n_pos
+
+    w_pos = (1.0 / n_pos) * pos_weight if n_pos > 0 else 0.0
+    w_neg = 1.0 / n_neg if n_neg > 0 else 0.0
+
+    sample_weights = torch.tensor(
+        np.where(labels == 1, w_pos, w_neg),
+        dtype=torch.float32,
+    )
+    del labels  # free the temporary numpy array early
+
+    if num_samples is None:
+        num_samples = len(sample_weights)
+
+    log.info(
+        "WeightedRandomSampler: %d pos / %d neg tiles, "
+        "pos_weight=%.2f, num_samples=%d (%.1f%% of dataset)",
+        n_pos,
+        n_neg,
+        pos_weight,
+        num_samples,
+        100.0 * num_samples / len(sample_weights),
+    )
+
+    return WeightedRandomSampler(
+        sample_weights,
+        num_samples=num_samples,
+        replacement=True,
+    )
 
 
 def collate_fn(
