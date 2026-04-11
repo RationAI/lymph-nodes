@@ -1,2 +1,3 @@
 _target_: lymph_nodes.data.datasets.MLPEmbeddingDataset
 paths: ${embeddings_uri}
+metastazis_threshold: 0.05

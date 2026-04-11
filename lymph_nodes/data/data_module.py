@@ -10,7 +10,7 @@ from lightning import LightningDataModule
 from omegaconf import DictConfig
 from sklearn.model_selection import StratifiedGroupKFold
 from torch import Tensor
-from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
+from torch.utils.data import DataLoader, Subset
 
 
 if TYPE_CHECKING:
@@ -49,14 +49,12 @@ class DataModule(LightningDataModule):
                 if self.kfold_splits is not None:
                     assert self.k is not None
 
-                    # StratifiedGroupKFold ensures no slide-leakage between Train and Val
                     sgkf = StratifiedGroupKFold(
                         n_splits=self.kfold_splits,
                         shuffle=True,
                         random_state=42,
                     )
 
-                    # dataset.labels and dataset.groups must be NumPy arrays for speed
                     indices = np.arange(len(dataset))
                     splits = list(
                         sgkf.split(
@@ -66,10 +64,8 @@ class DataModule(LightningDataModule):
                         )
                     )
 
-                    # Using 1-based indexing for 'k' from config
                     train_idx, val_idx = splits[self.k - 1]
 
-                    # Subset is lazy and doesn't copy data
                     self.train = Subset(dataset, train_idx)
                     self.val = Subset(dataset, val_idx)
 
@@ -130,38 +126,6 @@ def collate_fn(
 ) -> tuple[Tensor, Tensor, list[Metadata]]:
     inputs, labels, metadatas = zip(*batch, strict=False)
     return torch.stack(inputs), torch.stack(labels), list(metadatas)
-
-
-def _weighted_sampler(
-    subset: Subset | Any, pos_weight_factor: float = 1.0
-) -> WeightedRandomSampler:
-    """Creates a sampler to handle the 24:1 class imbalance."""
-    # 1. Get labels from the underlying dataset
-    if isinstance(subset, Subset):
-        # Handle Subset: we need labels only for the included indices
-        full_labels = subset.dataset.labels
-        current_labels = full_labels[subset.indices]
-    else:
-        current_labels = subset.labels
-
-    # 2. Optimized calculation using NumPy
-    # Convert to int for bincount
-    label_array = np.array(current_labels, dtype=np.int8)
-    counts = np.bincount(label_array)
-
-    # Calculate weights: weight = 1 / count
-    class_weights = 1.0 / counts
-
-    # Apply soft-balancing if requested (pos_weight_factor)
-    # 1.0 = full 1:1 balance | 0.25 = 1:4 balance
-    if len(class_weights) > 1:
-        class_weights[1] *= pos_weight_factor
-
-    sample_weights = class_weights[label_array]
-
-    return WeightedRandomSampler(
-        weights=sample_weights, num_samples=len(sample_weights), replacement=True
-    )
 
 
 def _log_split(

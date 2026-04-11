@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -12,8 +11,6 @@ from torch.utils.data import Dataset
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-
-log = logging.getLogger(__name__)
 
 
 def _label_from_filename(stem: str) -> int:
@@ -28,10 +25,13 @@ def _label_from_filename(stem: str) -> int:
 class SlideEmbeddingDataset(Dataset):
     """The leaf dataset representing a single slide."""
 
-    def __init__(self, tiles: HFDataset, name: str, label: int) -> None:
+    def __init__(
+        self, tiles: HFDataset, name: str, label: int, metastazis_threshold: float = 0.0
+    ) -> None:
         self._tiles = tiles.with_format("numpy")
         self.name = name
         self.label = label
+        self._metastazis_threshold = metastazis_threshold
 
     def __len__(self) -> int:
         return len(self._tiles)
@@ -42,7 +42,9 @@ class SlideEmbeddingDataset(Dataset):
         row = self._tiles[idx]
 
         embedding = torch.from_numpy(row["embedding"].copy())
-        label = torch.tensor(float(row["metastazis"]), dtype=torch.float32)
+        label = torch.tensor(
+            float(row["metastazis"] >= self._metastazis_threshold), dtype=torch.float32
+        )
 
         metadata = {"x": row["x"], "y": row["y"], "slide_id": self.name}
 
@@ -50,7 +52,13 @@ class SlideEmbeddingDataset(Dataset):
 
 
 class MLPEmbeddingDataset(MetaTiledSlides):
-    def __init__(self, paths: list[str], uris: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        paths: list[str],
+        uris: list[str] | None = None,
+        metastazis_threshold: float = 0.0,
+    ) -> None:
+        self._metastazis_threshold = metastazis_threshold
         super().__init__(paths=paths, uris=uris)
 
     def generate_datasets(self) -> Iterable[Dataset]:
@@ -63,12 +71,15 @@ class MLPEmbeddingDataset(MetaTiledSlides):
                     tiles=slide_tiles_view,
                     name=slide_id,
                     label=_label_from_filename(slide_id),
+                    metastazis_threshold=self._metastazis_threshold,
                 )
 
     @property
     def labels(self) -> np.ndarray:
         """Required for WeightedRandomSampler."""
-        return np.array(self.tiles["metastazis"], dtype=np.int8)
+        return (
+            np.array(self.tiles["metastazis"]) >= self._metastazis_threshold
+        ).astype(np.int8)
 
     @property
     def groups(self) -> np.ndarray:
