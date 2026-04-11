@@ -88,7 +88,7 @@ class DataModule(LightningDataModule):
         return DataLoader(
             self.train,
             batch_size=self.batch_size,
-            sampler=_weighted_sampler(self.train, self.pos_weight),
+            # sampler=_weighted_sampler(self.train, self.pos_weight),
             drop_last=True,
             num_workers=self.num_workers,
             collate_fn=collate_fn,

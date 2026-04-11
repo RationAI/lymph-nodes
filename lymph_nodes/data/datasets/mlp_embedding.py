@@ -51,7 +51,6 @@ class SlideEmbeddingDataset(Dataset):
 
 class MLPEmbeddingDataset(MetaTiledSlides):
     def __init__(self, paths: list[str], uris: list[str] | None = None) -> None:
-        # This calls generate_datasets internally
         super().__init__(paths=paths, uris=uris)
 
     def generate_datasets(self) -> Iterable[Dataset]:
