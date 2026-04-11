@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
 import torch
 from datasets import Dataset as HFDataset
+from datasets.table import InMemoryTable
+from mlflow.artifacts import download_artifacts
 from rationai.mlkit.data.datasets import MetaTiledSlides
 from torch.utils.data import Dataset
 
@@ -52,6 +58,46 @@ class SlideEmbeddingDataset(Dataset):
 class MLPEmbeddingDataset(MetaTiledSlides):
     def __init__(self, paths: list[str], uris: list[str] | None = None) -> None:
         super().__init__(paths=paths, uris=uris)
+
+    @staticmethod
+    def load_slides_and_tiles(
+        paths: Iterable[str | Path], uris: Iterable[str]
+    ) -> tuple[HFDataset, HFDataset]:
+        """Override to handle schema mismatches across parquet files from multiple sources."""
+        from datasets import load_dataset as hf_load_dataset
+
+        with ThreadPoolExecutor() as executor:
+            artifact_paths = list(
+                executor.map(lambda uri: download_artifacts(artifact_uri=uri), uris)
+            )
+
+        search_dirs = [Path(p) for p in (*paths, *artifact_paths)]
+
+        slide_files = [
+            p / "slides.parquet" for p in search_dirs if (p / "slides.parquet").exists()
+        ]
+        tile_files = [
+            str(p / "tiles.parquet")
+            for p in search_dirs
+            if (p / "tiles.parquet").exists()
+        ]
+
+        if not slide_files or not tile_files:
+            return HFDataset.from_dict({}), HFDataset.from_dict({})
+
+        # promote_options="default" resolves null vs string schema mismatches
+        slides_table = pa.concat_tables(
+            [pq.read_table(str(f)) for f in slide_files],
+            promote_options="default",
+        )
+        slides_ds = HFDataset(InMemoryTable(slides_table))
+
+        tiles_ds = cast(
+            "HFDataset",
+            hf_load_dataset(path="parquet", split="train", data_files=tile_files),
+        )
+
+        return slides_ds, tiles_ds
 
     def generate_datasets(self) -> Iterable[Dataset]:
         for slide in self.slides:
