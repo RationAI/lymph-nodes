@@ -1,3 +1,4 @@
 _target_: lymph_nodes.data.datasets.MLPEmbeddingDataset
 paths: ${embeddings_uri}
 metastazis_threshold: 0.05
+shuffle_labels: false  # set to true for sanity check — AUC must collapse to ~0.5

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -17,9 +16,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from lymph_nodes.typing import Metadata, TileEmbeddingsInput
-
-
-log = logging.getLogger(__name__)
 
 
 class DataModule(LightningDataModule):
@@ -70,12 +66,9 @@ class DataModule(LightningDataModule):
 
                     self.train = Subset(dataset, train_idx)
                     self.val = Subset(dataset, val_idx)
-
-                    _log_split(self.train, self.val, fold=self.k)
                 else:
                     self.train = dataset
                     self.val = instantiate(self.datasets_cfg["val"])
-                    _log_split(self.train, self.val)
 
                 self._train_sampler = _build_weighted_sampler(
                     self.train, self.pos_weight, self.sampler_num_samples
@@ -153,20 +146,10 @@ def _build_weighted_sampler(
         np.where(labels == 1, w_pos, w_neg),
         dtype=torch.float32,
     )
-    del labels  # free the temporary numpy array early
+    del labels
 
     if num_samples is None:
         num_samples = len(sample_weights)
-
-    log.info(
-        "WeightedRandomSampler: %d pos / %d neg tiles, "
-        "pos_weight=%.2f, num_samples=%d (%.1f%% of dataset)",
-        n_pos,
-        n_neg,
-        pos_weight,
-        num_samples,
-        100.0 * num_samples / len(sample_weights),
-    )
 
     return WeightedRandomSampler(
         sample_weights,
@@ -180,57 +163,3 @@ def collate_fn(
 ) -> tuple[Tensor, Tensor, list[Metadata]]:
     inputs, labels, metadatas = zip(*batch, strict=False)
     return torch.stack(inputs), torch.stack(labels), list(metadatas)
-
-
-def _log_split(
-    train: Subset | Any,
-    val: Subset | Any,
-    fold: int | None = None,
-) -> None:
-    """Logs class and slide distribution for the current split."""
-    prefix = f"Fold {fold} — " if fold is not None else ""
-
-    def _summarise(subset: Subset | Any, name: str) -> None:
-        # Resolve dataset if it's a Subset
-        base_ds = subset.dataset if isinstance(subset, Subset) else subset
-        indices = (
-            subset.indices if isinstance(subset, Subset) else np.arange(len(subset))
-        )
-
-        current_labels = base_ds.labels[indices]
-        n_samples = len(current_labels)
-
-        # Slides are handled by the custom 'slides' property in MLPEmbeddingDataset
-        # We filter to only show slides present in this subset
-        if isinstance(subset, Subset):
-            current_slide_ids = set(base_ds.groups[indices])
-            subset_slides = [
-                s for s in base_ds.slides if s["name"] in current_slide_ids
-            ]
-        else:
-            subset_slides = base_ds.slides
-
-        n_slides = len(subset_slides)
-        pos_slides = sum(s["label"] for s in subset_slides)
-        neg_slides = n_slides - pos_slides
-
-        log.info("=" * 60)
-        log.info(
-            "%s%s  (%d tiles from %d slides: %d+ / %d- slides)",
-            prefix,
-            name,
-            n_samples,
-            n_slides,
-            pos_slides,
-            neg_slides,
-        )
-
-        # Log individual slide status
-        for slide in subset_slides:
-            marker = "+" if slide["label"] == 1 else "-"
-            log.info("    [%s] %s", marker, slide["name"])
-
-    _summarise(train, "TRAIN")
-    log.info("-" * 60)
-    _summarise(val, "VAL")
-    log.info("=" * 60)

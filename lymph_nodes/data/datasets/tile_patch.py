@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from concurrent.futures import ThreadPoolExecutor
 from functools import cached_property
 from pathlib import Path
@@ -24,9 +23,6 @@ from lymph_nodes.data.datasets.tile_embeddings import (
     _group_from_stem,
     _label_from_filename,
 )
-
-
-log = logging.getLogger(__name__)
 
 
 class _SlideTiles(Dataset):
@@ -61,24 +57,10 @@ class _SlideTiles(Dataset):
 
 class TilePatchDataset(MetaTiledSlides):
     def __init__(self, **kwargs) -> None:
-        log.info("TilePatchDataset: loading slides and tiles …")
         super().__init__(**kwargs)
         self.slides = [  # type: ignore[assignment]
             {"name": ds._name, "label": ds._label} for ds in self.datasets
         ]
-        n_tiles = sum(len(ds) for ds in self.datasets)
-        n_pos = sum(1 for ds in self.datasets if ds._label == 1)
-        n_neg = len(self.datasets) - n_pos
-        log.info(
-            "TilePatchDataset ready: %d tiles from %d slides (%d+ / %d-)",
-            n_tiles,
-            len(self.datasets),
-            n_pos,
-            n_neg,
-        )
-        for ds in self.datasets:
-            marker = "+" if ds._label == 1 else "-"
-            log.info("  [%s] %-40s  %d tiles", marker, ds._name, len(ds))
 
     def generate_datasets(self) -> Iterable[Dataset]:
         tiles = self.tiles

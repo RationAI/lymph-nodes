@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -11,6 +12,26 @@ from torch.utils.data import Dataset
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+
+def _group_from_stem(stem: str) -> str:
+    # 1. Standard SNB IHC/LN pattern (e.g., SNB_IHC_CASE_5_SLIDE_1-0, SNB_LN_CASE_42_SLIDE_1-1)
+    snb_match = re.match(r"^SNB_(?:IHC|LN)_CASE_(\d+)_", stem)
+    if snb_match:
+        return f"snb_case_{snb_match.group(1)}"
+
+    # 2. FNBrno pattern (e.g., FNB1206-23-4 or FNB-P1480-25-5)
+    fnb_match = re.match(r"^FNB-?P?(\d+)-(\d+)-", stem)
+    if fnb_match:
+        return f"fnb_{fnb_match.group(1)}_{fnb_match.group(2)}"
+
+    # 3. SNB TEST/Annotated pattern (e.g., SNB_IHC_TEST_CASE-2024_1011-15)
+    test_match = re.search(r"TEST_CASE-(\d+)_(\d+-\d+)", stem)
+    if test_match:
+        return f"test_{test_match.group(1)}_{test_match.group(2)}"
+
+    # 4. Default to using the full stem as the group if no pattern matches
+    return stem
 
 
 def _label_from_filename(stem: str) -> int:
@@ -57,9 +78,16 @@ class MLPEmbeddingDataset(MetaTiledSlides):
         paths: list[str],
         uris: list[str] | None = None,
         metastazis_threshold: float = 0.0,
+        shuffle_labels: bool = False,
     ) -> None:
         self._metastazis_threshold = metastazis_threshold
+        self._shuffle_labels = shuffle_labels
         super().__init__(paths=paths, uris=uris)
+        if shuffle_labels:
+            permuted = np.random.permutation(self.tiles["metastazis"])
+            self.tiles = self.tiles.remove_columns("metastazis").add_column(
+                "metastazis", permuted.tolist()
+            )
 
     def generate_datasets(self) -> Iterable[Dataset]:
         for slide in self.slides:
@@ -84,7 +112,7 @@ class MLPEmbeddingDataset(MetaTiledSlides):
     @property
     def groups(self) -> np.ndarray:
         """Required for StratifiedGroupKFold."""
-        return np.array(self.tiles["slide_id"])
+        return np.array([_group_from_stem(sid) for sid in self.tiles["slide_id"]])
 
     @property
     def slides(self) -> Any:
