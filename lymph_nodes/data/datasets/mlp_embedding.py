@@ -88,13 +88,11 @@ class MLPEmbeddingDataset(MetaTiledSlides):
             self.tiles = self.tiles.remove_columns("metastazis").add_column(
                 "metastazis", permuted.tolist()
             )
-            self.datasets = list(
-                self.generate_datasets()
-            )  # ← re-create with shuffled tiles
+            self.datasets = list(self.generate_datasets())
 
     def generate_datasets(self) -> Iterable[Dataset]:
         for slide in self.slides:
-            slide_id = slide["id"]
+            slide_id = slide.get("id") or slide.get("name")
             slide_tiles_view = self.filter_tiles_by_slide(slide_id)
 
             if len(slide_tiles_view) > 0:

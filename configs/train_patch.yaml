@@ -1,10 +1,4 @@
 # @package _global_
-# Patch-based MLP — k-fold cross-validation with group-aware splits.
-#
-# StratifiedGroupKFold ensures all slides from the same patient stay
-# in the same fold (train or val, never both).
-# Per-tile metrics are logged as val/AUC, val/loss, etc.
-# Use predict mode to get per-tile probabilities for heatmap generation.
 
 defaults:
   - hydra: default
@@ -19,7 +13,6 @@ checkpoint: null
 foundation: ???
 level: ???
 
-# Override to download artifacts from a different MLflow server than MLFLOW_TRACKING_URI.
 source_tracking_uri: null
 
 embeddings_uri: ${uris.patch_embeddings.${key:${foundation}}.${level}}
@@ -44,9 +37,9 @@ data:
   batch_size: 512
   num_workers: 8
   kfold_splits: 5
-  k: null  # null = run all 5 folds; set to 1-5 for a single fold, e.g. data.k=1
-  pos_weight: 0.5  # Positive slide sampling weight (1.0 = balanced, <1 = partial, >1 = oversample)
-  sampler_num_samples: 500000  # Caps epoch length; set to null to iterate the full dataset
+  k: null
+  pos_weight: 0.5 
+  sampler_num_samples: 500000
 
 model:
   _target_: lymph_nodes.patch_mlp.PatchMLP
