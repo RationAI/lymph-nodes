@@ -1,0 +1,6 @@
+# @package _global_
+
+defaults:
+  - /data/tiled/train_tiled
+  - /preprocessing/tile_encoder/uni2
+  - _self_
