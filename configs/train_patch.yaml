@@ -47,7 +47,10 @@ model:
   hidden_dims: [512, 256]
   dropout: 0.25
   lr: 0.0001
-  pos_weight: 1.0
+  loss: bce          # "bce" or "focal"
+  pos_weight: 1.0    # used when loss=bce — multiplies loss on positive tiles
+  focal_alpha: 0.25  # used when loss=focal — weight for positive class (0-1)
+  focal_gamma: 2.0   # used when loss=focal — focusing strength (0=BCE, 2=standard focal)
 
 metadata:
   experiment_name: 'Lymph Nodes'

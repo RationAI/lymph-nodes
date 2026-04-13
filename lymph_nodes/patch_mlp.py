@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from lightning import LightningModule
 from torchmetrics import MetricCollection
 from torchmetrics.classification import (
@@ -9,6 +10,29 @@ from torchmetrics.classification import (
     BinaryRecall,
     BinarySpecificity,
 )
+
+
+class FocalLoss(nn.Module):
+    """Sigmoid focal loss for binary classification.
+
+    Reduces the relative loss for well-classified examples, focusing training
+    on hard misclassified ones — particularly useful for false negatives.
+
+    Args:
+        alpha: weight for the positive class (0-1). Higher → penalise FN more.
+        gamma: focusing strength. 0 = standard BCE, 2 = standard focal loss.
+    """
+
+    def __init__(self, alpha: float = 0.25, gamma: float = 2.0) -> None:
+        super().__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        bce = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
+        p_t = torch.exp(-bce)
+        alpha_t = self.alpha * targets + (1.0 - self.alpha) * (1.0 - targets)
+        return (alpha_t * (1.0 - p_t) ** self.gamma * bce).mean()
 
 
 def _input_dim_for_foundation(foundation: str) -> int:
@@ -39,6 +63,9 @@ class PatchMLP(LightningModule):
         lr: float = 1e-4,
         pos_weight: float = 1.0,
         input_dim: int | None = None,
+        loss: str = "bce",
+        focal_alpha: float = 0.25,
+        focal_gamma: float = 2.0,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -62,7 +89,10 @@ class PatchMLP(LightningModule):
 
         self.mlp = nn.Sequential(*layers)
 
-        self.criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
+        if loss == "focal":
+            self.criterion: nn.Module = FocalLoss(alpha=focal_alpha, gamma=focal_gamma)
+        else:
+            self.criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
 
         metrics = MetricCollection(
             {
