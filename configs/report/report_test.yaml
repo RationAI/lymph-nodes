@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - hydra: default
-  - mlflow: kubas_cluster
+  - save: local
 
 reporter:
   title: "SNB IHC Case 1 Slide 3 - Local Test"
@@ -27,12 +27,12 @@ reporter:
         opacity: 0.5
         visible: true
 
-    - _target_: report.masks.ArtifactURIMasksRetriever
-      artifact_uri: "mlflow-artifacts:/68/b45545c7d74f47d19620b584b3cd1cf1/artifacts/tissue_masks"
-      layer_name: Tissue Mask
-      shader_conf:
-        type: "heatmap"
-        modifiable: true
-        color: "#00FF00"
-        opacity: 0.3
-        visible: true
+    # - _target_: report.masks.ArtifactURIMasksRetriever
+    #   artifact_uri: "mlflow-artifacts:/68/b45545c7d74f47d19620b584b3cd1cf1/artifacts/tissue_masks"
+    #   layer_name: Tissue Mask
+    #   shader_conf:
+    #     type: "heatmap"
+    #     modifiable: true
+    #     color: "#00FF00"
+    #     opacity: 0.3
+    #     visible: true
