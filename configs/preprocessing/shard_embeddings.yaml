@@ -1,0 +1,19 @@
+# @package _global_
+
+# No dataset needed for sharding — override the required field from preprocessing.yaml
+dataset: null
+
+embeddings_uri: ???
+artifact_path: sharded_embeddings
+
+rows_per_shard: 50_000
+row_group_size: 5_000
+
+metadata:
+  run_name: Shard Embeddings
+  description: Shard tiles.parquet into fixed-size files alongside slides.parquet
+  hyperparams:
+    embeddings_uri: ${embeddings_uri}
+    artifact_path: ${artifact_path}
+    rows_per_shard: ${rows_per_shard}
+    row_group_size: ${row_group_size}
