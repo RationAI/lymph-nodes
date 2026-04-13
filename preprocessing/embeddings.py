@@ -6,6 +6,7 @@ from typing import cast
 
 import albumentations as A
 import hydra
+import numpy as np
 import pandas as pd
 import timm
 import torch
@@ -107,33 +108,6 @@ def load_dataset(uris: Iterable[str]) -> TilesPredict:
     )
 
 
-def save_embeddings(
-    slide_tiles_embeddings: torch.Tensor,
-    slide_tiles_x: torch.Tensor,
-    slide_tiles_y: torch.Tensor,
-    embeddings_path: Path,
-) -> None:
-    """Save the slide embeddings to the specified path.
-
-    Args:
-        slide_tiles_embeddings (torch.Tensor): The embeddings to save.
-        slide_tiles_x (torch.Tensor): The x-coordinates of the tiles.
-        slide_tiles_y (torch.Tensor): The y-coordinates of the tiles.
-        embeddings_path (Path): The path to save the embeddings to.
-    """
-    embeddings_path.parent.mkdir(parents=True, exist_ok=True)
-
-    df = pd.DataFrame(
-        {
-            "x": slide_tiles_x.numpy(),
-            "y": slide_tiles_y.numpy(),
-            "embedding": [emb.numpy() for emb in slide_tiles_embeddings],
-        }
-    )
-
-    df.to_parquet(embeddings_path, index=False, engine="pyarrow")
-
-
 @with_cli_args(["+preprocessing=embeddings"])
 @hydra.main(config_path="../configs", config_name="preprocessing", version_base=None)
 @autolog
@@ -147,6 +121,13 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
     dest = Path(config.output_dir)
     dest.mkdir(parents=True, exist_ok=True)
+
+    output_tiles_path = dest / "tiles.parquet"
+    output_slides_path = dest / "slides.parquet"
+    if output_tiles_path.exists() and output_slides_path.exists():
+        logger.log_artifacts(str(dest), artifact_path="embeddings")
+        return
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     tile_encoder: FoundationModel = hydra.utils.instantiate(config.tile_encoder)
@@ -154,20 +135,30 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
     dataset = load_dataset(config.dataset.uris.values())
 
+    # Read and merge the original tiles/slides parquets from all artifact URIs.
+    original_tiles_parts: list[pd.DataFrame] = []
+    original_slides_parts: list[pd.DataFrame] = []
+    for artifact_path in dataset.artifact_paths:
+        tiles_df = pd.read_parquet(artifact_path / "tiles.parquet")
+        if "tile_x" in tiles_df.columns:
+            tiles_df = tiles_df.rename(columns={"tile_x": "x", "tile_y": "y"})
+        original_tiles_parts.append(tiles_df)
+        original_slides_parts.append(pd.read_parquet(artifact_path / "slides.parquet"))
+
+    original_tiles = pd.concat(original_tiles_parts, ignore_index=True)
+    original_slides = pd.concat(original_slides_parts, ignore_index=True)
+
     num_workers = config.dataloader.num_workers
     batch_size = config.dataloader.batch_size
     persistent_workers = config.dataloader.persistent_workers and num_workers > 0
 
-    slide_count = 0
+    all_slide_ids: list[str] = []
+    all_x: list[np.ndarray] = []
+    all_y: list[np.ndarray] = []
+    all_embeddings: list[np.ndarray] = []
+
     for slide_dataset in dataset.generate_datasets():
-        slide_count += 1
-        slide_name = slide_dataset.slide_tiles.slide_path.stem
         n_tiles = len(slide_dataset)
-
-        embeddings_path = (dest / slide_name).with_suffix(".parquet")
-
-        if embeddings_path.exists():
-            continue
 
         try:
             slide_tiles_dataloader = DataLoader(
@@ -177,11 +168,12 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
                 persistent_workers=persistent_workers,
             )
 
-            slide_tiles_embeddings = torch.zeros(
+            slide_embeddings = torch.zeros(
                 (n_tiles, tile_encoder.embed_dim), dtype=torch.float32
             )
-            slide_tiles_x = torch.zeros((n_tiles,), dtype=torch.int32)
-            slide_tiles_y = torch.zeros((n_tiles,), dtype=torch.int32)
+            slide_x = torch.zeros((n_tiles,), dtype=torch.int32)
+            slide_y = torch.zeros((n_tiles,), dtype=torch.int32)
+            slide_ids: list[str] = [""] * n_tiles
 
             for i, (x, metadata) in enumerate(slide_tiles_dataloader):
                 x = x.to(device)
@@ -190,22 +182,36 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
                 start = i * batch_size
                 end = start + embeddings.size(0)
 
-                slide_tiles_embeddings[start:end] = embeddings.to("cpu")
-                slide_tiles_x[start:end] = metadata["x"].to("cpu")
-                slide_tiles_y[start:end] = metadata["y"].to("cpu")
+                slide_embeddings[start:end] = embeddings.to("cpu")
+                slide_x[start:end] = metadata["x"].to("cpu")
+                slide_y[start:end] = metadata["y"].to("cpu")
+                slide_ids[start:end] = list(metadata["slide_id"])
 
-            save_embeddings(
-                slide_tiles_embeddings,
-                slide_tiles_x,
-                slide_tiles_y,
-                embeddings_path,
-            )
+            all_slide_ids.extend(slide_ids)
+            all_x.append(slide_x.numpy())
+            all_y.append(slide_y.numpy())
+            all_embeddings.append(slide_embeddings.numpy())
 
         except Exception:
             import traceback
 
             traceback.print_exc()
             sys.stdout.flush()
+
+    embeddings_df = pd.DataFrame(
+        {
+            "slide_id": all_slide_ids,
+            "x": np.concatenate(all_x).astype(np.int32),
+            "y": np.concatenate(all_y).astype(np.int32),
+            "embedding": list(np.concatenate(all_embeddings)),
+        }
+    )
+
+    result_tiles = original_tiles.merge(
+        embeddings_df, on=["slide_id", "x", "y"], how="left"
+    )
+    result_tiles.to_parquet(output_tiles_path, index=False, engine="pyarrow")
+    original_slides.to_parquet(output_slides_path, index=False, engine="pyarrow")
 
     logger.log_artifacts(str(dest), artifact_path="embeddings")
 

@@ -15,10 +15,12 @@ class _Tiles(Dataset[TilesPredictSample]):
     def __init__(
         self,
         slide_tiles: OpenSlideTilesDataset,
+        slide_id: str,
         transforms: TransformType | None = None,
     ) -> None:
         super().__init__()
         self.slide_tiles = slide_tiles
+        self._slide_id = slide_id
         self.transforms = transforms
         self.to_tensor = ToTensorV2()
 
@@ -29,7 +31,7 @@ class _Tiles(Dataset[TilesPredictSample]):
         image = self.slide_tiles[index]
         tile_row = self.slide_tiles.tiles[index]
         metadata: TileMetadata = {
-            "slide_id": self.slide_tiles.slide_path.stem,
+            "slide_id": self._slide_id,
             "x": int(tile_row["x"]),
             "y": int(tile_row["y"]),
         }
@@ -52,9 +54,11 @@ class TilesPredict(ConcatDataset[TilesPredictSample]):
             uris = [uris]
 
         self._slide_datasets: list[_Tiles] = []
+        self._artifact_paths: list[Path] = []
 
         for uri in uris:
             artifact_path = Path(download_artifacts(artifact_uri=uri))
+            self._artifact_paths.append(artifact_path)
             slides = load_dataset(
                 "parquet",
                 data_files=str(artifact_path / "slides.parquet"),
@@ -82,9 +86,15 @@ class TilesPredict(ConcatDataset[TilesPredictSample]):
                     tile_extent_y=slide.get("tile_extent_y", 224),
                     tiles=slide_tiles_hf,
                 )
-                self._slide_datasets.append(_Tiles(slide_tiles, transforms=transforms))
+                self._slide_datasets.append(
+                    _Tiles(slide_tiles, slide_id=slide["id"], transforms=transforms)
+                )
 
         super().__init__(self._slide_datasets)
+
+    @property
+    def artifact_paths(self) -> list[Path]:
+        return self._artifact_paths
 
     def generate_datasets(self) -> Iterable[_Tiles]:
         return iter(self._slide_datasets)
