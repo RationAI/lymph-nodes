@@ -49,7 +49,7 @@ class SlideEmbeddingDataset(Dataset):
     def __init__(
         self, tiles: HFDataset, name: str, label: int, metastazis_threshold: float = 0.0
     ) -> None:
-        self._tiles = tiles.with_format("numpy")
+        self._tiles = tiles.with_format("torch")
         self.name = name
         self.label = label
         self._metastazis_threshold = metastazis_threshold
@@ -62,12 +62,12 @@ class SlideEmbeddingDataset(Dataset):
     ) -> tuple[torch.Tensor, torch.Tensor, dict[str, Any]]:
         row = self._tiles[idx]
 
-        embedding = torch.from_numpy(row["embedding"].copy())
-        label = torch.tensor(
-            float(row["metastazis"] >= self._metastazis_threshold), dtype=torch.float32
-        )
+        embedding = row["embedding"]
 
-        metadata = {"x": row["x"], "y": row["y"], "slide_id": self.name}
+        is_metastatic = row["metastazis"] >= self._metastazis_threshold
+        label = is_metastatic.to(torch.float32)
+
+        metadata = {"x": row["x"].item(), "y": row["y"].item(), "slide_id": self.name}
 
         return embedding, label, metadata
 
@@ -78,30 +78,20 @@ class MLPEmbeddingDataset(MetaTiledSlides):
         paths: list[str],
         uris: list[str] | None = None,
         metastazis_threshold: float = 0.0,
-        shuffle_labels: bool = False,
     ) -> None:
         self._metastazis_threshold = metastazis_threshold
-        self._shuffle_labels = shuffle_labels
         super().__init__(paths=paths, uris=uris)
-        if shuffle_labels:
-            permuted = np.random.permutation(self.tiles["metastazis"])
-            self.tiles = self.tiles.remove_columns("metastazis").add_column(
-                "metastazis", permuted.tolist()
-            )
-            self.datasets = list(self.generate_datasets())
 
     def generate_datasets(self) -> Iterable[Dataset]:
-        for slide in self.slides:
-            slide_id = slide.get("id") or slide.get("name")
-            slide_tiles_view = self.filter_tiles_by_slide(slide_id)
-
-            if len(slide_tiles_view) > 0:
-                yield SlideEmbeddingDataset(
-                    tiles=slide_tiles_view,
-                    name=slide_id,
-                    label=_label_from_filename(slide_id),
-                    metastazis_threshold=self._metastazis_threshold,
-                )
+        return (
+            SlideEmbeddingDataset(
+                tiles=self.filter_tiles_by_slide(slide["id"]),
+                name=slide["id"],
+                label=_label_from_filename(slide["id"]),
+                metastazis_threshold=self._metastazis_threshold,
+            )
+            for slide in self.slides
+        )
 
     @property
     def labels(self) -> np.ndarray:
@@ -118,7 +108,7 @@ class MLPEmbeddingDataset(MetaTiledSlides):
     @property
     def slides(self) -> Any:
         if hasattr(self, "datasets") and self.datasets:
-            return [{"name": ds.name, "label": ds.label} for ds in self.datasets]
+            return [{"id": ds.name, "label": ds.label} for ds in self.datasets]
 
         return self.__dict__.get("slides")
 
