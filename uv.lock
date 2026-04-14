@@ -2463,8 +2463,8 @@ dependencies = [
 
 [[package]]
 name = "rationai-mlkit"
-version = "0.4.0"
-source = { git = "https://github.com/RationAI/mlkit.git?branch=feature%2Flarge-meta-dataset#0818342368530eaa002f97a8d153ca96d13087ee" }
+version = "0.4.1"
+source = { git = "https://github.com/RationAI/mlkit.git?branch=feature%2Flarge-meta-dataset#e6131aab3c40b5027bfc9163cdeb628585d26369" }
 dependencies = [
     { name = "datasets" },
     { name = "gitpython" },
