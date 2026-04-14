@@ -2,11 +2,11 @@ from lymph_nodes.data.datasets.mlp_embedding import (
     MLPEmbeddingDataset,
     SlideEmbeddingDataset,
 )
-from lymph_nodes.data.datasets.subset import (
-    DatasetSubset,
-    TileEmbeddingsSubset,
-    create_subset,
-)
+# from lymph_nodes.data.datasets.subset import (
+#     DatasetSubset,
+#     TileEmbeddingsSubset,
+#     create_subset,
+# )
 
 
 # from lymph_nodes.data.datasets.tile_embeddings import TileEmbeddings
@@ -14,11 +14,11 @@ from lymph_nodes.data.datasets.subset import (
 
 
 __all__ = [
-    "DatasetSubset",
+    #"DatasetSubset",
     "MLPEmbeddingDataset",
     "SlideEmbeddingDataset",
     # "TileEmbeddings",
-    "TileEmbeddingsSubset",
+    #"TileEmbeddingsSubset",
     # "TilePatchDataset",
-    "create_subset",
+    #"create_subset",
 ]
