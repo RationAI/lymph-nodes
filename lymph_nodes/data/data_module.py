@@ -63,30 +63,7 @@ class DataModule(LightningDataModule):
                     )
 
                     train_idx, val_idx = splits[self.k - 1]
-                    # ----------------
-                    # 1. Create your lookup map as before (this is fast because it's only a few hundred slides)
-                    hash_to_name = {
-                        s.get("id"): s.get("name") or s.get("id")
-                        for s in dataset.slides
-                    }
-
-                    # 2. VECTORIZED WAY: Get unique hashes from the validation indices
-                    # .select(val_idx) picks all rows at once
-                    # .unique("slide_id") finds unique values in the column instantly
-                    val_hashes = sorted(
-                        dataset.tiles.select(val_idx).unique("slide_id")
-                    )
-
-                    print(
-                        f"\n=== Fold {self.k}: {len(val_hashes)} validation slides ==="
-                    )
-
-                    # 3. Print the resolved names
-                    for h in val_hashes:
-                        readable_name = hash_to_name.get(h, h)
-                        print(f"  {readable_name}")
-                    # ----------------
-
+                    
                     self.train = Subset(dataset, train_idx)
                     self.val = Subset(dataset, val_idx)
                 else:
