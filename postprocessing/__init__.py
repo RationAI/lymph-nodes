@@ -1,5 +1,4 @@
-from postprocessing.heatmap import HeatmapWriter, assemble_heatmap
-from postprocessing.heatmap_callback import ValHeatmapCallback
+from postprocessing.heatmap import HeatmapWriter, ValHeatmapCallback, assemble_heatmap
 
 
 __all__ = ["HeatmapWriter", "ValHeatmapCallback", "assemble_heatmap"]
