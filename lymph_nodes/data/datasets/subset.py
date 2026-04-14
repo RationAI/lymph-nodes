@@ -3,7 +3,7 @@ from typing import Any
 
 from torch.utils.data import Dataset, Subset
 
-from lymph_nodes.data.datasets.tile_embeddings import MLPEmbeddingDataset
+from lymph_nodes.data.datasets.tile_embeddings import TileEmbeddings
 from lymph_nodes.typing import TileEmbeddingsSample
 
 
