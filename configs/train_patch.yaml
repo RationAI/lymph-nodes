@@ -19,7 +19,7 @@ embeddings_uri: ${uris.patch_embeddings.${key:${foundation}}.${level}}
 
 trainer:
   enable_checkpointing: true
-  max_epochs: 3
+  max_epochs: 2
   log_every_n_steps: 10
   callbacks:
     - _target_: lightning.pytorch.callbacks.TQDMProgressBar
@@ -41,7 +41,7 @@ trainer:
 data:
   batch_size: 512
   num_workers: 8
-  kfold_splits: 5
+  kfold_splits: 20
   k: null
   pos_weight: 0.5 
   sampler_num_samples: 500000

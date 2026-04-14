@@ -132,6 +132,7 @@ class ValHeatmapCallback(Callback):
     def __init__(
         self,
         dest: str,
+        manifest_paths: list[str],
         tile_extent: int = 224,
         factor: int = HEATMAP_FACTOR,
         batch_size: int = 512,
@@ -139,12 +140,23 @@ class ValHeatmapCallback(Callback):
     ) -> None:
         super().__init__()
         self.dest = Path(dest)
+        self.manifest_paths = manifest_paths
         self.tile_extent = tile_extent
         self.factor = factor
         self.batch_size = batch_size
         self.num_workers = num_workers
 
     def on_fit_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        master_lookup = {}
+
+        for path in self.manifest_paths:
+            slides_file = Path(path) / "slides.parquet"
+            if slides_file.exists():
+                df_slides = pd.read_parquet(slides_file)
+                for _, row in df_slides.iterrows():
+                    real_name = Path(row["path"]).stem
+                    master_lookup[row["id"]] = real_name
+
         val_dl = DataLoader(
             trainer.datamodule.val,
             batch_size=self.batch_size,
@@ -168,7 +180,7 @@ class ValHeatmapCallback(Callback):
             for prob, meta in zip(probs, metadatas, strict=True):
                 rows.append(
                     {
-                        "slide_name": meta["slide_id"],
+                        "slide_hash": meta["slide_id"],
                         "tile_x": int(meta["tile_x"]),
                         "tile_y": int(meta["tile_y"]),
                         "prob": float(prob),
@@ -181,13 +193,15 @@ class ValHeatmapCallback(Callback):
         df = pd.DataFrame(rows)
         self.dest.mkdir(parents=True, exist_ok=True)
 
-        for slide_name, slide_df in df.groupby("slide_name"):
+        for slide_hash, slide_df in df.groupby("slide_hash"):
+            clinical_name = master_lookup.get(slide_hash, slide_hash)
+
             heatmap = assemble_heatmap(
                 slide_df.reset_index(drop=True),
                 tile_extent=self.tile_extent,
                 factor=self.factor,
             )
-            out_path = self.dest / f"{slide_name}.tiff"
+            out_path = self.dest / f"{clinical_name}.tiff"
             heatmap.tiffsave(
                 str(out_path),
                 compression="deflate",
