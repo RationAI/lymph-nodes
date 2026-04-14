@@ -77,7 +77,10 @@ class DataModule(LightningDataModule):
             case "test":
                 self.test = instantiate(self.datasets_cfg["test"])
             case "predict":
-                self.predict = instantiate(self.datasets_cfg["predict"])
+                if "predict" in self.datasets_cfg:
+                    self.predict = instantiate(self.datasets_cfg["predict"])
+                else:
+                    self.predict = None
 
     def train_dataloader(self) -> Iterable[TileEmbeddingsInput]:
         return DataLoader(
@@ -111,7 +114,9 @@ class DataModule(LightningDataModule):
             num_workers=self.num_workers,
         )
 
-    def predict_dataloader(self) -> Iterable[TileEmbeddingsInput]:
+    def predict_dataloader(self) -> Iterable[TileEmbeddingsInput] | None:
+        if self.predict is None:
+            return None
         return DataLoader(
             self.predict,
             batch_size=self.batch_size,

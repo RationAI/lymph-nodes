@@ -178,8 +178,6 @@ class ValHeatmapCallback(Callback):
         if not rows:
             return
 
-        import pandas as pd
-
         df = pd.DataFrame(rows)
         self.dest.mkdir(parents=True, exist_ok=True)
 
