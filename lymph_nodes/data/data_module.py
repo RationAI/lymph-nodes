@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -69,12 +68,10 @@ class DataModule(LightningDataModule):
                         {dataset.tiles["slide_id"][i] for i in val_idx}
                     )
                     print(
-                        f"\n=== Fold {self.k}: {len(val_slide_ids)} validation slides ===",
-                        file=sys.stderr,
-                        flush=True,
+                        f"\n=== Fold {self.k}: {len(val_slide_ids)} validation slides ==="
                     )
                     for s in val_slide_ids:
-                        print(f"  {s}", file=sys.stderr, flush=True)
+                        print(f"  {s}")
                     # ----------------
 
                     self.train = Subset(dataset, train_idx)
