@@ -67,7 +67,11 @@ class SlideEmbeddingDataset(Dataset):
         is_metastatic = row["metastazis"] >= self._metastazis_threshold
         label = is_metastatic.to(torch.float32)
 
-        metadata = {"x": row["x"].item(), "y": row["y"].item(), "slide_id": self.name}
+        metadata = {
+            "tile_x": row["x"].item(),
+            "tile_y": row["y"].item(),
+            "slide_id": self.name,
+        }
 
         return embedding, label, metadata
 

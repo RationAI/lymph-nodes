@@ -63,7 +63,7 @@ class DataModule(LightningDataModule):
                     )
 
                     train_idx, val_idx = splits[self.k - 1]
-                    
+
                     self.train = Subset(dataset, train_idx)
                     self.val = Subset(dataset, val_idx)
                 else:
