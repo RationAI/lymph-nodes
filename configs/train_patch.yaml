@@ -37,6 +37,7 @@ trainer:
       tile_extent: 224
       batch_size: ${data.batch_size}
       num_workers: ${data.num_workers}
+      manifest_paths: ${embeddings_uri}
 
 data:
   batch_size: 512
