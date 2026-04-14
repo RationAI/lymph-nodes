@@ -34,7 +34,7 @@ trainer:
       patience: 10
     - _target_: postprocessing.heatmap.ValHeatmapCallback
       dest: val_heatmaps
-      tile_extent: ${tile_extent}
+      tile_extent: 224
       batch_size: ${data.batch_size}
       num_workers: ${data.num_workers}
 
