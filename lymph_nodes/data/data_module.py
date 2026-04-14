@@ -63,6 +63,16 @@ class DataModule(LightningDataModule):
                     )
 
                     train_idx, val_idx = splits[self.k - 1]
+                    # ----------------
+                    val_slide_ids = sorted(
+                        {dataset.tiles["slide_id"][i] for i in val_idx}
+                    )
+                    print(
+                        f"\n=== Fold {self.k}: {len(val_slide_ids)} validation slides ==="
+                    )
+                    for s in val_slide_ids:
+                        print(f"  {s}")
+                    # ----------------
 
                     self.train = Subset(dataset, train_idx)
                     self.val = Subset(dataset, val_idx)
