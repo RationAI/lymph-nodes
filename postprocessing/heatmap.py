@@ -93,7 +93,7 @@ class HeatmapWriter(BasePredictionWriter):
             for prob, meta in zip(probs, metadatas, strict=True):
                 rows.append(
                     {
-                        "slide_name": meta["slide_name"],
+                        "slide_name": meta["slide_id"],
                         "tile_x": int(meta["tile_x"]),
                         "tile_y": int(meta["tile_y"]),
                         "prob": float(prob),
@@ -168,7 +168,7 @@ class ValHeatmapCallback(Callback):
             for prob, meta in zip(probs, metadatas, strict=True):
                 rows.append(
                     {
-                        "slide_name": meta["slide_name"],
+                        "slide_name": meta["slide_id"],
                         "tile_x": int(meta["tile_x"]),
                         "tile_y": int(meta["tile_y"]),
                         "prob": float(prob),
