@@ -1,9 +1,9 @@
-title: "SNB IHC Case 1 Slide 3 - Local Test"
+# @package _global_
+defaults:
+  - background: mlflow_artifact
+  - save: mlflow_standalone_run
 
-save:
-  _target_: report.save.MLFlowReportStorer
-  artifact_path: report.html
-  metadata: ${metadata}
+title: "SNB IHC Case 1 Slide 3 - Local Test"
 
 background:
   _target_: report.masks.BasicImageRetriever
@@ -20,3 +20,9 @@ mask_retrievers:
       modifiable: true
       color: "#FF0000"
       opacity: 0.5
+
+save:
+  metadata:
+    experiment_name: "Lymph Nodes"
+    run_name : '📊 Report: Test run for heatmap'
+    description: "Report"

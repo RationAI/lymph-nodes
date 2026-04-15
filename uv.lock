@@ -1099,6 +1099,9 @@ dev = [
     { name = "mypy" },
     { name = "ruff" },
 ]
+report = [
+    { name = "report" },
+]
 run = [
     { name = "rationai-kube-jobs" },
 ]
@@ -1126,6 +1129,7 @@ dev = [
     { name = "mypy" },
     { name = "ruff" },
 ]
+report = [{ name = "report", git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/pipeline/report.git" }]
 run = [{ name = "rationai-kube-jobs", git = "ssh://git@gitlab.ics.muni.cz/rationai/infrastructure/kube-jobs" }]
 
 [[package]]
