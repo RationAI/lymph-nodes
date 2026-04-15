@@ -30,6 +30,7 @@ dev = ["mypy", "ruff"]
 run = [
     "rationai-kube-jobs",
 ]
+report = ["report"]
 
 [tool.uv.sources]
 rationai-masks = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git" }

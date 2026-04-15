@@ -3,93 +3,18 @@ defaults:
   - hydra: default
   - mlflow: kubas_cluster
 
-run_id: ???
+user: ???
 
 reporter:
-  title: "Lymph Nodes Report"
-  save:
-    _target_: report.save.RunIDMLFlowReportAttacher
-    run_id: ${run_id}
-    artifact_path: report.html
-  background:
-    _target_: report.masks.SlideRetriever
-    paths:
-      _target_: report.masks.mlflow_slide_retriever
-      urls:
-        - "mlflow-artifacts://lymph-nodes/1/0e5c8b9c-7a3d-4f1e-9b2c-8a1b2c3d4e5f/artifacts/tiles.parquet" ### TBD
-      key: path
-    layer_name: background
-  evaluation_runs:
-    ${run_id}:
-      artifact_file: "TBD" # TBD
-      slide_item_key: "TBD" # TBD
-  mask_retrievers:
-    # Heatmap #
-    - _target_: report.masks.RunIDMlflowMaskRetriever
-      dir_name: "TBD" # TBD
-      run_id: ${run_id}
-      layer_name: Classification Heatmap
-      shader_conf:
-        type: "heatmap"
-        modifiable: true
-        color: "#FF0000" # Red
-        opacity: 0.5
-        visible: true
-    - _target_: report.masks.RunIDMlflowMaskRetriever
-      dir_name: "TBD" # TBD
-      run_id: ${run_id}
-      layer_name: Classification Heatmap
-      shader_conf:
-        type: "heatmap"
-        modifiable: true
-        color: "#FF0000" # Red
-        opacity: 0.5
-        visible: true
-    - _target_: report.masks.RunIDMlflowMaskRetriever
-      dir_name: "TBD" # TBD
-      run_id: ${run_id}
-      layer_name: Classification Heatmap
-      shader_conf:
-        type: "heatmap"
-        modifiable: true
-        color: "#FF0000" # Red
-        opacity: 0.5
-        visible: true
-    # Tissue Mask #
-    - _target_: report.masks.RunIDMlflowMaskRetriever
-      dir_name: "TBD" # TBD
-      run_id: #TBD
-      layer_name: Tissue Mask
-      shader_conf:
-        type: "heatmap"
-        modifiable: true
-        color: "#FFFF00" # Yellow
-        opacity: 0.2
-        visible: false
-    - _target_: report.masks.RunIDMlflowMaskRetriever
-      dir_name: "TBD" # TBD
-      run_id: #TBD
-      layer_name: Tissue Mask
-      shader_conf:
-        type: "heatmap"
-        modifiable: true
-        color: "#FFFF00" # Yellow
-        opacity: 0.2
-        visible: false
-    - _target_: report.masks.RunIDMlflowMaskRetriever
-      dir_name: "TBD" # TBD
-      run_id: #TBD
-      layer_name: Tissue Mask
-      shader_conf:
-        type: "heatmap"
-        modifiable: true
-        color: "#FFFF00" # Yellow
-        opacity: 0.2
-        visible: false
-
-  metrics_run_ids:
-    - ${run_id}
+  save: ???
+  background: ???
+  title: ???
+  mask_retrievers: []
+  metrics_run_ids: []
   template_asset_path: report_template.html
 
-mlflowLogger:
-  tracking_uri: "http://mlflow-s3.rationai-mlflow"
+metadata:
+  user: ${user}
+  experiment_name: ???
+  run_name: ???
+  description: ???
