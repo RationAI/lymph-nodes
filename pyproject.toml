@@ -12,16 +12,17 @@ dependencies = [
     "aiohttp>=3.13.2",
     "numpy>=2.3.5",
     "lightning>=2.5.6",
+    "ray>=2.52.1",
+    "torch>=2.9.0",
+    "torchmetrics>=1.8.2",
     "mlflow<3.0.0",
     "omegaconf>=2.3.0",
     "rationai-masks",
     "rationai-mlkit",
-    "ratiopath>=1.0.3",
-    "ray>=2.52.1",
-    "torch>=2.9.0",
-    "torchmetrics>=1.8.2",
     "rationai-sdk",
     "rationai-tiling",
+    "ratiopath>=1.0.3",
+    "report",
 ]
 
 [dependency-groups]
@@ -29,6 +30,7 @@ dev = ["mypy", "ruff"]
 run = [
     "rationai-kube-jobs",
 ]
+report = ["report"]
 
 [tool.uv.sources]
 rationai-masks = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/masks.git" }
@@ -36,5 +38,6 @@ rationai-mlkit = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/
 rationai-kube-jobs = { git = "ssh://git@gitlab.ics.muni.cz/rationai/infrastructure/kube-jobs" }
 rationai-sdk = { git = "https://gitlab.ics.muni.cz/rationai/infrastructure/rationai-sdk-python.git" }
 rationai-tiling = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/libraries/tiling.git" }
+report = { git = "https://gitlab.ics.muni.cz/rationai/digital-pathology/pipeline/report.git" }
 
 
