@@ -1,0 +1,30 @@
+# configs/report/reporter/test_report.yaml
+# @package _global_
+
+defaults:
+  - /hydra: default
+  - /save: mlflow_standalone_run
+  - _self_
+
+title: "SNB IHC Case 1 Slide 3 - Local Test"
+
+metadata:
+  experiment_name: Lymph Nodes
+  run_name: "Report: SNB IHC Case 1 Slide 3"
+  description: "Heatmap report for SNB_IHC_CASE_1_SLIDE_3-1"
+
+background:
+  _target_: report.masks.BasicImageRetriever
+  source_dir: /mnt/data/MOU/lymph_nodes/dataset1-ihc-2023/
+  globs: ["SNB_IHC_CASE_1_SLIDE_3-1.mrxs"]
+  layer_name: background
+
+mask_retrievers:
+  - _target_: report.masks.ArtifactURIMasksRetriever
+    artifact_uri: "mlflow-artifacts:/4/21a5ba38c280421885b4508a75495069/artifacts/heatmaps"
+    layer_name: Classification Heatmap
+    shader_conf:
+      type: "heatmap"
+      modifiable: true
+      color: "#FF0000"
+      opacity: 0.5
