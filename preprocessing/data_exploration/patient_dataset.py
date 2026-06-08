@@ -29,13 +29,13 @@ def _process_slide(
     path: str,
     name_parser: Callable[[str], ParsedFilename],
     tma_control_slides: frozenset[str],
-    demaged_slides: frozenset[str],
+    damaged_slides: frozenset[str],
     confounding_structure_slides: frozenset[str],
 ) -> dict:
     slide_name = Path(path).stem
     parsed = name_parser(Path(path).name)
 
-    damaged = slide_name in demaged_slides
+    damaged = slide_name in damaged_slides
     meta = (
         {"mpp_x": float("nan"), "mpp_y": float("nan"), "n_levels": None, "vendor": None}
         if damaged
@@ -57,7 +57,7 @@ def build_slides_df(
     slide_paths: list[str],
     name_parser: Callable[[str], ParsedFilename],
     tma_control_slides: frozenset[str],
-    demaged_slides: frozenset[str],
+    damaged_slides: frozenset[str],
     confounding_structure_slides: frozenset[str],
     max_workers: int,
 ) -> pd.DataFrame:
@@ -65,7 +65,7 @@ def build_slides_df(
         _process_slide,
         name_parser=name_parser,
         tma_control_slides=tma_control_slides,
-        demaged_slides=demaged_slides,
+        damaged_slides=damaged_slides,
         confounding_structure_slides=confounding_structure_slides,
     )
 
@@ -104,7 +104,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         list(slides),
         name_parser=name_parser,
         tma_control_slides=frozenset(config.dataset.get("tma_control_slides") or []),
-        demaged_slides=frozenset(config.dataset.get("demaged_slides") or []),
+        damaged_slides=frozenset(config.dataset.get("damaged_slides") or []),
         confounding_structure_slides=frozenset(config.dataset.get("confounding_structure_slides") or []),
         max_workers=config.max_workers,
     )

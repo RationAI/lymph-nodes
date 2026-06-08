@@ -8,7 +8,7 @@ dataset:
     src_dir: /mnt/data/MOU/lymph_nodes/dataset1-ihc-2023
     glob_pattern: "*.mrxs"
   name_parser:
-    _target_: preprocessing.data_exploration.patient_dataset.parse_snbiihc_filename
+    _target_: preprocessing.data_exploration.name_parsers.mmci_snb_filename
   tma_control_slides:
     - SNB_IHC_CASE_2_SLIDE_5-0
     - SNB_IHC_CASE_5_SLIDE_8-0
@@ -37,7 +37,7 @@ dataset:
     - SNB_IHC_CASE_84_SLIDE_1-0
     - SNB_IHC_CASE_85_SLIDE_4-0
     - SNB_IHC_CASE_114_SLIDE_3-0
-  demaged_slides:
+  damaged_slides:
     - SNB_IHC_CASE_81_SLIDE_1-0
     - SNB_IHC_CASE_82_SLIDE_1-0
   confounding_structure_slides:

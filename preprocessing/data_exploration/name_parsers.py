@@ -11,7 +11,7 @@ class ParsedFilename:
 
 
 
-def parse_mmci_filename(filename: str) -> ParsedFilename:
+def mmci_snb_filename(filename: str) -> ParsedFilename:
     # Regex pattern breakdown:
     # ^SNB_: Starts with 'SNB_'
     # ([A-Z]+): Group 1 (Staining - one or more capital letters)
@@ -39,7 +39,7 @@ def parse_mmci_filename(filename: str) -> ParsedFilename:
         raise ValueError(f"Filename does not match expected MMCI pattern: {filename}")
 
 
-def parse_fnb_filename(filename: str) -> ParsedFilename:
+def fnb_filename(filename: str) -> ParsedFilename:
     # Regex pattern breakdown:
     # ^FNB-?: Starts with 'FNB' optionally followed by a hyphen.
     # P?: Optional 'P' prefix.
