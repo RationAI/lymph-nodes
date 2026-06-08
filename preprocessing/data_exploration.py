@@ -1,18 +1,15 @@
 import tempfile
-from concurrent.futures import ThreadPoolExecutor
-from functools import partial
 from pathlib import Path
-from typing import Callable
 
 import hydra
 import mlflow
 import pandas as pd
 from omegaconf import DictConfig
 from openslide import OpenSlide
-from preprocessing.data_exploration.name_parsers import ParsedFilename
 from rationai.mlkit import autolog, with_cli_args
 from rationai.mlkit.lightning.loggers import MLFlowLogger
-from tqdm import tqdm
+
+from preprocessing.slide_dataset import parse_mmci_filename
 
 
 def _read_slide_metadata(slide_path: str) -> dict:
@@ -25,52 +22,39 @@ def _read_slide_metadata(slide_path: str) -> dict:
         }
 
 
-def _process_slide(
-    path: str,
-    name_parser: Callable[[str], ParsedFilename],
-    tma_control_slides: frozenset[str],
-    demaged_slides: frozenset[str],
-    confounding_structure_slides: frozenset[str],
-) -> dict:
-    slide_name = Path(path).stem
-    parsed = name_parser(Path(path).name)
-
-    damaged = slide_name in demaged_slides
-    meta = (
-        {"mpp_x": float("nan"), "mpp_y": float("nan"), "n_levels": None, "vendor": None}
-        if damaged
-        else _read_slide_metadata(path)
-    )
-
-    return {
-        "slide_path": path,
-        "slide_name": slide_name,
-        **parsed.__dict__,
-        **meta,
-        "has_tma_control": slide_name in tma_control_slides,
-        "damaged": damaged,
-        "has_confounding_structures": slide_name in confounding_structure_slides,
-    }
-
-
 def build_slides_df(
     slide_paths: list[str],
-    name_parser: Callable[[str], ParsedFilename],
     tma_control_slides: frozenset[str],
     demaged_slides: frozenset[str],
     confounding_structure_slides: frozenset[str],
-    max_workers: int = 8,
 ) -> pd.DataFrame:
-    process = partial(
-        _process_slide,
-        name_parser=name_parser,
-        tma_control_slides=tma_control_slides,
-        demaged_slides=demaged_slides,
-        confounding_structure_slides=confounding_structure_slides,
-    )
+    rows = []
+    for path in slide_paths:
+        slide_name = Path(path).stem
+        parsed = parse_mmci_filename(Path(path).name)
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        rows = list(tqdm(executor.map(process, slide_paths), total=len(slide_paths), desc="Reading slides"))
+        damaged = slide_name in demaged_slides
+        meta = (
+            {"mpp_x": float("nan"), "mpp_y": float("nan"), "n_levels": None, "vendor": None}
+            if damaged
+            else _read_slide_metadata(path)
+        )
+
+        has_tma_control = slide_name in tma_control_slides
+        has_confounding_structures = slide_name in confounding_structure_slides
+
+        rows.append({
+            "slide_path": path,
+            "slide_name": slide_name,
+            "case_id": parsed["case_id"],
+            "slide_id": parsed["slide_id"],
+            "staining": parsed["staining"],
+            "tumor": parsed["tumor"],
+            **meta,
+            "has_tma_control": has_tma_control,
+            "damaged": damaged,
+            "has_confounding_structures": has_confounding_structures,
+        })
 
     return pd.DataFrame(rows)
 
@@ -89,7 +73,7 @@ def build_patients_df(slides_df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-@with_cli_args(["+preprocessing=patient_dataset"])
+@with_cli_args(["+preprocessing=data_exploration"])
 @hydra.main(
     config_path="../../configs",
     config_name="preprocessing",
@@ -99,13 +83,15 @@ def build_patients_df(slides_df: pd.DataFrame) -> pd.DataFrame:
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
     slides = hydra.utils.instantiate(config.dataset.slides)
 
+    tma_control_slides = frozenset(config.dataset.get("tma_control_slides") or [])
+    demaged_slides = frozenset(config.dataset.get("demaged_slides") or [])
+    confounding_structure_slides = frozenset(config.dataset.get("confounding_structure_slides") or [])
+
     slides_df = build_slides_df(
         list(slides),
-        name_parser=config.dataset.name_parser,
-        tma_control_slides=frozenset(config.dataset.get("tma_control_slides") or []),
-        demaged_slides=frozenset(config.dataset.get("demaged_slides") or []),
-        confounding_structure_slides=frozenset(config.dataset.get("confounding_structure_slides") or []),
-        max_workers=config.max_workers,
+        tma_control_slides=tma_control_slides,
+        demaged_slides=demaged_slides,
+        confounding_structure_slides=confounding_structure_slides,
     )
     patients_df = build_patients_df(slides_df)
 
@@ -137,11 +123,6 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     mlflow.log_input(
         mlflow.data.from_pandas(slides_df, name=config.dataset.name),
         context="slides",
-    )
-
-    mlflow.log_input(
-        mlflow.data.from_pandas(patients_df, name=f"{config.dataset.name}_patients"),
-        context="patients",
     )
 
 
