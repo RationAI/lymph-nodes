@@ -1,0 +1,23 @@
+# @package _global_
+
+dataset:
+  institute: mmci
+  name: SNB IHC
+
+patient_dataset_uri: https://mlflow-s3.rationai.cloud.trusted.e-infra.cz/#/experiments/4/runs/30974f87ffbb448c99dd5db1d0e0fdec
+
+splits:
+  train:
+    fraction: 0.7
+    n_folds: 5
+    exclude_cases_where:
+      - has_positive_slides
+    exclude_slides_where:
+      - has_tma_control
+      - has_confounding_structures
+  val:
+    fraction: 0.15
+    exclude_slides_where:
+      - has_confounding_structures
+  test:
+    fraction: 0.15

@@ -1,0 +1,24 @@
+# @package _global_
+
+seed: 42
+patient_dataset_uri: ???
+
+# Per-split options:
+#   fraction             (float)  relative weight among eligible cases; re-normalised per eligibility group
+#   n_folds              (int)    if set, applies K-fold CV to this split instead of a single output;
+#                                 produces fold_0/{train,val}/ ... fold_{K-1}/{train,val}/
+#   exclude_cases_where  (list)   bool cols on patients_df; matching case excluded entirely from this split
+#   exclude_slides_where (list)   bool cols on slides_df; for regular splits: slides dropped;
+#                                 for fold splits: applied to the train sub-split, val is left unfiltered
+#   pinned_cases         (list)   case IDs forced into this split, bypass random draw (not supported for fold splits)
+#
+# Auto-computed bool cols available for exclude_cases_where:
+#   has_positive_slides, has_tma_control_slides, has_confounding_slides
+splits: {}
+
+metadata:
+  run_name: Dataset Split ${dataset.name}
+  description: Dataset split for ${dataset.name}
+  hyperparams:
+    seed: ${seed}
+    name: ${dataset.name}
