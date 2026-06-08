@@ -59,7 +59,7 @@ def build_slides_df(
     tma_control_slides: frozenset[str],
     demaged_slides: frozenset[str],
     confounding_structure_slides: frozenset[str],
-    max_workers: int = 8,
+    max_workers: int,
 ) -> pd.DataFrame:
     process = partial(
         _process_slide,
