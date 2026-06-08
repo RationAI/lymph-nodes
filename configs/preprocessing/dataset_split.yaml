@@ -1,7 +1,8 @@
 # @package _global_
 
 seed: 42
-patient_dataset_uri: ???
+slides_uri: ???    # e.g. runs:/<run_id>/slides.csv
+patients_uri: ???  # e.g. runs:/<run_id>/patients.csv
 
 # Per-split options:
 #   fraction             (float)  relative weight among eligible cases; re-normalised per eligibility group

@@ -226,9 +226,8 @@ def _log_split_metrics(name: str, slides: pd.DataFrame, prefix: str = "") -> Non
 )
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
-    artifact_dir = Path(download_artifacts(config.patient_dataset_uri))
-    slides_df = pd.read_csv(artifact_dir / "slides.csv")
-    patients_df = pd.read_csv(artifact_dir / "patients.csv")
+    slides_df = pd.read_csv(download_artifacts(config.slides_uri))
+    patients_df = pd.read_csv(download_artifacts(config.patients_uri))
 
     splits = create_splits(slides_df, patients_df, config.splits, config.seed)
 

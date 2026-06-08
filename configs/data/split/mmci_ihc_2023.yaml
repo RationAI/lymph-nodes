@@ -4,7 +4,8 @@ dataset:
   institute: mmci
   name: SNB IHC
 
-patient_dataset_uri: https://mlflow-s3.rationai.cloud.trusted.e-infra.cz/#/experiments/4/runs/30974f87ffbb448c99dd5db1d0e0fdec
+slides_uri: runs:/30974f87ffbb448c99dd5db1d0e0fdec/artifacts/slides.csv
+patients_uri: runs:/30974f87ffbb448c99dd5db1d0e0fdec/artifacts/patients.csv
 
 splits:
   train:
