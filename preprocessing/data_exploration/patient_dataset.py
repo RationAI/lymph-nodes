@@ -98,10 +98,11 @@ def build_patients_df(slides_df: pd.DataFrame) -> pd.DataFrame:
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
     slides = hydra.utils.instantiate(config.dataset.slides)
+    name_parser = hydra.utils.instantiate(config.dataset.name_parser)
 
     slides_df = build_slides_df(
         list(slides),
-        name_parser=config.dataset.name_parser,
+        name_parser=name_parser,
         tma_control_slides=frozenset(config.dataset.get("tma_control_slides") or []),
         demaged_slides=frozenset(config.dataset.get("demaged_slides") or []),
         confounding_structure_slides=frozenset(config.dataset.get("confounding_structure_slides") or []),
