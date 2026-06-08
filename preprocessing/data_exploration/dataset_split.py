@@ -17,7 +17,7 @@ from sklearn.model_selection import StratifiedGroupKFold
 # ── types ─────────────────────────────────────────────────────────────────────
 
 SplitResult = tuple[pd.DataFrame, pd.DataFrame]
-FoldedSplitResult = list[dict[str, SplitResult]]
+FoldedSplitResult = list[SplitResult]
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -102,29 +102,25 @@ def _recursive_split(
 def _apply_kfold(
     slides: pd.DataFrame,
     n_folds: int,
-    train_exclude_slides: list[str],
+    exclude_slides: list[str],
     seed: int,
 ) -> FoldedSplitResult:
-    """Apply K-fold CV to slides, producing K (train, val) pairs.
+    """Partition slides into K non-overlapping folds of equal size.
 
-    Train sub-split: slide-level filters applied (same as a regular split).
-    Val sub-split: unfiltered — validate against all available slides.
+    Uses the test indices from each StratifiedGroupKFold split, which together
+    cover every sample exactly once. Groups ensure all slides of one case land
+    in the same fold; stratification preserves the positive/negative ratio.
     """
     skf = StratifiedGroupKFold(n_splits=n_folds, shuffle=True, random_state=seed)
     y = slides["tumor"].values
     groups = slides["case_id"].values
 
     folds: FoldedSplitResult = []
-    for train_idx, val_idx in skf.split(slides, y=y, groups=groups):
-        train_slides = _apply_slide_filters(
-            slides.iloc[train_idx].copy(), train_exclude_slides
+    for _, fold_idx in skf.split(slides, y=y, groups=groups):
+        fold_slides = _apply_slide_filters(
+            slides.iloc[fold_idx].copy(), exclude_slides
         ).reset_index(drop=True)
-        val_slides = slides.iloc[val_idx].reset_index(drop=True)
-
-        folds.append({
-            "train": (train_slides, _rebuild_patients_df(train_slides)),
-            "val": (val_slides, _rebuild_patients_df(val_slides)),
-        })
+        folds.append((fold_slides, _rebuild_patients_df(fold_slides)))
     return folds
 
 
@@ -198,7 +194,7 @@ def create_splits(
             result[name] = _apply_kfold(
                 part_slides,
                 n_folds=int(n_folds),
-                train_exclude_slides=list(cfg.get("exclude_slides_where") or []),
+                exclude_slides=list(cfg.get("exclude_slides_where") or []),
                 seed=seed,
             )
         else:
@@ -234,13 +230,12 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
         for name, split_result in splits.items():
             if isinstance(split_result, list):
-                for k, fold in enumerate(split_result):
-                    for fold_split_name, (part_slides, part_patients) in fold.items():
-                        out_dir = Path(tmp_dir) / f"fold_{k}" / fold_split_name
-                        out_dir.mkdir(parents=True)
-                        part_slides.to_csv(out_dir / "slides.csv", index=False)
-                        part_patients.to_csv(out_dir / "patients.csv", index=False)
-                        _log_split_metrics(fold_split_name, part_slides, prefix=f"fold_{k}_")
+                for k, (part_slides, part_patients) in enumerate(split_result):
+                    out_dir = Path(tmp_dir) / f"{name}_fold_{k}"
+                    out_dir.mkdir(parents=True)
+                    part_slides.to_csv(out_dir / "slides.csv", index=False)
+                    part_patients.to_csv(out_dir / "patients.csv", index=False)
+                    _log_split_metrics(name, part_slides, prefix=f"fold_{k}_")
             else:
                 part_slides, part_patients = split_result
                 out_dir = Path(tmp_dir) / name
