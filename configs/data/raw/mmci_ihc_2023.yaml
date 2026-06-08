@@ -1,0 +1,45 @@
+# @package _global_
+
+dataset:
+  institute: mmci
+  name: SNB IHC Exploration
+  slides:
+    _target_: preprocessing.data_source.GlobDataSource
+    src_dir: /mnt/data/MOU/lymph_nodes/dataset1-ihc-2023
+    glob_pattern: "*.mrxs"
+  name_parser:
+    _target_: preprocessing.data_exploration.patient_dataset.parse_snbiihc_filename
+  tma_control_slides:
+    - SNB_IHC_CASE_2_SLIDE_5-0
+    - SNB_IHC_CASE_5_SLIDE_8-0
+    - SNB_IHC_CASE_8_SLIDE_2-1
+    - SNB_IHC_CASE_11_SLIDE_2-0
+    - SNB_IHC_CASE_12_SLIDE_1-0
+    - SNB_IHC_CASE_13_SLIDE_1-0
+    - SNB_IHC_CASE_15_SLIDE_3-0
+    - SNB_IHC_CASE_19_SLIDE_1-0
+    - SNB_IHC_CASE_22_SLIDE_1-0
+    - SNB_IHC_CASE_27_SLIDE_3-0
+    - SNB_IHC_CASE_31_SLIDE_1-0
+    - SNB_IHC_CASE_35_SLIDE_1-0
+    - SNB_IHC_CASE_38_SLIDE_1-0
+    - SNB_IHC_CASE_46_SLIDE_1-0
+    - SNB_IHC_CASE_47_SLIDE_3-0
+    - SNB_IHC_CASE_50_SLIDE_3-0
+    - SNB_IHC_CASE_51_SLIDE_1-0
+    - SNB_IHC_CASE_57_SLIDE_3-0
+    - SNB_IHC_CASE_58_SLIDE_2-0
+    - SNB_IHC_CASE_68_SLIDE_6-0
+    - SNB_IHC_CASE_73_SLIDE_2-0
+    - SNB_IHC_CASE_74_SLIDE_3-0
+    - SNB_IHC_CASE_80_SLIDE_5-0
+    - SNB_IHC_CASE_82_SLIDE_6-0
+    - SNB_IHC_CASE_84_SLIDE_1-0
+    - SNB_IHC_CASE_85_SLIDE_4-0
+    - SNB_IHC_CASE_114_SLIDE_3-0
+  demaged_slides:
+    - SNB_IHC_CASE_81_SLIDE_1-0
+    - SNB_IHC_CASE_82_SLIDE_1-0
+  confounding_structure_slides:
+    - SNB_IHC_CASE_80_SLIDE_1-0
+    - SNB_IHC_CASE_80_SLIDE_2-0

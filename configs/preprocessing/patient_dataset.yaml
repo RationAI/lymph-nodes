@@ -1,0 +1,8 @@
+# @package _global_
+
+metadata:
+  run_name: Patient Dataset of ${dataset.name}
+  description: Data exploration & Patient Dataset of ${dataset.name}
+  hyperparams:
+    institute: ${dataset.institute}
+    name: ${dataset.name}
