@@ -1,22 +1,20 @@
 # @package _global_
 
-
 mpp: 0.5
 tile_extent: 224
-stride: 112
+stride: 224
+rows_per_shard: 100_000
 
-tissue_mask_uri: ???
-blur_mask_uri: ???
+slides_uri: ???
+pipeline: ???
 
-min_tissue_coverage: 0
-max_blur_coverage: 0
 
 metadata:
   run_name: Tiling ${dataset.name}
-  description: Tile extraction for ${dataset.name}
+  description: Tile extraction and embedding for ${dataset.name}
   hyperparams:
     mpp: ${mpp}
     tile_extent: ${tile_extent}
     stride: ${stride}
-    tissue_mask_uri: ${tissue_mask_uri}
-    blur_mask_uri: ${blur_mask_uri}
+    rows_per_shard: ${rows_per_shard}
+    name: ${dataset.name}

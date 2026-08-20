@@ -1,0 +1,89 @@
+# @package _global_
+
+tissue_roi:
+  - _target_: shapely.geometry.box
+    _args_:
+      - 0
+      - 0
+      - ${tile_extent}
+      - ${tile_extent}
+
+full_roi:
+  - _target_: shapely.geometry.box
+    _args_:
+      - 0
+      - 0
+      - ${tile_extent}
+      - ${tile_extent}
+
+# Each key becomes a column in the output Parquet.
+# Processors run in config order.
+tiling_blocks:
+  - _target_: preprocessing.tiling.tile_overlay.OverlayCoverage
+    name: tissue_coverage
+    uri: ${tissue_mask_dir}
+    roi: ${tissue_roi}
+    mandatory: true
+    
+  # drop tiles with < 10% tissue coverage
+  - preprocessing.tiling.ray.Operator:
+      operator: filter
+      expr:
+        _target_: operator.ge
+        _args_:
+          - _target_: ray.data.expressions.col
+            name: tissue_coverage
+          - 0.1
+
+  - _target_: preprocessing.tiling.tile_overlay.OverlayCoverage
+    name: ignore_coverage
+    uri: ${ignore_mask_dir}
+    roi: ${full_roi}
+    mandatory: false
+
+  # drop tiles with > 1% ignore coverage
+  - preprocessing.tiling.ray.Operator:
+      operator: filter
+      expr:
+        _target_: operator.le
+        _args_:
+          - _target_: ray.data.expressions.col
+            name: ignore_coverage
+          - 0.01
+
+  - _target_: preprocessing.tiling.tile_overlay.OverlayCoverage
+    name: custom_ignore_coverage
+    uri: ${custom_ignore_mask_dir}
+    roi: ${full_roi}
+    mandatory: false
+
+  - _target_: preprocessing.tiling.tile_overlay.OverlayCoverage
+    name: blur_coverage
+    uri: ${blur_mask_dir}
+    roi: ${full_roi}
+    mandatory: false
+
+  - _target_: preprocessing.tiling.tile_overlay.OverlayCoverage
+    name: annotation_coverage
+    uri: ${annotation_mask_dir}
+    roi: ${full_roi}
+    mandatory: false
+
+  - _target_: preprocessing.tiling.read_tiles.ReadTiles
+    name: tile
+    
+  - _target_: preprocessing.tiling.brownish.BrownishCoverage
+    name: brownish_coverage
+    dab_threshold: 0.15
+
+  - _target_: preprocessing.tiling.embedding.FoundationModelEmbedding
+    name: embedding
+    encoder:
+      _target_: preprocessing.models.GigaPathEncoder
+    batch_size: 256
+    concurrency: 1
+    memory_per_worker: 16_000_000_000
+
+  - _target_: preprocessing.tiling.ray.Operator
+    operator: drop_columns
+    args: ["tile"]

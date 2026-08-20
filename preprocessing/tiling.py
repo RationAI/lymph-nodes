@@ -1,33 +1,24 @@
-import os
+import tempfile
+from pathlib import Path
 from typing import Any
 
 import hydra
+import mlflow
+import pandas as pd
 from mlflow.artifacts import download_artifacts
 from omegaconf import DictConfig
 from rationai.mlkit import autolog, with_cli_args
 from rationai.mlkit.lightning.loggers import MLFlowLogger
-from rationai.tiling.writers import save_mlflow_dataset
 from ratiopath.ray import read_slides
-from ratiopath.tiling import (
-    grid_tiles,
-    tile_overlay_overlap,
-)
+from ratiopath.tiling import grid_tiles
 from ratiopath.tiling.utils import row_hash
-from ray.data.expressions import col
-from shapely.geometry import box
+
+from preprocessing.parquet_dataset import from_parquet
 
 
-def make_tissue_roi(tile_extent: int):
-    offset = tile_extent // 4
-    size = tile_extent // 2
-    return box(offset, offset, offset + size, offset + size)
-
+# ── tile generation ───────────────────────────────────────────────────────────
 
 def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
-    slide_extent = (row["extent_x"], row["extent_y"])
-    tile_extent = (row["tile_extent_x"], row["tile_extent_y"])
-    stride = (row["stride_x"], row["stride_y"])
-
     common = {
         "path": row["path"],
         "slide_id": row["id"],
@@ -35,36 +26,19 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
         "mpp_y": row["mpp_y"],
         "tile_extent_x": row["tile_extent_x"],
         "tile_extent_y": row["tile_extent_y"],
-        "tissue_mask_path": row["tissue_mask_path"],
-        "blur_mask_path": row["blur_mask_path"],
     }
-
     return [
-        {
-            "tile_x": x,
-            "tile_y": y,
-            **common,
-        }
+        {"tile_x": int(x), "tile_y": int(y), **common}
         for x, y in grid_tiles(
-            slide_extent=slide_extent,
-            tile_extent=tile_extent,
-            stride=stride,
+            slide_extent=(row["extent_x"], row["extent_y"]),
+            tile_extent=(row["tile_extent_x"], row["tile_extent_y"]),
+            stride=(row["stride_x"], row["stride_y"]),
             last="keep",
         )
     ]
 
 
-def extract_coverage(row: dict[str, Any]) -> dict[str, Any]:
-    return {
-        **row,
-        "tissue_coverage": 1.0 - (row.get("tissue_overlap", {}).get("0", 0.0) or 0.0),
-        "blur_coverage": 1.0 - (row.get("blur_overlap", {}).get("0", 0.0) or 0.0),
-    }
-
-
-def tissue_coverage(overlap: dict[str, float]) -> float:
-    return 1.0 - (overlap.get("0", 0.0) or 0.0)
-
+# ── entrypoint ────────────────────────────────────────────────────────────────
 
 @with_cli_args(["+preprocessing=tiling"])
 @hydra.main(
@@ -73,94 +47,56 @@ def tissue_coverage(overlap: dict[str, float]) -> float:
     version_base=None,
 )
 @autolog
-def main(config: DictConfig, logger=MLFlowLogger):
-    slide_source = hydra.utils.instantiate(config.dataset.slides)
-    slides_list = list(slide_source)
+def main(config: DictConfig, logger: MLFlowLogger) -> None:
+    slides_csv = pd.read_csv(download_artifacts(config.slides_uri))
+    slide_paths = slides_csv["slide_path"].tolist()[:2]
+    meta_cols = [c for c in slides_csv.columns if c != "slide_path"]
+    slides_meta: dict[str, dict] = {
+        row["slide_path"]: {k: row[k] for k in meta_cols}
+        for _, row in slides_csv.iterrows()
+    }
 
-    slides_ds = read_slides(
-        slides_list,
-        mpp=config.mpp,
-        tile_extent=config.tile_extent,
-        stride=config.stride,
+    # --- Slide-level Ray Dataset ---
+    slides = read_slides(slide_paths, mpp=config.mpp, tile_extent=config.tile_extent, stride=config.stride)
+    slides = slides.map(row_hash)
+    slides = slides.map(
+        lambda r, meta=slides_meta: {**r, **meta.get(r["path"], {})},
     )
 
-    slides_ds = slides_ds.map(
-        row_hash,
-        num_cpus=0.1,
-        memory=128 * 1024**2,
+    # --- Tile grid ---
+    tiles = (
+        slides
+        .flat_map(tiling)
+        .repartition(target_num_rows_per_block=512)
     )
 
-    tissue_dir = download_artifacts(config.tissue_mask_uri)
-    blur_dir = download_artifacts(config.blur_mask_uri)
+    # --- Tiling blocks (sequential, config order) ---
+    for block_conf in config.tiling_blocks:
+        block = hydra.utils.instantiate(block_conf, _recursive_=True)
+        tiles = block.apply(tiles)
+    
 
-    def add_mask_paths(row):
-        filename = os.path.basename(row["path"])
-        stem, _ = os.path.splitext(filename)
-        mask_filename = f"{stem}.tiff"
-        row["tissue_mask_path"] = os.path.join(tissue_dir, mask_filename)
-        row["blur_mask_path"] = os.path.join(blur_dir, mask_filename)
-        return row
+    # --- Write sharded parquet + log to MLflow ---
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tiles_dir = Path(tmp_dir) / "tiles"
+        slides_dir = Path(tmp_dir) / "slides"
+        tiles_dir.mkdir()
+        slides_dir.mkdir()
 
-    slides_ds = slides_ds.map(add_mask_paths)
+        tiles.repartition(target_num_rows_per_block=config.rows_per_shard).write_parquet(str(tiles_dir))
+        slides.write_parquet(str(slides_dir))
 
-    tiles = slides_ds.flat_map(
-        tiling,
-        num_cpus=0.2,
-        memory=512 * 1024**2,
-    ).repartition(target_num_rows_per_block=512)
+        logger.log_artifacts(tmp_dir)
 
-    tissue_roi = make_tissue_roi(config.tile_extent)
-
-    tiles = tiles.with_column(
-        "tissue_overlap",
-        tile_overlay_overlap(
-            tissue_roi,
-            col("tissue_mask_path"),
-            col("tile_x"),
-            col("tile_y"),
-            col("mpp_x"),
-            col("mpp_y"),
-        ),
-        num_cpus=2,
-        memory=2 * 3 * 512 * config.tile_extent**2,
-    )
-
-    tiles = tiles.filter(
-        lambda r: tissue_coverage(r.get("tissue_overlap")) > config.min_tissue_coverage
-    )
-
-    tiles = tiles.with_column(
-        "blur_overlap",
-        tile_overlay_overlap(
-            tissue_roi,
-            col("blur_mask_path"),
-            col("tile_x"),
-            col("tile_y"),
-            col("mpp_x"),
-            col("mpp_y"),
-        ),
-    )
-
-    tiles = tiles.map(extract_coverage)
-
-    tiles = tiles.drop_columns(
-        [
-            "tissue_mask_path",
-            "blur_mask_path",
-            "tissue_overlap",
-            "blur_overlap",
-        ]
-    )
-
-    slides_df = slides_ds.to_pandas()
-    tiles_df = tiles.to_pandas()
-
-    save_mlflow_dataset(
-        slides=slides_df,
-        tiles=tiles_df,
-        dataset_name=config.dataset.name,
-    )
+        mlflow.log_input(
+            from_parquet(str(tiles_dir), name=f"{config.dataset.name}_tiles"),
+            context="tiles",
+        )
+        mlflow.log_input(
+            from_parquet(str(slides_dir), name=f"{config.dataset.name}_slides"),
+            context="slides",
+        )
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pylint: disable=no-value-for-parameter
