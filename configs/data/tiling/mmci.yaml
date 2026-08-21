@@ -1,0 +1,38 @@
+# @package _global_
+
+tissue_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/tissue_masks
+ignore_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/ignore_masks
+cytokeratin_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/8ad173ea482d4db999bee7686d9dc2d5/artifacts/cytokeratin_masks
+cyto_ignore_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/cyto_ignore_masks
+annotation_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/cyto_ignore_masks
+blur_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/fadfd18d81e74cb6849a3e93f8bfdef3/artifacts/blur_per_pixel
+
+dataset:
+  - name: fold_0
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/train_fold_0/slides.csv
+  - name: fold_1
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/train_fold_1/slides.csv
+  - name: fold_2
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/train_fold_2/slides.csv
+  - name: fold_3
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/train_fold_3/slides.csv
+  - name: fold_4
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/train_fold_4/slides.csv
+  - name: val
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/val/slides.csv
+  - name: test
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/test/slides.csv

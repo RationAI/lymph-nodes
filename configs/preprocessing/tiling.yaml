@@ -5,16 +5,21 @@ tile_extent: 224
 stride: 224
 rows_per_shard: 100_000
 
-slides_uri: ???
+memory_per_gpu_worker: ???
+batch_size: ???
+embedding_model: ???
+
+dataset: ???
 pipeline: ???
 
 
 metadata:
-  run_name: Tiling ${dataset.name}
-  description: Tile extraction and embedding for ${dataset.name}
+  run_name: Tiling ${dataset_name}
+  description: Tile extraction and embedding for ${dataset_name}
   hyperparams:
     mpp: ${mpp}
     tile_extent: ${tile_extent}
     stride: ${stride}
     rows_per_shard: ${rows_per_shard}
-    name: ${dataset.name}
+    name: ${dataset_name}
+    embedding_model: ${embedding_model}

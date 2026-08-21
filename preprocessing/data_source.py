@@ -69,7 +69,7 @@ class MLFlowDataSource(DataSource):
 
     @staticmethod
     def _download_dataset(uri: str) -> pd.DataFrame:
-        artifact_path = download_artifacts(artifact_uri=uri)
+        artifact_path = download_artifacts(uri)
         return pd.read_csv(artifact_path)
 
 

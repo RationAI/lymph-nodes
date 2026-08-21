@@ -6,15 +6,10 @@ import hydra
 import pyvips
 import ray
 from omegaconf import DictConfig
-from openslide import OpenSlide
-from rationai.masks import (
-    closest_level,
-    process_items,
-    slide_resolution,
-    write_big_tiff,
-)
 from rationai.mlkit import autolog, with_cli_args
 from rationai.mlkit.lightning.loggers import MLFlowLogger
+from ratiopath.masks import write_big_tiff
+from ratiopath.openslide import OpenSlide
 
 
 ####################################################################################
@@ -62,8 +57,8 @@ def tissue_mask(slide: pyvips.Image, disk_size: int = 10) -> pyvips.Image:
 @ray.remote(memory=3 * 1024**3)
 def process_slide(slide_path: str, mpp: int, output_path: Path) -> None:
     with OpenSlide(slide_path) as slide:
-        level = closest_level(slide, mpp)
-        mpp_x, mpp_y = slide_resolution(slide, level)
+        level = slide.closest_level(mpp)
+        mpp_x, mpp_y = slide.slide_resolution(level)
 
     slide = cast("pyvips.Image", pyvips.Image.new_from_file(slide_path, level=level))
 

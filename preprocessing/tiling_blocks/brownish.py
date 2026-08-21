@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 from ray.data import Dataset
 
-from preprocessing.tiling.tiling_block import TilingBlock
+from preprocessing.tiling_blocks.tiling_block import TilingBlock
 
 
 class BrownishCoverage(TilingBlock):

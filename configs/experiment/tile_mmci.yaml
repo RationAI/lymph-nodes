@@ -1,12 +1,14 @@
 # @package _global_
 
+dataset_name: HDAB MMCI
+
 tissue_roi:
   - _target_: shapely.geometry.box
     _args_:
-      - 0
-      - 0
-      - ${tile_extent}
-      - ${tile_extent}
+      - ${scale:${tile_extent},0.25}
+      - ${scale:${tile_extent},0.25}
+      - ${scale:${tile_extent},0.75}
+      - ${scale:${tile_extent},0.75}
 
 full_roi:
   - _target_: shapely.geometry.box
@@ -19,71 +21,78 @@ full_roi:
 # Each key becomes a column in the output Parquet.
 # Processors run in config order.
 tiling_blocks:
-  - _target_: preprocessing.tiling.tile_overlay.OverlayCoverage
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
     name: tissue_coverage
     uri: ${tissue_mask_dir}
     roi: ${tissue_roi}
     mandatory: true
     
   # drop tiles with < 10% tissue coverage
-  - preprocessing.tiling.ray.Operator:
-      operator: filter
-      expr:
-        _target_: operator.ge
-        _args_:
-          - _target_: ray.data.expressions.col
-            name: tissue_coverage
-          - 0.1
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: filter
+    expr: "tissue_coverage >= 0.1"
 
-  - _target_: preprocessing.tiling.tile_overlay.OverlayCoverage
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
     name: ignore_coverage
     uri: ${ignore_mask_dir}
     roi: ${full_roi}
     mandatory: false
 
   # drop tiles with > 1% ignore coverage
-  - preprocessing.tiling.ray.Operator:
-      operator: filter
-      expr:
-        _target_: operator.le
-        _args_:
-          - _target_: ray.data.expressions.col
-            name: ignore_coverage
-          - 0.01
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: filter
+    expr: "ignore_coverage <= 0.01"
+      # _target_: operator.le
+      # _args_:
+      #   - _target_: ray.data.expressions.col
+      #     _args_: [ignore_coverage]
+      #   - 0.01
 
-  - _target_: preprocessing.tiling.tile_overlay.OverlayCoverage
-    name: custom_ignore_coverage
-    uri: ${custom_ignore_mask_dir}
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: cyto_ignore_coverage
+    uri: ${cyto_ignore_mask_dir}
     roi: ${full_roi}
     mandatory: false
 
-  - _target_: preprocessing.tiling.tile_overlay.OverlayCoverage
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
     name: blur_coverage
     uri: ${blur_mask_dir}
     roi: ${full_roi}
     mandatory: false
 
-  - _target_: preprocessing.tiling.tile_overlay.OverlayCoverage
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
     name: annotation_coverage
     uri: ${annotation_mask_dir}
     roi: ${full_roi}
     mandatory: false
 
-  - _target_: preprocessing.tiling.read_tiles.ReadTiles
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: cytokeratin_coverage
+    uri: ${cytokeratin_mask_dir}
+    roi: ${full_roi}
+    mandatory: false
+
+  - _target_: preprocessing.tiling_blocks.ReadTiles
     name: tile
     
-  - _target_: preprocessing.tiling.brownish.BrownishCoverage
+  - _target_: preprocessing.tiling_blocks.BrownishCoverage
     name: brownish_coverage
+    image_col: tile
     dab_threshold: 0.15
 
-  - _target_: preprocessing.tiling.embedding.FoundationModelEmbedding
-    name: embedding
-    encoder:
-      _target_: preprocessing.models.GigaPathEncoder
-    batch_size: 256
-    concurrency: 1
-    memory_per_worker: 16_000_000_000
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: repartition
+    target_num_rows_per_block: 64
 
-  - _target_: preprocessing.tiling.ray.Operator
+  - _target_: preprocessing.tiling_blocks.FoundationModelEmbedding
+    name: embedding
+    image_col: tile
+    encoder:
+      _target_: preprocessing.models.${embedding_model}
+    batch_size: ${batch_size}
+    concurrency: 1
+    memory_per_worker: ${memory_per_gpu_worker}
+
+  - _target_: preprocessing.tiling_blocks.Operator
     operator: drop_columns
-    args: ["tile"]
+    cols: ["level"]
