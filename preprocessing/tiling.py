@@ -82,8 +82,8 @@ def tile_dataset(
     
     # --- Write sharded parquet + log to MLflow ---
     with tempfile.TemporaryDirectory() as tmp_dir:
-        tiles_dir = Path(tmp_dir) / "tiles"
-        slides_dir = Path(tmp_dir) / "slides"
+        tiles_dir = Path(tmp_dir) / dataset_name / "tiles"
+        slides_dir = Path(tmp_dir) / dataset_name/ "slides"
         tiles_dir.mkdir()
         slides_dir.mkdir()
 
