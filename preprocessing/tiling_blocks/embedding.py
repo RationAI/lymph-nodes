@@ -1,5 +1,5 @@
 from omegaconf import DictConfig
-from ray.data import Dataset
+from ray.data import ActorPoolStrategy, Dataset
 
 
 class FoundationModelEmbedding:
@@ -35,6 +35,6 @@ class FoundationModelEmbedding:
             fn_constructor_kwargs={"image_col": self._image_col, "embedding_col": self._name},
             batch_size=self._batch_size,
             num_gpus=1,
-            concurrency=self._concurrency,
+            compute=ActorPoolStrategy(size=self._concurrency),
             memory=self._memory_per_worker,
         )

@@ -21,6 +21,7 @@ dependencies = [
     "mlflow>=2.22.4",
     "ray[default]>=2.53.0",
     "rationai-mlkit",
+    "kubernetes==35.0.0",
 ]
 
 [dependency-groups]
@@ -30,8 +31,8 @@ run = [
 ]
 
 [tool.uv.sources]
-rationai-kube-jobs = { git = "ssh://git@gitlab.ics.muni.cz/rationai/infrastructure/kube-jobs" }
 rationai-sdk = { git = "https://gitlab.ics.muni.cz/rationai/infrastructure/rationai-sdk-python.git" }
 rationai-mlkit = { git = "https://github.com/RationAI/mlkit.git", rev = "feature/mlflow-dataset" }
+rationai-kube-jobs = { git = "ssh://gitlab.ics.muni.cz/rationai/infrastructure/kube-jobs" }
 
 

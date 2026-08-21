@@ -84,8 +84,8 @@ def tile_dataset(
     with tempfile.TemporaryDirectory() as tmp_dir:
         tiles_dir = Path(tmp_dir) / dataset_name / "tiles"
         slides_dir = Path(tmp_dir) / dataset_name/ "slides"
-        tiles_dir.mkdir()
-        slides_dir.mkdir()
+        tiles_dir.mkdir(parents=True)
+        slides_dir.mkdir(parents=True)
 
         tiles.repartition(target_num_rows_per_block=rows_per_shard).write_parquet(str(tiles_dir))
         slides.write_parquet(str(slides_dir))
