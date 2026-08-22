@@ -32,6 +32,10 @@ tiling_blocks:
     operator: filter
     expr: "tissue_coverage >= 0.1"
 
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: repartition
+    target_num_rows_per_block: 512
+
   - _target_: preprocessing.tiling_blocks.OverlayCoverage
     name: ignore_coverage
     uri: ${ignore_mask_dir}
@@ -47,6 +51,10 @@ tiling_blocks:
       #   - _target_: ray.data.expressions.col
       #     _args_: [ignore_coverage]
       #   - 0.01
+
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: repartition
+    target_num_rows_per_block: 512
 
   - _target_: preprocessing.tiling_blocks.OverlayCoverage
     name: cyto_ignore_coverage
@@ -82,7 +90,7 @@ tiling_blocks:
 
   - _target_: preprocessing.tiling_blocks.Operator
     operator: repartition
-    target_num_rows_per_block: 64
+    target_num_rows_per_block: 512
 
   - _target_: preprocessing.tiling_blocks.FoundationModelEmbedding
     name: embedding
