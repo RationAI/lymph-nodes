@@ -3,6 +3,7 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.compute as pc
 from mlflow.artifacts import download_artifacts
+from omegaconf import DictConfig
 from ray.data import Dataset
 from shapely import Polygon
 
@@ -23,16 +24,18 @@ class OverlayCoverage:
         self,
         name: str,
         uri: str,
-        roi: Polygon,
+        roi: Polygon | DictConfig,
         suffix: str = "tiff",
         mandatory: bool = False,
     ) -> None:
+        from hydra.utils import instantiate
+
         self._name = name
         self._mandatory = mandatory
-        self._roi = roi
+        self._roi = instantiate(roi) if isinstance(roi, DictConfig) else roi
         self._suffix = suffix
         self._overlay_dir = download_artifacts(uri)
-        self._overlay_stems = {p.stem for p in Path(self._overlay_dir).glob(f"*.{suffix}")}
+        self._overlay_paths = {p.stem: p for p in Path(self._overlay_dir).rglob(f"*.{suffix}")}
 
     def apply(self, tiles: Dataset) -> Dataset:
         from ratiopath.tiling import tile_overlay_overlap
@@ -45,23 +48,21 @@ class OverlayCoverage:
         # the dataset lineage to handle slides that have no corresponding mask file.
         compute_overlap = tile_overlay_overlap.__wrapped__
 
-        overlay_dir = self._overlay_dir
-        overlay_stems = self._overlay_stems
-        suffix = self._suffix
+        overlay_paths = self._overlay_paths
         roi = self._roi
         name = self._name
 
         def add_coverage(batch: pa.Table) -> pa.Table:
             stems = [Path(p).stem for p in batch["path"].to_pylist()]
-            mask_exists = pa.array([stem in overlay_stems for stem in stems], type=pa.bool_())
+            mask_exists = pa.array([stem in overlay_paths for stem in stems], type=pa.bool_())
 
             with_mask = batch.filter(mask_exists)
             without_mask = batch.filter(pc.invert(mask_exists))
 
             if with_mask.num_rows:
-                overlay_paths = pa.array(
+                resolved_paths = pa.array(
                     [
-                        f"{overlay_dir}/{stem}.{suffix}"
+                        str(overlay_paths[stem])
                         for stem, keep in zip(stems, mask_exists.to_pylist(), strict=True)
                         if keep
                     ],
@@ -69,7 +70,7 @@ class OverlayCoverage:
                 )
                 overlap = compute_overlap(
                     roi,
-                    overlay_paths,
+                    resolved_paths,
                     with_mask["tile_x"],
                     with_mask["tile_y"],
                     with_mask["mpp_x"],

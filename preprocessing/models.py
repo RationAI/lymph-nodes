@@ -1,8 +1,17 @@
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 import numpy as np
 import torch
 
 
-class FoundationModelEncoder:
+class FoundationModelEncoder(ABC):
     """Base class for ViT foundation model inference via Ray map_batches.
 
     Subclasses implement _create_model() and optionally _build_embedding_fn()
@@ -22,34 +31,34 @@ class FoundationModelEncoder:
         self._embedding_col = embedding_col
 
         torch.backends.cudnn.benchmark = True
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
         model = self._create_model()
         model.eval().to(self.device)
 
         cfg = resolve_model_data_config(model)
-        self.mean = torch.tensor(cfg["mean"], dtype=torch.float32, device=self.device).view(1, 3, 1, 1)
-        self.std = torch.tensor(cfg["std"], dtype=torch.float32, device=self.device).view(1, 3, 1, 1)
-        self.autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+        self.mean: torch.Tensor = torch.tensor(cfg["mean"], dtype=torch.float32, device=self.device).view(1, 3, 1, 1)
+        self.std: torch.Tensor = torch.tensor(cfg["std"], dtype=torch.float32, device=self.device).view(1, 3, 1, 1)
+        self.autocast_dtype: torch.dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
 
-        # Compile *after* extracting config; compile the function returned by
-        # _build_embedding_fn so each model can define exactly what is traced.
-        self._compiled = torch.compile(self._build_embedding_fn(model), mode="reduce-overhead")
+        self._compiled: Callable[[torch.Tensor], torch.Tensor] = torch.compile(
+            self._build_embedding_fn(model), mode="reduce-overhead"
+        )
 
-    def _create_model(self) -> torch.nn.Module:
-        raise NotImplementedError
+    @abstractmethod
+    def _create_model(self) -> torch.nn.Module: ...
 
-    def _build_embedding_fn(self, model: torch.nn.Module):
-        """Return a callable (model or closure) that maps images → embeddings.
+    def _build_embedding_fn(self, model: torch.nn.Module) -> Callable[[torch.Tensor], torch.Tensor]:
+        """Return a callable that maps images → embeddings.
 
         Default: the model itself (standard forward pass).
         Override for models that require non-standard embedding extraction.
         """
         return model
 
-    def __call__(self, batch: dict) -> dict:
+    def __call__(self, batch: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
         images = (
-            torch.from_numpy(np.ascontiguousarray(np.stack(list(batch[self._image_col]))))
+            torch.from_numpy(np.ascontiguousarray(np.stack(batch[self._image_col])))
             .to(self.device)
             .permute(0, 3, 1, 2)  # (B, H, W, C) → (B, C, H, W)
             .float()
@@ -88,7 +97,6 @@ class UNI2Encoder(FoundationModelEncoder):
             "hf_hub:MahmoodLab/uni2-h",
             pretrained=True,
             init_values=1e-5,
-            dynamic_img_size=True,
         )
 
 
@@ -104,11 +112,13 @@ class Virchow2Encoder(FoundationModelEncoder):
             "hf_hub:paige-ai/Virchow2",
             pretrained=True,
             mlp_layer=timm.layers.SwiGLUPacked,
-            act_layer=torch.nn.SiLU,
+            # Pass an activation factory explicitly; passing an activation
+            # tensor here causes timm to fail when constructing the MLP.
+            act_layer=lambda **kwargs: torch.nn.SiLU(**kwargs),
         )
 
-    def _build_embedding_fn(self, model: torch.nn.Module):
-        # Virchow2 embedding = CLS token ‖ mean(patch tokens), giving 2 × 1280 = 2560 dims.
+    def _build_embedding_fn(self, model: torch.nn.Module) -> Callable[[torch.Tensor], torch.Tensor]:
+        # Virchow2 embedding = CLS token ‖ mean(patch tokens), giving 2 x 1280 = 2560 dims.
         # Compiles the whole extraction as one function so torch.compile sees
         # forward_features + concat as a single traced graph.
         def embed(images: torch.Tensor) -> torch.Tensor:

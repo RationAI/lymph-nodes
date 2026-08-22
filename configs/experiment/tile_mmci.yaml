@@ -3,20 +3,20 @@
 dataset_name: HDAB MMCI
 
 tissue_roi:
-  - _target_: shapely.geometry.box
-    _args_:
-      - ${scale:${tile_extent},0.25}
-      - ${scale:${tile_extent},0.25}
-      - ${scale:${tile_extent},0.75}
-      - ${scale:${tile_extent},0.75}
+  _target_: shapely.geometry.box
+  _args_:
+    - ${scale:${tile_extent},0.25}
+    - ${scale:${tile_extent},0.25}
+    - ${scale:${tile_extent},0.75}
+    - ${scale:${tile_extent},0.75}
 
 full_roi:
-  - _target_: shapely.geometry.box
-    _args_:
-      - 0
-      - 0
-      - ${tile_extent}
-      - ${tile_extent}
+  _target_: shapely.geometry.box
+  _args_:
+    - 0
+    - 0
+    - ${tile_extent}
+    - ${tile_extent}
 
 # Each key becomes a column in the output Parquet.
 # Processors run in config order.
@@ -45,12 +45,12 @@ tiling_blocks:
   # drop tiles with > 1% ignore coverage
   - _target_: preprocessing.tiling_blocks.Operator
     operator: filter
-    expr: "ignore_coverage <= 0.01"
-      # _target_: operator.le
-      # _args_:
-      #   - _target_: ray.data.expressions.col
-      #     _args_: [ignore_coverage]
-      #   - 0.01
+    expr: "ignore_coverage <= 0.01 or is_null(ignore_coverage)"
+  #     # _target_: operator.le
+  #     # _args_:
+  #     #   - _target_: ray.data.expressions.col
+  #     #     _args_: [ignore_coverage]
+  #     #   - 0.01
 
   - _target_: preprocessing.tiling_blocks.Operator
     operator: repartition
@@ -87,10 +87,6 @@ tiling_blocks:
     name: brownish_coverage
     image_col: tile
     dab_threshold: 0.15
-
-  - _target_: preprocessing.tiling_blocks.Operator
-    operator: repartition
-    target_num_rows_per_block: 512
 
   - _target_: preprocessing.tiling_blocks.FoundationModelEmbedding
     name: embedding

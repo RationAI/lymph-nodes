@@ -78,7 +78,6 @@ def tile_dataset(
     # --- Tiling blocks (sequential, config order) ---
     for block in tiling_blocks:
         tiles = block.apply(tiles)
-        
     
     # --- Write sharded parquet + log to MLflow ---
     with tempfile.TemporaryDirectory() as tmp_dir:
