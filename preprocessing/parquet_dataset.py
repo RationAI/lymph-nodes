@@ -79,27 +79,34 @@ class ParquetDataset(Dataset):
     # ── schema ────────────────────────────────────────────────────────────────
 
     @cached_property
-    def schema(self) -> Schema:
+    def schema(self) -> Schema | None:
         try:
-            empty_df = self._ds.head(0).to_pandas()
-            # Drop list/array columns (e.g. embeddings) — MLflow schema cannot represent them
-            scalar_cols = [
-                name for name, field in zip(self._ds.schema.names, self._ds.schema)
-                if not str(field.type).startswith(("list", "fixed_size_list", "large_list"))
+            import pyarrow as pa
+
+            pa_schema = self._ds.schema
+            # Drop list/array columns — MLflow schema cannot represent them.
+            # Build an empty table from the Parquet footer schema directly;
+            # avoids reading any data and sidesteps Ray's tensor extension crash
+            # on zero-row ChunkedArrays that head(0) triggers.
+            scalar_fields = [
+                f for f in pa_schema
+                if not str(f.type).startswith(("list", "fixed_size_list", "large_list"))
             ]
-            return _infer_schema(empty_df[scalar_cols])
+            if not scalar_fields:
+                return None
+            empty_table = pa.table({f.name: pa.array([], type=f.type) for f in scalar_fields})
+            return _infer_schema(empty_table.to_pandas())
         except Exception as exc:
             _logger.warning("Failed to infer schema for Parquet dataset: %s", exc)
-            return Schema([])
+            return None
 
     # ── serialisation ─────────────────────────────────────────────────────────
 
     def to_dict(self) -> dict[str, str]:
         config = super().to_dict()
-        config.update({
-            "schema": json.dumps({"mlflow_colspec": self.schema.to_dict()}),
-            "profile": json.dumps(self.profile),
-        })
+        if self.schema is not None:
+            config["schema"] = json.dumps({"mlflow_colspec": self.schema.to_dict()})
+        config["profile"] = json.dumps(self.profile)
         return config
 
 
