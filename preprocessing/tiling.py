@@ -1,4 +1,7 @@
-import tempfile
+import logging
+import shutil
+import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +19,20 @@ from ratiopath.tiling.utils import row_hash
 from preprocessing.parquet_dataset import from_parquet
 from preprocessing.tiling_blocks.tiling_block import TilingBlock
 
+
+def _retry(fn: Callable[..., Any], *args: Any, attempts: int = 5, backoff: float = 30.0, **kwargs: Any) -> Any:
+    for attempt in range(1, attempts + 1):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as exc:
+            if attempt == attempts:
+                raise
+            wait = backoff * attempt
+            _log.warning("MLflow call failed (attempt %d/%d): %s — retrying in %.0fs", attempt, attempts, exc, wait)
+            time.sleep(wait)
+
+
+_log = logging.getLogger(__name__)
 
 OmegaConf.register_new_resolver("scale", lambda x, factor: x * factor)
 
@@ -51,12 +68,13 @@ def tile_dataset(
     mpp: int,
     rows_per_shard: int,
     dataset_name: str,
+    project_root: Path,
     logger: MLFlowLogger,
 ) -> None:
     slide_paths = slides_df["slide_path"].tolist()
     meta_cols = [c for c in slides_df.columns if c != "slide_path"]
 
-    slides_meta: dict[str, dict] = {
+    slides_meta: dict[str, dict[str, Any]] = {
         row["slide_path"]: {k: row[k] for k in meta_cols}
         for _, row in slides_df.iterrows()
     }
@@ -80,25 +98,26 @@ def tile_dataset(
         tiles = block.apply(tiles)
     
     # --- Write sharded parquet + log to MLflow ---
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tiles_dir = Path(tmp_dir) / dataset_name / "tiles"
-        slides_dir = Path(tmp_dir) / dataset_name/ "slides"
-        tiles_dir.mkdir(parents=True)
-        slides_dir.mkdir(parents=True)
+    # Use a persistent staging directory so that a transient MLflow connection
+    # failure after hours of computation doesn't lose the results.
+    active_run = mlflow.active_run()
+    run_id = active_run.info.run_id if active_run else "no_run"
+    staging_dir = project_root / run_id / dataset_name
+    tiles_dir = staging_dir / "tiles"
+    slides_dir = staging_dir / "slides"
+    tiles_dir.mkdir(parents=True, exist_ok=True)
+    slides_dir.mkdir(parents=True, exist_ok=True)
 
+    try:
         tiles.repartition(target_num_rows_per_block=rows_per_shard).write_parquet(str(tiles_dir))
         slides.write_parquet(str(slides_dir))
 
-        logger.log_artifacts(tmp_dir)
+        _retry(logger.log_artifacts, str(staging_dir))
+        _retry(mlflow.log_input, from_parquet(str(tiles_dir), name=dataset_name), context="tiles")
+        _retry(mlflow.log_input, from_parquet(str(slides_dir), name=dataset_name), context="slides")
 
-        mlflow.log_input(
-            from_parquet(str(tiles_dir), name=f"{dataset_name}"),
-            context="tiles",
-        )
-        mlflow.log_input(
-            from_parquet(str(slides_dir), name=f"{dataset_name}"),
-            context="slides",
-        )
+    finally:
+        shutil.rmtree(staging_dir, ignore_errors=True)
 
 
 # ── entrypoint ────────────────────────────────────────────────────────────────
@@ -125,6 +144,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
             mpp=config.mpp,
             rows_per_shard=config.rows_per_shard,
             dataset_name=dataset.name,
+            project_root=Path(config.project_root),
             logger=logger,
         )
 

@@ -3,5 +3,7 @@ defaults:
   - logger: mlflow
   - _self_
 
+project_root: /mnt/projects/lymph_nodes
+
 metadata:
   experiment_name: Lymph Nodes
