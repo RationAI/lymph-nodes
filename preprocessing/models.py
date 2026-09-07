@@ -42,7 +42,9 @@ class FoundationModelEncoder(ABC):
         self.autocast_dtype: torch.dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
 
         self._compiled: Callable[[torch.Tensor], torch.Tensor] = torch.compile(
-            self._build_embedding_fn(model), mode="max-autotune"
+            self._build_embedding_fn(model),
+            mode="max-autotune",
+            options={"triton.cudagraphs": False},
         )
 
     @abstractmethod
