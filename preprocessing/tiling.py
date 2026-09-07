@@ -161,13 +161,14 @@ def tile_dataset(
 )
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
-    ray.init()
-
     # autolog redirects stdout to a file, so tqdm/Ray detect non-TTY and fall back to
     # printing a new line every second. Claiming isatty()=True makes them use \r-based
     # updates instead — the artifact then displays correctly in any real terminal.
+    # Must be done before ray.init() so Ray Data's tqdm instances see TTY mode.
+    # tqdm writes to stderr by default, so wrap both.
     if not sys.stdout.isatty():
         _real_stdout = sys.stdout
+        _real_stderr = sys.stderr
 
         class _ForceTTY:
             def isatty(self) -> bool:
@@ -175,7 +176,23 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
             def __getattr__(self, name: str) -> Any:
                 return getattr(_real_stdout, name)
 
+        class _ForceTTYErr:
+            def isatty(self) -> bool:
+                return True
+            def __getattr__(self, name: str) -> Any:
+                return getattr(_real_stderr, name)
+
         sys.stdout = _ForceTTY()
+        sys.stderr = _ForceTTYErr()
+
+    ray.init()
+
+    # Suppress the per-operator status lines (one line per operator, refreshed every
+    # second). In a pod/artifact context they always render as new rows rather than
+    # in-place updates, drowning everything else. The top-level dataset progress bar
+    # is still shown.
+    from ray.data import DataContext
+    DataContext.get_current().progress_bar_show_operators = False
 
     # Suppress the logger-based fallback that would fire in addition to tqdm.
     for noisy_logger in (
