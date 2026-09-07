@@ -167,16 +167,16 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     # stdout only: tqdm writes to stderr by default, and wrapping stderr with a fake
     # TTY causes it to emit ANSI cursor-movement codes (\x1b[A) that appear as "[A"
     # garbage in the captured artifact file.
-    if not sys.stdout.isatty():
-        _real_stdout = sys.stdout
+    # if not sys.stdout.isatty():
+    #     _real_stdout = sys.stdout
 
-        class _ForceTTY:
-            def isatty(self) -> bool:
-                return True
-            def __getattr__(self, name: str) -> Any:
-                return getattr(_real_stdout, name)
+    #     class _ForceTTY:
+    #         def isatty(self) -> bool:
+    #             return True
+    #         def __getattr__(self, name: str) -> Any:
+    #             return getattr(_real_stdout, name)
 
-        sys.stdout = _ForceTTY()
+    #     sys.stdout = _ForceTTY()
 
     ray.init()
 
