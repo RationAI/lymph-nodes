@@ -14,10 +14,10 @@ class FoundationModelEmbedding:
         self,
         name: str,
         encoder: DictConfig,
-        image_col: str ,
+        image_col: str,
         batch_size: int = 256,
         concurrency: int = 1,
-        memory_per_worker: int = 16_000_000_000,
+        memory_per_worker: int | None = None,
     ) -> None:
         self._name = name
         self._encoder_cfg = encoder
@@ -30,11 +30,12 @@ class FoundationModelEmbedding:
         from hydra.utils import get_class
 
         encoder_cls = get_class(self._encoder_cfg["_target_"])
-        return tiles.map_batches(
-            encoder_cls,
-            fn_constructor_kwargs={"image_col": self._image_col, "embedding_col": self._name},
-            batch_size=self._batch_size,
-            num_gpus=1,
-            compute=ActorPoolStrategy(size=self._concurrency),
-            memory=self._memory_per_worker,
-        )
+        kwargs = {
+            "fn_constructor_kwargs": {"image_col": self._image_col, "embedding_col": self._name},
+            "batch_size": self._batch_size,
+            "num_gpus": 1,
+            "compute": ActorPoolStrategy(size=self._concurrency),
+        }
+        if self._memory_per_worker is not None:
+            kwargs["memory"] = self._memory_per_worker
+        return tiles.map_batches(encoder_cls, **kwargs)

@@ -1,5 +1,6 @@
 import logging
 import shutil
+import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -130,21 +131,21 @@ def tile_dataset(
         tiles.repartition(target_num_rows_per_block=rows_per_shard).write_parquet(str(tiles_dir))
         slides.write_parquet(str(slides_dir))
 
-        print("Artifacts written to staging dir:", staging_dir)
+        print("Artifacts written to staging dir:", staging_dir, flush=True)
 
         tiles_df = from_parquet(str(tiles_dir), name=dataset_name)
         slides_df = from_parquet(str(slides_dir), name=dataset_name)
 
-        print("Tiles & Slide dataset converted")
+        print("Tiles & Slide dataset converted", flush=True)
 
         _retry(logger.log_artifacts, str(staging_dir), timeout=2700)  # 45 min ceiling for large uploads
 
-        print(f"Tiles & Slide dataset logged to MLflow run {run_id}")
+        print(f"Tiles & Slide dataset logged to MLflow run {run_id}", flush=True)
 
         _retry(mlflow.log_input, tiles_df, context="tiles")
         _retry(mlflow.log_input, slides_df, context="slides")
 
-        print(f"Tiles & Slide dataset logged to MLflow run {run_id} as input datasets")
+        print(f"Tiles & Slide dataset logged to MLflow run {run_id} as input datasets", flush=True)
 
     finally:
         shutil.rmtree(staging_dir, ignore_errors=True)
@@ -161,6 +162,30 @@ def tile_dataset(
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
     ray.init()
+
+    # autolog redirects stdout to a file, so tqdm/Ray detect non-TTY and fall back to
+    # printing a new line every second. Claiming isatty()=True makes them use \r-based
+    # updates instead — the artifact then displays correctly in any real terminal.
+    if not sys.stdout.isatty():
+        _real_stdout = sys.stdout
+
+        class _ForceTTY:
+            def isatty(self) -> bool:
+                return True
+            def __getattr__(self, name: str) -> Any:
+                return getattr(_real_stdout, name)
+
+        sys.stdout = _ForceTTY()
+
+    # Suppress the logger-based fallback that would fire in addition to tqdm.
+    for noisy_logger in (
+        "ray.data._internal.progress_bar",
+        "ray.data._internal.execution.streaming_executor",
+        "ray.data._internal.plan.issue_detector_manager",
+        "mlflow",
+    ):
+        logging.getLogger(noisy_logger).setLevel(logging.WARNING)
+
     tiling_blocks = [hydra.utils.instantiate(block_conf, _recursive_=False) for block_conf in config.tiling_blocks]
 
     for i, dataset in enumerate(config.dataset):
