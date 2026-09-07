@@ -43,8 +43,10 @@ class FoundationModelEncoder(ABC):
 
         self._compiled: Callable[[torch.Tensor], torch.Tensor] = torch.compile(
             self._build_embedding_fn(model),
-            mode="max-autotune",
-            options={"triton.cudagraphs": False},
+            options={
+                "max_autotune": True,
+                "triton.cudagraphs": False,
+            },
         )
 
     @abstractmethod
