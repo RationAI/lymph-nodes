@@ -20,16 +20,34 @@ from preprocessing.parquet_dataset import from_parquet
 from preprocessing.tiling_blocks.tiling_block import TilingBlock
 
 
-def _retry(fn: Callable[..., Any], *args: Any, attempts: int = 5, backoff: float = 30.0, **kwargs: Any) -> Any:
+def _retry(
+    fn: Callable[..., Any],
+    *args: Any,
+    attempts: int = 5,
+    backoff: float = 30.0,
+    timeout: float | None = None,
+    **kwargs: Any,
+) -> Any:
+    import concurrent.futures
+
     for attempt in range(1, attempts + 1):
         try:
+            if timeout is not None:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    future = pool.submit(fn, *args, **kwargs)
+                    return future.result(timeout=timeout)
             return fn(*args, **kwargs)
+        except concurrent.futures.TimeoutError:
+            exc_msg = f"timed out after {timeout}s"
+            if attempt == attempts:
+                raise TimeoutError(exc_msg) from None
         except Exception as exc:
             if attempt == attempts:
                 raise
-            wait = backoff * attempt
-            _log.warning("MLflow call failed (attempt %d/%d): %s — retrying in %.0fs", attempt, attempts, exc, wait)
-            time.sleep(wait)
+            exc_msg = str(exc)
+        wait = backoff * attempt
+        _log.warning("MLflow call failed (attempt %d/%d): %s — retrying in %.0fs", attempt, attempts, exc_msg, wait)
+        time.sleep(wait)
 
 
 _log = logging.getLogger(__name__)
@@ -112,9 +130,21 @@ def tile_dataset(
         tiles.repartition(target_num_rows_per_block=rows_per_shard).write_parquet(str(tiles_dir))
         slides.write_parquet(str(slides_dir))
 
-        _retry(logger.log_artifacts, str(staging_dir))
-        _retry(mlflow.log_input, from_parquet(str(tiles_dir), name=dataset_name), context="tiles")
-        _retry(mlflow.log_input, from_parquet(str(slides_dir), name=dataset_name), context="slides")
+        print("Artifacts written to staging dir:", staging_dir)
+
+        tiles_df = from_parquet(str(tiles_dir), name=dataset_name)
+        slides_df = from_parquet(str(slides_dir), name=dataset_name)
+
+        print("Tiles & Slide dataset converted")
+
+        _retry(logger.log_artifacts, str(staging_dir), timeout=2700)  # 45 min ceiling for large uploads
+
+        print(f"Tiles & Slide dataset logged to MLflow run {run_id}")
+
+        _retry(mlflow.log_input, tiles_df, context="tiles")
+        _retry(mlflow.log_input, slides_df, context="slides")
+
+        print(f"Tiles & Slide dataset logged to MLflow run {run_id} as input datasets")
 
     finally:
         shutil.rmtree(staging_dir, ignore_errors=True)
