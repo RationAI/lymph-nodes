@@ -161,14 +161,14 @@ def tile_dataset(
 )
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
-    # autolog redirects stdout to a file, so tqdm/Ray detect non-TTY and fall back to
-    # printing a new line every second. Claiming isatty()=True makes them use \r-based
-    # updates instead — the artifact then displays correctly in any real terminal.
-    # Must be done before ray.init() so Ray Data's tqdm instances see TTY mode.
-    # tqdm writes to stderr by default, so wrap both.
+    # autolog redirects stdout to a file, so tqdm detects non-TTY and falls back to
+    # printing a new line per update. Claiming isatty()=True makes it use \r-based
+    # updates instead — the artifact then shows a compact in-place progress bar.
+    # stdout only: tqdm writes to stderr by default, and wrapping stderr with a fake
+    # TTY causes it to emit ANSI cursor-movement codes (\x1b[A) that appear as "[A"
+    # garbage in the captured artifact file.
     if not sys.stdout.isatty():
         _real_stdout = sys.stdout
-        _real_stderr = sys.stderr
 
         class _ForceTTY:
             def isatty(self) -> bool:
@@ -176,14 +176,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
             def __getattr__(self, name: str) -> Any:
                 return getattr(_real_stdout, name)
 
-        class _ForceTTYErr:
-            def isatty(self) -> bool:
-                return True
-            def __getattr__(self, name: str) -> Any:
-                return getattr(_real_stderr, name)
-
         sys.stdout = _ForceTTY()
-        sys.stderr = _ForceTTYErr()
 
     ray.init()
 
