@@ -1,6 +1,5 @@
 import logging
 import shutil
-import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -31,6 +30,8 @@ def _retry(
 ) -> Any:
     import concurrent.futures
 
+    print("Retrying MLflow call:", fn.__name__, flush=True)
+
     for attempt in range(1, attempts + 1):
         try:
             if timeout is not None:
@@ -39,10 +40,12 @@ def _retry(
                     return future.result(timeout=timeout)
             return fn(*args, **kwargs)
         except concurrent.futures.TimeoutError:
+            print(f"MLflow call timed out after {timeout}s (attempt {attempt}/{attempts})", flush=True)
             exc_msg = f"timed out after {timeout}s"
             if attempt == attempts:
                 raise TimeoutError(exc_msg) from None
         except Exception as exc:
+            print(f"MLflow call failed (attempt {attempt}/{attempts}): {exc}", flush=True)
             if attempt == attempts:
                 raise
             exc_msg = str(exc)
@@ -129,7 +132,7 @@ def tile_dataset(
 
     try:
         tiles.repartition(target_num_rows_per_block=rows_per_shard).write_parquet(str(tiles_dir))
-        slides.write_parquet(str(slides_dir))
+        slides.repartition(target_num_rows_per_block=rows_per_shard).write_parquet(str(slides_dir))
 
         print("Artifacts written to staging dir:", staging_dir, flush=True)
 
@@ -180,29 +183,13 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
     ray.init()
 
-    # Suppress the per-operator status lines (one line per operator, refreshed every
-    # second). In a pod/artifact context they always render as new rows rather than
-    # in-place updates, drowning everything else. The top-level dataset progress bar
-    # is still shown.
-    from ray.data import DataContext
-    DataContext.get_current().progress_bar_show_operators = False
-
-    # Suppress the logger-based fallback that would fire in addition to tqdm.
-    for noisy_logger in (
-        "ray.data._internal.progress_bar",
-        "ray.data._internal.execution.streaming_executor",
-        "ray.data._internal.plan.issue_detector_manager",
-        "mlflow",
-    ):
-        logging.getLogger(noisy_logger).setLevel(logging.WARNING)
-
     tiling_blocks = [hydra.utils.instantiate(block_conf, _recursive_=False) for block_conf in config.tiling_blocks]
 
     for i, dataset in enumerate(config.dataset):
         print(f"Tiling dataset: {dataset.name} ({i + 1}/{len(config.dataset)})")
         slides_df = hydra.utils.instantiate(dataset.slides).to_pandas()
         tile_dataset(
-            slides_df=slides_df,
+            slides_df=slides_df[:5],
             tiling_blocks=tiling_blocks,
             tile_extent=config.tile_extent,
             stride=config.stride,
