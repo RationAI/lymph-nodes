@@ -1,5 +1,4 @@
 import logging
-import shutil
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -130,28 +129,20 @@ def tile_dataset(
     tiles_dir.mkdir(parents=True, exist_ok=True)
     slides_dir.mkdir(parents=True, exist_ok=True)
 
-    try:
-        tiles.repartition(target_num_rows_per_block=rows_per_shard).write_parquet(str(tiles_dir))
-        slides.repartition(target_num_rows_per_block=rows_per_shard).write_parquet(str(slides_dir))
+    tiles.repartition(target_num_rows_per_block=rows_per_shard).write_parquet(str(tiles_dir))
+    slides.repartition(target_num_rows_per_block=rows_per_shard).write_parquet(str(slides_dir))
 
-        print("Artifacts written to staging dir:", staging_dir, flush=True)
+    print("Artifacts written to staging dir:", staging_dir, flush=True)
 
-        tiles_df = from_parquet(str(tiles_dir), name=dataset_name)
-        slides_df = from_parquet(str(slides_dir), name=dataset_name)
+    tiles_df = from_parquet(str(tiles_dir), name=dataset_name)
+    slides_df = from_parquet(str(slides_dir), name=dataset_name)
 
-        print("Tiles & Slide dataset converted", flush=True)
+    print("Tiles & Slide dataset converted", flush=True)
 
-        _retry(logger.log_artifacts, str(staging_dir), timeout=2700)  # 45 min ceiling for large uploads
+    _retry(mlflow.log_input, tiles_df, context="tiles")
+    _retry(mlflow.log_input, slides_df, context="slides")
 
-        print(f"Tiles & Slide dataset logged to MLflow run {run_id}", flush=True)
-
-        _retry(mlflow.log_input, tiles_df, context="tiles")
-        _retry(mlflow.log_input, slides_df, context="slides")
-
-        print(f"Tiles & Slide dataset logged to MLflow run {run_id} as input datasets", flush=True)
-
-    finally:
-        shutil.rmtree(staging_dir, ignore_errors=True)
+    print(f"Tiles & Slide dataset logged to MLflow run {run_id} as input datasets", flush=True)
 
 
 # ── entrypoint ────────────────────────────────────────────────────────────────
@@ -184,6 +175,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     ray.init()
 
     tiling_blocks = [hydra.utils.instantiate(block_conf, _recursive_=False) for block_conf in config.tiling_blocks]
+    project_root = Path(config.project_root)
 
     for i, dataset in enumerate(config.dataset):
         print(f"Tiling dataset: {dataset.name} ({i + 1}/{len(config.dataset)})")
@@ -196,9 +188,16 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
             mpp=config.mpp,
             rows_per_shard=config.rows_per_shard,
             dataset_name=dataset.name,
-            project_root=Path(config.project_root),
+            project_root=project_root,
             logger=logger,
         )
+
+    active_run = mlflow.active_run()
+    run_id = active_run.info.run_id if active_run else "no_run"
+    print("Tiling completed, logging artifacts...", flush=True)
+    _retry(logger.log_artifacts, str(project_root / run_id), timeout=2700)  # 45 min ceiling for large uploads
+    
+    print(f"Tiles & Slide dataset logged to MLflow run {run_id}", flush=True)
 
 if __name__ == "__main__":
     main()  # pylint: disable=no-value-for-parameter

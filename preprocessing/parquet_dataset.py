@@ -81,21 +81,78 @@ class ParquetDataset(Dataset):
     @cached_property
     def schema(self) -> Schema | None:
         try:
+            import numpy as np
             import pyarrow as pa
+            from mlflow.types.schema import TensorSpec
 
             pa_schema = self._ds.schema
-            # Drop list/array columns — MLflow schema cannot represent them.
-            # Build an empty table from the Parquet footer schema directly;
-            # avoids reading any data and sidesteps Ray's tensor extension crash
-            # on zero-row ChunkedArrays that head(0) triggers.
-            scalar_fields = [
-                f for f in pa_schema
-                if not str(f.type).startswith(("list", "fixed_size_list", "large_list"))
-            ]
-            if not scalar_fields:
+
+            _NUMPY_DTYPES: dict[pa.DataType, np.dtype] = {
+                pa.float16(): np.dtype("float16"),
+                pa.float32(): np.dtype("float32"),
+                pa.float64(): np.dtype("float64"),
+                pa.int8():    np.dtype("int8"),
+                pa.int16():   np.dtype("int16"),
+                pa.int32():   np.dtype("int32"),
+                pa.int64():   np.dtype("int64"),
+                pa.uint8():   np.dtype("uint8"),
+                pa.uint16():  np.dtype("uint16"),
+                pa.uint32():  np.dtype("uint32"),
+                pa.uint64():  np.dtype("uint64"),
+                pa.bool_():   np.dtype("bool"),
+            }
+
+            def _is_scalar(t: pa.DataType) -> bool:
+                return (
+                    pa.types.is_integer(t) or pa.types.is_floating(t)
+                    or pa.types.is_boolean(t) or pa.types.is_string(t)
+                    or pa.types.is_large_string(t) or pa.types.is_binary(t)
+                    or pa.types.is_date(t) or pa.types.is_timestamp(t)
+                )
+
+            def _tensor_spec(field: pa.Field) -> TensorSpec | None:
+                """Try to build a TensorSpec for fixed-shape array/tensor columns."""
+                t = field.type
+                # Ray's ArrowTensorType and PyArrow's fixed_shape_tensor both expose
+                # .shape; Ray also exposes .dtype, PyArrow uses .value_type.
+                if pa.types.is_extension(t):
+                    if hasattr(t, "shape"):
+                        shape = tuple(t.shape)
+                        np_dtype = (
+                            np.dtype(t.dtype) if hasattr(t, "dtype")
+                            else _NUMPY_DTYPES.get(t.value_type)  # type: ignore[attr-defined]
+                        )
+                        if np_dtype is not None:
+                            return TensorSpec(np_dtype, shape=shape, name=field.name)
+                    t = t.storage_type  # fall through to fixed_size_list unwrapping
+                # Plain fixed_size_list (e.g. embedding stored as FSL<float32>[1536])
+                dims: list[int] = []
+                while pa.types.is_fixed_size_list(t):
+                    dims.append(t.list_size)
+                    t = t.value_type
+                if dims:
+                    np_dtype = _NUMPY_DTYPES.get(t)
+                    if np_dtype is not None:
+                        return TensorSpec(np_dtype, shape=tuple(dims), name=field.name)
                 return None
-            empty_table = pa.table({f.name: pa.array([], type=f.type) for f in scalar_fields})
-            return _infer_schema(empty_table.to_pandas())
+
+            scalar_fields = [f for f in pa_schema if _is_scalar(f.type)]
+            tensor_specs = [
+                spec for f in pa_schema
+                if not _is_scalar(f.type)
+                if (spec := _tensor_spec(f)) is not None
+            ]
+
+            if not scalar_fields and not tensor_specs:
+                return None
+
+            specs: list = tensor_specs
+            if scalar_fields:
+                empty_table = pa.table({f.name: pa.array([], type=f.type) for f in scalar_fields})
+                scalar_schema = _infer_schema(empty_table.to_pandas())
+                specs = list(scalar_schema.inputs) + specs
+
+            return Schema(specs)
         except Exception as exc:
             _logger.warning("Failed to infer schema for Parquet dataset: %s", exc)
             return None
