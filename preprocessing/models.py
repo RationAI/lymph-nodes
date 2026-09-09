@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -19,13 +20,19 @@ class FoundationModelEncoder(ABC):
 
     Shared optimisations:
     - GPU normalisation: numpy stack → tensor in one operation, no PIL loop
-    - torch.compile(reduce-overhead): JIT-compiles the forward function
+    - torch.compile (default mode): JIT-compiles the forward function
     - autocast bf16/fp16: mixed precision; Flash Attention via PyTorch SDPA
     - cudnn.benchmark: cuDNN auto-selects optimal kernels for fixed input size
     """
 
     def __init__(self, image_col: str, embedding_col: str) -> None:
         from timm.data import resolve_model_data_config
+
+        # Expandable segments let the allocator grow segments on demand rather than
+        # carving fixed-size chunks. This avoids fragmentation OOMs where GiBs of
+        # memory are reserved but split into chunks too small for a large allocation.
+        # Must be set before the first CUDA allocation (which happens in _create_model).
+        os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")
 
         self._image_col = image_col
         self._embedding_col = embedding_col
@@ -41,12 +48,13 @@ class FoundationModelEncoder(ABC):
         self.std: torch.Tensor = torch.tensor(cfg["std"], dtype=torch.float32, device=self.device).view(1, 3, 1, 1)
         self.autocast_dtype: torch.dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
 
+        # Default mode: fusion + codegen without max-autotune's exhaustive kernel
+        # search. Ray Data batches aren't shape-stable (the last batch of a block is
+        # often smaller), so every new shape triggers a recompile on this long-lived
+        # actor — max-autotune's per-compile memory cost made that accumulate into
+        # fragmentation OOMs over the actor's lifetime.
         self._compiled: Callable[[torch.Tensor], torch.Tensor] = torch.compile(
             self._build_embedding_fn(model),
-            options={
-                "max_autotune": True,
-                "triton.cudagraphs": False,
-            },
         )
 
     @abstractmethod
