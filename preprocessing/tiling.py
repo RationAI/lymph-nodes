@@ -1,6 +1,3 @@
-import logging
-import time
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -8,7 +5,7 @@ import hydra
 import mlflow
 import pandas as pd
 import ray
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 from rationai.mlkit import autolog, with_cli_args
 from rationai.mlkit.lightning.loggers import MLFlowLogger
 from ratiopath.ray import read_slides
@@ -17,45 +14,6 @@ from ratiopath.tiling.utils import row_hash
 
 from preprocessing.parquet_dataset import from_parquet
 from preprocessing.tiling_blocks.tiling_block import TilingBlock
-
-
-def _retry(
-    fn: Callable[..., Any],
-    *args: Any,
-    attempts: int = 5,
-    backoff: float = 30.0,
-    timeout: float | None = None,
-    **kwargs: Any,
-) -> Any:
-    import concurrent.futures
-
-    print("Retrying MLflow call:", fn.__name__, flush=True)
-
-    for attempt in range(1, attempts + 1):
-        try:
-            if timeout is not None:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                    future = pool.submit(fn, *args, **kwargs)
-                    return future.result(timeout=timeout)
-            return fn(*args, **kwargs)
-        except concurrent.futures.TimeoutError:
-            print(f"MLflow call timed out after {timeout}s (attempt {attempt}/{attempts})", flush=True)
-            exc_msg = f"timed out after {timeout}s"
-            if attempt == attempts:
-                raise TimeoutError(exc_msg) from None
-        except Exception as exc:
-            print(f"MLflow call failed (attempt {attempt}/{attempts}): {exc}", flush=True)
-            if attempt == attempts:
-                raise
-            exc_msg = str(exc)
-        wait = backoff * attempt
-        _log.warning("MLflow call failed (attempt %d/%d): %s — retrying in %.0fs", attempt, attempts, exc_msg, wait)
-        time.sleep(wait)
-
-
-_log = logging.getLogger(__name__)
-
-OmegaConf.register_new_resolver("scale", lambda x, factor: x * factor)
 
 
 # ── tile generation ───────────────────────────────────────────────────────────
@@ -132,17 +90,8 @@ def tile_dataset(
     tiles.repartition(target_num_rows_per_block=rows_per_shard).write_parquet(str(tiles_dir))
     slides.repartition(target_num_rows_per_block=rows_per_shard).write_parquet(str(slides_dir))
 
-    print("Artifacts written to staging dir:", staging_dir, flush=True)
-
-    tiles_df = from_parquet(str(tiles_dir), name=dataset_name)
-    slides_df = from_parquet(str(slides_dir), name=dataset_name)
-
-    print("Tiles & Slide dataset converted", flush=True)
-
-    _retry(mlflow.log_input, tiles_df, context="tiles")
-    _retry(mlflow.log_input, slides_df, context="slides")
-
-    print(f"Tiles & Slide dataset logged to MLflow run {run_id} as input datasets", flush=True)
+    mlflow.log_input(from_parquet(str(tiles_dir), name=dataset_name), context="tiles")
+    mlflow.log_input(from_parquet(str(slides_dir), name=dataset_name), context="slides")
 
 
 # ── entrypoint ────────────────────────────────────────────────────────────────
@@ -181,7 +130,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         print(f"Tiling dataset: {dataset.name} ({i + 1}/{len(config.dataset)})")
         slides_df = hydra.utils.instantiate(dataset.slides).to_pandas()
         tile_dataset(
-            slides_df=slides_df[:5],
+            slides_df=slides_df,
             tiling_blocks=tiling_blocks,
             tile_extent=config.tile_extent,
             stride=config.stride,
@@ -194,10 +143,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
     active_run = mlflow.active_run()
     run_id = active_run.info.run_id if active_run else "no_run"
-    print("Tiling completed, logging artifacts...", flush=True)
-    _retry(logger.log_artifacts, str(project_root / run_id), timeout=2700)  # 45 min ceiling for large uploads
-    
-    print(f"Tiles & Slide dataset logged to MLflow run {run_id}", flush=True)
+    logger.log_artifacts(str(project_root / run_id))
 
 if __name__ == "__main__":
     main()  # pylint: disable=no-value-for-parameter

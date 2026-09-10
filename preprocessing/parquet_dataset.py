@@ -83,24 +83,9 @@ class ParquetDataset(Dataset):
         try:
             import numpy as np
             import pyarrow as pa
-            from mlflow.types.schema import TensorSpec
+            from mlflow.types.schema import Array, ColSpec, DataType
 
             pa_schema = self._ds.schema
-
-            _NUMPY_DTYPES: dict[pa.DataType, np.dtype] = {
-                pa.float16(): np.dtype("float16"),
-                pa.float32(): np.dtype("float32"),
-                pa.float64(): np.dtype("float64"),
-                pa.int8():    np.dtype("int8"),
-                pa.int16():   np.dtype("int16"),
-                pa.int32():   np.dtype("int32"),
-                pa.int64():   np.dtype("int64"),
-                pa.uint8():   np.dtype("uint8"),
-                pa.uint16():  np.dtype("uint16"),
-                pa.uint32():  np.dtype("uint32"),
-                pa.uint64():  np.dtype("uint64"),
-                pa.bool_():   np.dtype("bool"),
-            }
 
             def _is_scalar(t: pa.DataType) -> bool:
                 return (
@@ -110,43 +95,69 @@ class ParquetDataset(Dataset):
                     or pa.types.is_date(t) or pa.types.is_timestamp(t)
                 )
 
-            def _tensor_spec(field: pa.Field) -> TensorSpec | None:
-                """Try to build a TensorSpec for fixed-shape array/tensor columns."""
-                t = field.type
-                # Ray's ArrowTensorType and PyArrow's fixed_shape_tensor both expose
-                # .shape; Ray also exposes .dtype, PyArrow uses .value_type.
-                if pa.types.is_extension(t):
-                    if hasattr(t, "shape"):
-                        shape = tuple(t.shape)
-                        np_dtype = (
-                            np.dtype(t.dtype) if hasattr(t, "dtype")
-                            else _NUMPY_DTYPES.get(t.value_type)  # type: ignore[attr-defined]
-                        )
-                        if np_dtype is not None:
-                            return TensorSpec(np_dtype, shape=shape, name=field.name)
-                    t = t.storage_type  # fall through to fixed_size_list unwrapping
-                # Plain fixed_size_list (e.g. embedding stored as FSL<float32>[1536])
-                dims: list[int] = []
-                while pa.types.is_fixed_size_list(t):
-                    dims.append(t.list_size)
-                    t = t.value_type
-                if dims:
-                    np_dtype = _NUMPY_DTYPES.get(t)
-                    if np_dtype is not None:
-                        return TensorSpec(np_dtype, shape=tuple(dims), name=field.name)
+            def _leaf_dtype(t: pa.DataType) -> DataType | None:
+                if pa.types.is_boolean(t):
+                    return DataType.boolean
+                if pa.types.is_integer(t):
+                    return DataType.long
+                if pa.types.is_floating(t):
+                    return DataType.double
                 return None
+
+            def _numpy_leaf_dtype(dt: np.dtype) -> DataType | None:
+                if dt.kind == "b":
+                    return DataType.boolean
+                if dt.kind in ("i", "u"):
+                    return DataType.long
+                if dt.kind == "f":
+                    return DataType.double
+                return None
+
+            def _array_colspec(field: pa.Field) -> ColSpec | None:
+                """Build a nested Array ColSpec for fixed-shape tensor/list columns.
+
+                MLflow's Schema requires all-ColSpec or all-TensorSpec — never mixed —
+                so array/tensor columns are represented as ColSpec(Array(...)) rather
+                than TensorSpec, to stay homogeneous with the scalar columns below.
+                """
+                t = field.type
+                # Ray's ArrowTensorType exposes .shape/.dtype directly; unwrapping its
+                # storage_type would double-count dims since that's a flattened FSL.
+                if pa.types.is_extension(t):
+                    if hasattr(t, "shape") and hasattr(t, "dtype"):
+                        ndims = len(t.shape)
+                        leaf = _numpy_leaf_dtype(np.dtype(t.dtype))
+                        if leaf is not None and ndims:
+                            arr: DataType | Array = leaf
+                            for _ in range(ndims):
+                                arr = Array(arr)
+                            return ColSpec(arr, name=field.name)
+                    t = t.storage_type  # PyArrow-native fixed_shape_tensor fallback
+                dims = 0
+                while pa.types.is_fixed_size_list(t):
+                    dims += 1
+                    t = t.value_type
+                if dims == 0:
+                    return None
+                leaf = _leaf_dtype(t)
+                if leaf is None:
+                    return None
+                arr = leaf
+                for _ in range(dims):
+                    arr = Array(arr)
+                return ColSpec(arr, name=field.name)
 
             scalar_fields = [f for f in pa_schema if _is_scalar(f.type)]
-            tensor_specs = [
+            array_specs = [
                 spec for f in pa_schema
                 if not _is_scalar(f.type)
-                if (spec := _tensor_spec(f)) is not None
+                if (spec := _array_colspec(f)) is not None
             ]
 
-            if not scalar_fields and not tensor_specs:
+            if not scalar_fields and not array_specs:
                 return None
 
-            specs: list = tensor_specs
+            specs: list[ColSpec] = list(array_specs)
             if scalar_fields:
                 empty_table = pa.table({f.name: pa.array([], type=f.type) for f in scalar_fields})
                 scalar_schema = _infer_schema(empty_table.to_pandas())

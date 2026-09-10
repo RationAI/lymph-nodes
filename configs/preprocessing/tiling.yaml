@@ -3,7 +3,7 @@
 mpp: 0.5
 tile_extent: 224
 stride: 224
-rows_per_shard: 100_000
+rows_per_shard: 250_000
 
 memory_per_gpu_worker: ???
 batch_size: ???
