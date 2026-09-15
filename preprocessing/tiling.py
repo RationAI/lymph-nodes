@@ -5,7 +5,7 @@ import hydra
 import mlflow
 import pandas as pd
 import ray
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from rationai.mlkit import autolog, with_cli_args
 from rationai.mlkit.lightning.loggers import MLFlowLogger
 from ratiopath.ray import read_slides
@@ -14,6 +14,9 @@ from ratiopath.tiling.utils import row_hash
 
 from preprocessing.parquet_dataset import from_parquet
 from preprocessing.tiling_blocks.tiling_block import TilingBlock
+
+
+OmegaConf.register_new_resolver("scale", lambda x, factor: x * factor)
 
 
 # ── tile generation ───────────────────────────────────────────────────────────
