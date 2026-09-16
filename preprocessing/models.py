@@ -105,10 +105,29 @@ class UNI2Encoder(FoundationModelEncoder):
 
     def _create_model(self) -> torch.nn.Module:
         import timm
+        # UNI2-h's HF hub config only carries a generic base architecture; the actual
+        # checkpoint is a DINOv2-style ViT-g with 8 register tokens and no CLS-token
+        # embedding, so those overrides must be passed explicitly (per the model card)
+        # or the position-embedding tensor's token count won't match a square grid,
+        # crashing timm's checkpoint-resampling code on load.
         return timm.create_model(
             "hf_hub:MahmoodLab/uni2-h",
             pretrained=True,
+            img_size=224,
+            patch_size=14,
+            depth=24,
+            num_heads=24,
             init_values=1e-5,
+            embed_dim=1536,
+            mlp_ratio=2.66667 * 2,
+            num_classes=0,
+            no_embed_class=True,
+            mlp_layer=timm.layers.SwiGLUPacked,
+            # Pass an activation factory explicitly; passing an activation
+            # instance here causes timm to fail when constructing the MLP.
+            act_layer=lambda **kwargs: torch.nn.SiLU(**kwargs),
+            reg_tokens=8,
+            dynamic_img_size=True,
         )
 
 
