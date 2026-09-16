@@ -81,7 +81,6 @@ class ParquetDataset(Dataset):
     @cached_property
     def schema(self) -> Schema | None:
         try:
-            import numpy as np
             import pyarrow as pa
             from mlflow.types.schema import Array, ColSpec, DataType
 
@@ -104,15 +103,6 @@ class ParquetDataset(Dataset):
                     return DataType.double
                 return None
 
-            def _numpy_leaf_dtype(dt: np.dtype) -> DataType | None:
-                if dt.kind == "b":
-                    return DataType.boolean
-                if dt.kind in ("i", "u"):
-                    return DataType.long
-                if dt.kind == "f":
-                    return DataType.double
-                return None
-
             def _array_colspec(field: pa.Field) -> ColSpec | None:
                 """Build a nested Array ColSpec for fixed-shape tensor/list columns.
 
@@ -121,20 +111,24 @@ class ParquetDataset(Dataset):
                 than TensorSpec, to stay homogeneous with the scalar columns below.
                 """
                 t = field.type
-                # Ray's ArrowTensorType exposes .shape/.dtype directly; unwrapping its
-                # storage_type would double-count dims since that's a flattened FSL.
-                if pa.types.is_extension(t):
-                    if hasattr(t, "shape") and hasattr(t, "dtype"):
-                        ndims = len(t.shape)
-                        leaf = _numpy_leaf_dtype(np.dtype(t.dtype))
-                        if leaf is not None and ndims:
+                # Tensor extension types (Ray's ArrowTensorType, PyArrow's native
+                # fixed_shape_tensor) expose .shape plus a leaf element type — Ray uses
+                # .scalar_type, PyArrow uses .value_type. Their .storage_type is a
+                # *flattened* list (e.g. large_list<uint8>), so it can't be used to
+                # recover per-dimension shape and must not be unwrapped for ndims.
+                if isinstance(t, pa.ExtensionType):
+                    shape = getattr(t, "shape", None)
+                    leaf_type = getattr(t, "scalar_type", None) or getattr(t, "value_type", None)
+                    if shape is not None and leaf_type is not None:
+                        leaf = _leaf_dtype(leaf_type)
+                        if leaf is not None:
                             arr: DataType | Array = leaf
-                            for _ in range(ndims):
+                            for _ in range(len(shape)):
                                 arr = Array(arr)
                             return ColSpec(arr, name=field.name)
-                    t = t.storage_type  # PyArrow-native fixed_shape_tensor fallback
+                    t = t.storage_type  # unknown extension: fall through as a plain list
                 dims = 0
-                while pa.types.is_fixed_size_list(t):
+                while pa.types.is_fixed_size_list(t) or pa.types.is_list(t) or pa.types.is_large_list(t):
                     dims += 1
                     t = t.value_type
                 if dims == 0:
