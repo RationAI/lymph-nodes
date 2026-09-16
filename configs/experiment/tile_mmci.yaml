@@ -99,4 +99,4 @@ tiling_blocks:
 
   - _target_: preprocessing.tiling_blocks.Operator
     operator: drop_columns
-    cols: ["level"]
+    cols: ["level", "tile", "path", "mpp_x", "mpp_y", "tile_extent_x", "tile_extent_y"]
