@@ -5,7 +5,7 @@ from lightning import LightningDataModule
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 
-from lymph_nodes.typing import Batch
+from lymph_nodes.typedefs import Batch
 
 
 class DataModule(LightningDataModule):

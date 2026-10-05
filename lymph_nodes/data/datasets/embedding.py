@@ -6,7 +6,7 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from lymph_nodes.data.datasets.meta_dataset import MetaDataset
-from lymph_nodes.typing import EmbeddingSample
+from lymph_nodes.typedefs import EmbeddingSample
 
 
 if TYPE_CHECKING:

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from torch import Tensor
     from torch.optim import Optimizer
 
-    from lymph_nodes.typing import Batch, Input, Outputs
+    from lymph_nodes.typedefs import Batch, Input, Outputs
 
 
 class MetaArch(LightningModule):
