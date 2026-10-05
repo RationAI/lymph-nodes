@@ -1,0 +1,20 @@
+max_epochs: 50
+accelerator: auto
+devices: auto
+precision: "16-mixed"
+log_every_n_steps: 50
+
+# Monitoring AUROC rather than accuracy/loss: robust to the ~20:1 class imbalance and
+# doesn't depend on picking a decision threshold.
+callbacks:
+  checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    monitor: validation/auroc
+    mode: max
+    save_top_k: 1
+    filename: "{epoch}-{validation/auroc:.4f}"
+  early_stopping:
+    _target_: lightning.pytorch.callbacks.EarlyStopping
+    monitor: validation/auroc
+    mode: max
+    patience: 5

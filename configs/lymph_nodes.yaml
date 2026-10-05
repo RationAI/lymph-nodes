@@ -1,0 +1,65 @@
+# @package _global_
+
+defaults:
+  - base
+  - model: embedding_classifier
+  - trainer: default
+  - _self_
+
+seed: 42
+mode: ???
+checkpoint: null
+
+tile_filters:
+  train:
+    - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+      column: tissue_coverage
+      op: ">"
+      value: 0.2
+    - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+      column: ignore_coverage
+      op: ">"
+      value: 0
+      negate: true
+    - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+      column: cyto_ignore_coverage
+      op: ">"
+      value: 0
+      negate: true
+    # - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    #   column: blur_coverage
+    #   op: "<"
+    #   value: 0.3
+  test:
+    - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+      column: tissue_coverage
+      op: ">"
+      value: 0
+
+
+data:
+  batch_size: 2048
+  num_workers: 6
+
+  train_sampler:
+    _target_: lymph_nodes.data.samplers.StratifiedEpochSampler
+    ratio:
+      healthy: 2
+      healthy_brownish: 2
+      cancer: 1
+
+  
+
+metadata:
+  run_name: "[${mode}] tile classification — fold ${fold}"
+  description: >-
+    Binary cancer-vs-healthy tile classification on precomputed foundation-model
+    tile embeddings, fold ${fold} of 5-fold cross-validation held out for
+    validation. Mode: ${mode}.
+  hyperparams:
+    seed: ${seed}
+    mode: ${mode}
+    checkpoint: ${checkpoint}
+    batch_size: ${data.batch_size}
+    tiling_run_uri: ${tiling_run_uri}
+    fold: ${fold}

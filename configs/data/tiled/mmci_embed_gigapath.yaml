@@ -1,0 +1,33 @@
+# @package _global_
+
+tiling_run_uri: mlflow-artifacts:/4/8eedc459da9b4d60b0df7176bb1c7e03/artifacts
+fold: ???
+
+data:
+  # 5-fold CV over fold_0..fold_4: `fold` is held out as validation, the rest are
+  # concatenated for training. Override e.g. fold=2 on the command line to run a
+  # different split; other_fold_uris is registered in lymph_nodes/__main__.py.
+  train:
+    _target_: lymph_nodes.data.datasets.embedding.EmbeddingClassificationDataset
+    uris: ${other_fold_uris:${tiling_run_uri},5,${fold}}
+    tile_filters: ${tile_filters.train}
+
+  val:
+    _target_: lymph_nodes.data.datasets.embedding.EmbeddingClassificationDataset
+    uris:
+      - ${tiling_run_uri}/fold_${fold}
+    tile_filters: ${tile_filters.test}
+
+  eval:
+    _target_: lymph_nodes.data.datasets.embedding.EmbeddingClassificationDataset
+    uris:
+      - ${tiling_run_uri}/val
+    tile_filters: ${tile_filters.test}
+
+  test:
+    _target_: lymph_nodes.data.datasets.embedding.EmbeddingClassificationDataset
+    uris:
+      - ${tiling_run_uri}/test
+    tile_filters: ${tile_filters.test}
+
+  

@@ -8,11 +8,11 @@ import ray
 from omegaconf import DictConfig, OmegaConf
 from rationai.mlkit import autolog, with_cli_args
 from rationai.mlkit.lightning.loggers import MLFlowLogger
+from rationai.mlkit.mlflow.parquet_dataset import from_parquet
 from ratiopath.ray import read_slides
 from ratiopath.tiling import grid_tiles
 from ratiopath.tiling.utils import row_hash
 
-from preprocessing.parquet_dataset import from_parquet
 from preprocessing.tiling_blocks.tiling_block import TilingBlock
 
 
@@ -51,7 +51,6 @@ def tile_dataset(
     rows_per_shard: int,
     dataset_name: str,
     project_root: Path,
-    logger: MLFlowLogger,
 ) -> None:
     slide_paths = slides_df["slide_path"].tolist()
     meta_cols = [c for c in slides_df.columns if c != "slide_path"]
@@ -141,7 +140,6 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
             rows_per_shard=config.rows_per_shard,
             dataset_name=dataset.name,
             project_root=project_root,
-            logger=logger,
         )
 
     active_run = mlflow.active_run()

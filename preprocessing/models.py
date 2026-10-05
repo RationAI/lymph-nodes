@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import os
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
 import numpy as np
 import torch
@@ -26,7 +26,8 @@ class FoundationModelEncoder(ABC):
     """
 
     def __init__(self, image_col: str, embedding_col: str) -> None:
-        from timm.data import resolve_model_data_config
+        # timm exists at runtime but doesn't declare these in its public stubs.
+        from timm.data import resolve_model_data_config  # type: ignore[attr-defined]
 
         # Expandable segments let the allocator grow segments on demand rather than
         # carving fixed-size chunks. This avoids fragmentation OOMs where GiBs of
@@ -69,8 +70,13 @@ class FoundationModelEncoder(ABC):
         return model
 
     def __call__(self, batch: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+        # Ray hands each column as one object-dtype ndarray whose elements are
+        # per-row arrays — iterating it yields a sequence of arrays, which is what
+        # np.stack actually needs; the declared dict[str, np.ndarray] type can't
+        # express that without a cast.
+        image_rows = cast("Sequence[np.ndarray]", batch[self._image_col])
         images = (
-            torch.from_numpy(np.ascontiguousarray(np.stack(batch[self._image_col])))
+            torch.from_numpy(np.ascontiguousarray(np.stack(image_rows)))
             .to(self.device)
             .permute(0, 3, 1, 2)  # (B, H, W, C) → (B, C, H, W)
             .float()
@@ -105,6 +111,8 @@ class UNI2Encoder(FoundationModelEncoder):
 
     def _create_model(self) -> torch.nn.Module:
         import timm
+        from timm.layers import SwiGLUPacked  # type: ignore[attr-defined]
+
         # UNI2-h's HF hub config only carries a generic base architecture; the actual
         # checkpoint is a DINOv2-style ViT-g with 8 register tokens and no CLS-token
         # embedding, so those overrides must be passed explicitly (per the model card)
@@ -122,7 +130,7 @@ class UNI2Encoder(FoundationModelEncoder):
             mlp_ratio=2.66667 * 2,
             num_classes=0,
             no_embed_class=True,
-            mlp_layer=timm.layers.SwiGLUPacked,
+            mlp_layer=SwiGLUPacked,
             # Pass an activation factory explicitly; passing an activation
             # instance here causes timm to fail when constructing the MLP.
             act_layer=lambda **kwargs: torch.nn.SiLU(**kwargs),
@@ -139,10 +147,12 @@ class Virchow2Encoder(FoundationModelEncoder):
 
     def _create_model(self) -> torch.nn.Module:
         import timm
+        from timm.layers import SwiGLUPacked  # type: ignore[attr-defined]
+
         return timm.create_model(
             "hf_hub:paige-ai/Virchow2",
             pretrained=True,
-            mlp_layer=timm.layers.SwiGLUPacked,
+            mlp_layer=SwiGLUPacked,
             # Pass an activation factory explicitly; passing an activation
             # tensor here causes timm to fail when constructing the MLP.
             act_layer=lambda **kwargs: torch.nn.SiLU(**kwargs),
@@ -153,7 +163,11 @@ class Virchow2Encoder(FoundationModelEncoder):
         # Compiles the whole extraction as one function so torch.compile sees
         # forward_features + concat as a single traced graph.
         def embed(images: torch.Tensor) -> torch.Tensor:
-            tokens = model.forward_features(images)   # (B, 1 + n_patches, 1280)
+            # forward_features is specific to timm's ViT, not declared on the base
+            # nn.Module — its __getattr__ stub resolves dynamic attributes to
+            # Tensor | Module, so mypy worries this might be calling a Tensor.
+            # (B, 1 + n_patches, 1280)
+            tokens = model.forward_features(images)  # type: ignore[operator]
             cls = tokens[:, 0]                         # (B, 1280)
             patches = tokens[:, 1:].mean(dim=1)        # (B, 1280)
             return torch.cat([cls, patches], dim=-1)   # (B, 2560)
