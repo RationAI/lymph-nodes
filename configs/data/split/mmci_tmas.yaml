@@ -1,0 +1,15 @@
+# @package _global_
+
+dataset:
+  institute: mmci
+  name: TMAs IHC
+
+slides_uri: mlflow-artifacts:/4/efc9250e63ca4c718c786f00415e69db/artifacts/slides.csv
+patients_uri: mlflow-artifacts:/4/efc9250e63ca4c718c786f00415e69db/artifacts/patients.csv
+
+splits:
+  train:
+    fraction: 0.8
+    n_folds: 5
+  val:
+    fraction: 0.2
