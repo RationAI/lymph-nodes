@@ -72,19 +72,19 @@ def mmci_tmas_filename(filename: str) -> ParsedFilename:
         (
             r"^FIN-([A-Z0-9]+-\d+)-([A-Z]+)\.mrxs$",
             lambda m: ParsedFilename(
-                case_id="FIN-" + m.group(1) + '-' + m.group(2), slice_id="FIN", staining=m.group(2), tumor=None
+                case_id="FIN-" + m.group(1) + '-' + m.group(2), slice_id="", staining="DAB", tumor=False
             ),
         ),
         (
             r"^TNBC-(BF-\d+)-PNG\.mrxs$",
             lambda m: ParsedFilename(
-                case_id="TNBC-" + m.group(1), slice_id="0", staining="CK", tumor=None
+                case_id="TNBC-" + m.group(1), slice_id="", staining="CK", tumor=False
             ),
         ),
         (
             r"^(KOS\d+)\.mrxs$",
             lambda m: ParsedFilename(
-                case_id=m.group(1), slice_id="0", staining="CK", tumor=None
+                case_id=m.group(1), slice_id="", staining="CK", tumor=False
             ),
         ),
     ]
