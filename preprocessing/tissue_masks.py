@@ -6,6 +6,7 @@ import hydra
 import pyvips
 import ray
 from omegaconf import DictConfig
+from rationai.masks.processing import process_items
 from rationai.mlkit import autolog, with_cli_args
 from rationai.mlkit.lightning.loggers import MLFlowLogger
 from ratiopath.masks import write_big_tiff

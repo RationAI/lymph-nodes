@@ -1,0 +1,13 @@
+# @package _global_
+
+annotation_dir: ???
+mpp: 4.0
+max_concurrent: 10
+artifact_path: ???
+
+metadata:
+  run_name: Annotation Masks ${dataset_name}
+  description: Annotation masks (${artifact_path}) for ${dataset_name}
+  hyperparams:
+    mpp: ${mpp}
+    annotation_dir: ${annotation_dir}
