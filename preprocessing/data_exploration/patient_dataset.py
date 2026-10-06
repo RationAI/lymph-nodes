@@ -1,21 +1,23 @@
 import tempfile
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
-from typing import Callable
+from typing import Any
 
 import hydra
 import mlflow
 import pandas as pd
 from omegaconf import DictConfig
 from openslide import OpenSlide
-from preprocessing.data_exploration.name_parsers import ParsedFilename
 from rationai.mlkit import autolog, with_cli_args
 from rationai.mlkit.lightning.loggers import MLFlowLogger
 from tqdm import tqdm
 
+from preprocessing.data_exploration.name_parsers import ParsedFilename
 
-def _read_slide_metadata(slide_path: str) -> dict:
+
+def _read_slide_metadata(slide_path: str) -> dict[str, Any]:
     with OpenSlide(slide_path) as slide:
         return {
             "mpp_x": float(slide.properties.get("openslide.mpp-x", float("nan"))),
@@ -31,7 +33,7 @@ def _process_slide(
     tma_control_slides: frozenset[str],
     damaged_slides: frozenset[str],
     confounding_structure_slides: frozenset[str],
-) -> dict:
+) -> dict[str, Any]:
     slide_name = Path(path).stem
     parsed = name_parser(Path(path).name)
 
@@ -136,12 +138,14 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         logger.log_artifacts(tmp_dir)
 
     mlflow.log_input(
-        mlflow.data.from_pandas(slides_df, name=config.dataset.name),
+        mlflow.data.from_pandas(slides_df, name=config.dataset.name),  # type: ignore[attr-defined]
         context="slides",
     )
 
     mlflow.log_input(
-        mlflow.data.from_pandas(patients_df, name=f"{config.dataset.name}_patients"),
+        mlflow.data.from_pandas(  # type: ignore[attr-defined]
+            patients_df, name=f"{config.dataset.name}_patients"
+        ),
         context="patients",
     )
 

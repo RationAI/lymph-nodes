@@ -1,0 +1,21 @@
+# @package _global_
+
+dataset:
+  institute: mmci
+  name: TMAS IHC Exploration
+  slides:
+    _target_: preprocessing.data_source.ChainedDataSources
+    sources:
+      - _target_: preprocessing.data_source.GlobDataSource
+        src_dir: /mnt/data/MOU/breast/tissue_microarray/dab
+        glob_pattern: "*.mrxs"
+      - _target_: preprocessing.data_source.GlobDataSource
+        src_dir: /mnt/data/MOU/breast/tissue_microarray_TNBC/ckae
+        glob_pattern: "*.mrxs"
+      - _target_: preprocessing.data_source.GlobDataSource
+        src_dir: /mnt/data/MOU/colorectum/tissue_microarray/dab
+        glob_pattern: "*.mrxs"
+  name_parser:
+    _target_: preprocessing.data_exploration.name_parsers.mmci_tmas_filename
+
+

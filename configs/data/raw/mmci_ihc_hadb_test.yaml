@@ -1,0 +1,13 @@
+# @package _global_
+
+dataset:
+  institute: mmci
+  name: SNB IHC Test Exploration
+  slides:
+    _target_: preprocessing.data_source.GlobDataSource
+    src_dir: /mnt/data/MOU/lymph_nodes/annotated_ihc_test
+    glob_pattern: "*.mrxs"
+  name_parser:
+    _target_: preprocessing.data_exploration.name_parsers.mmci_snb_test_filename
+
+

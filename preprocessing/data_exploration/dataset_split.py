@@ -2,15 +2,15 @@ import tempfile
 from collections import defaultdict
 from pathlib import Path
 
-import numpy as np
 import hydra
 import mlflow
+import numpy as np
 import pandas as pd
 from mlflow.artifacts import download_artifacts
 from omegaconf import DictConfig
-from ratiopath.model_selection import train_test_split
 from rationai.mlkit import autolog, with_cli_args
 from rationai.mlkit.lightning.loggers import MLFlowLogger
+from ratiopath.model_selection import train_test_split
 from sklearn.model_selection import StratifiedGroupKFold
 
 
@@ -142,21 +142,27 @@ def create_splits(
     )
     patients_index = patients_df.set_index("case_id")
 
+    # DictConfig.items()/.keys() type keys generically (str | bytes | int | Enum |
+    # float | bool) since OmegaConf allows non-string mapping keys in general — but
+    # every key actually reaching this function is a YAML split name, always a str.
+    # Narrowing once here avoids repeating that cast at every downstream use below.
+    splits: dict[str, DictConfig] = {str(name): cfg for name, cfg in split_configs.items()}
+
     pinned: dict[str, set[str]] = {}
     all_pinned: set[str] = set()
-    for name, cfg in split_configs.items():
+    for name, cfg in splits.items():
         pin_list = set(cfg.get("pinned_cases") or [])
         pinned[name] = pin_list
         all_pinned.update(pin_list)
 
     pool_cases = [c for c in active_cases if c not in all_pinned]
-    split_order = list(split_configs.keys())
-    fractions = {name: float(cfg.fraction) for name, cfg in split_configs.items()}
+    split_order = list(splits.keys())
+    fractions = {name: float(cfg.fraction) for name, cfg in splits.items()}
 
     eligibility: dict[str, frozenset[str]] = {
         case_id: frozenset(
             name
-            for name, cfg in split_configs.items()
+            for name, cfg in splits.items()
             if all(
                 not bool(patients_index.loc[case_id].get(col, False))
                 for col in (cfg.get("exclude_cases_where") or [])
@@ -169,7 +175,7 @@ def create_splits(
     for case_id, sig in eligibility.items():
         sig_groups[sig].append(case_id)
 
-    slides_per_split: dict[str, list[pd.DataFrame]] = {name: [] for name in split_configs}
+    slides_per_split: dict[str, list[pd.DataFrame]] = {name: [] for name in splits}
 
     for sig, case_ids in sig_groups.items():
         if not sig:
@@ -184,7 +190,7 @@ def create_splits(
             slides_per_split[name].append(slides_df[slides_df["case_id"].isin(pinned_set)])
 
     result: dict[str, SplitResult | FoldedSplitResult] = {}
-    for name, cfg in split_configs.items():
+    for name, cfg in splits.items():
         frames = slides_per_split[name]
         part_slides = pd.concat(frames, ignore_index=True) if frames else slides_df.iloc[:0].copy()
         part_slides = part_slides.reset_index(drop=True)
@@ -250,7 +256,9 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         if not isinstance(split_result, list):
             part_slides, _ = split_result
             mlflow.log_input(
-                mlflow.data.from_pandas(part_slides, name=f"{config.dataset.name}_{name}"),
+                mlflow.data.from_pandas(  # type: ignore[attr-defined]
+                    part_slides, name=f"{config.dataset.name}_{name}"
+                ),
                 context=name,
             )
 
