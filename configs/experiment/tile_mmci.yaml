@@ -1,7 +1,5 @@
 # @package _global_
 
-dataset_name: HDAB MMCI
-
 tissue_roi:
   _target_: shapely.geometry.box
   _args_:

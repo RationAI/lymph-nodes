@@ -2637,7 +2637,7 @@ wheels = [
 [[package]]
 name = "rationai-kube-jobs"
 version = "0.4.0"
-source = { git = "ssh://gitlab.ics.muni.cz/rationai/infrastructure/kube-jobs#7dc4aed3b1f8a76f8aacd8468c670fc582a75c02" }
+source = { git = "ssh://gitlab.ics.muni.cz/rationai/infrastructure/kube-jobs#e49f076fb0e7c8f9cabf5e7cd62f632adf080512" }
 dependencies = [
     { name = "click" },
     { name = "humanfriendly" },

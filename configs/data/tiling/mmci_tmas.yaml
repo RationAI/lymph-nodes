@@ -1,0 +1,35 @@
+# @package _global_
+
+tissue_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/tissue_masks
+ignore_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/ignore_masks
+cytokeratin_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/8ad173ea482d4db999bee7686d9dc2d5/artifacts/cytokeratin_masks
+cyto_ignore_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/cyto_ignore_masks
+
+dataset_name: HDAB MMCI TMAs
+
+dataset:
+  - name: fold_0
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/9c3365fcdb7342088a33a0c3a914862e/artifacts/train_fold_0/slides.csv
+  - name: fold_1
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/9c3365fcdb7342088a33a0c3a914862e/artifacts/train_fold_1/slides.csv
+  - name: fold_2
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/9c3365fcdb7342088a33a0c3a914862e/artifacts/train_fold_2/slides.csv
+  - name: fold_3
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/9c3365fcdb7342088a33a0c3a914862e/artifacts/train_fold_3/slides.csv
+  - name: fold_4
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/9c3365fcdb7342088a33a0c3a914862e/artifacts/train_fold_4/slides.csv
+  - name: val
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/9c3365fcdb7342088a33a0c3a914862e/artifacts/val/slides.csv
+

@@ -1,0 +1,12 @@
+# @package _global_
+
+tissue_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/tissue_masks
+annotation_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/annotation_masks
+
+dataset_name: HDAB MMCI Test
+
+dataset:
+  - name: val
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: mlflow-artifacts:/4/c3595cca409a4ebeb1097bdc9f0fc63c/artifacts/slides.csv

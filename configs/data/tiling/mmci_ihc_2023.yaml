@@ -4,6 +4,8 @@ tissue_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a3034
 annotation_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/annotation_masks
 blur_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/fadfd18d81e74cb6849a3e93f8bfdef3/artifacts/blur_per_pixel
 
+dataset_name: HDAB MMCI
+
 dataset:
   - name: fold_0
     slides:
