@@ -3,7 +3,7 @@
 tissue_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/tissue_masks
 ignore_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/ignore_masks
 cytokeratin_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/8ad173ea482d4db999bee7686d9dc2d5/artifacts/cytokeratin_masks
-cyto_ignore_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/cyto_ignore_masks
+cyto_ignore_mask_dir: mlflow-artifacts:/4/131fe1a4c09e47ee9b391891897bb82a/artifacts/custom_ignore_annotations
 
 dataset_name: HDAB MMCI TMAs
 

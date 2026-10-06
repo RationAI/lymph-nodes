@@ -11,7 +11,13 @@ from shapely import Polygon
 class OverlayCoverage:
     """Computes per-tile coverage from a pre-built mask directory (MLflow artifact URI).
 
-    Coverage = 1 - fraction_of_background_pixels (class "0" in the mask).
+    Coverage = sum of per-tile pixel fractions for mask labels in
+    ``[min_label, max_label]`` (``max_label=None`` means unbounded above). Defaults
+    to ``min_label=1, max_label=None`` — "everything except background label 0" —
+    which is the right choice for a binary mask (e.g. ``JSONPolygonMask``'s 0/255
+    output) but also lets a multi-level mask (severity buckets, several distinct
+    ignore-reason codes, ...) define coverage over just the labels that actually
+    matter, e.g. ``min_label=2, max_label=2`` to count only one specific class.
     Downloads the artifact directory eagerly so Ray workers never need MLflow credentials.
 
     Tiles whose slide has no corresponding mask file get a null coverage value instead
@@ -31,6 +37,8 @@ class OverlayCoverage:
         roi: Polygon | DictConfig,
         suffix: str = "tiff",
         mandatory: bool = False,
+        min_label: int | None = None,
+        max_label: int | None = None,
     ) -> None:
         from hydra.utils import instantiate
 
@@ -38,6 +46,8 @@ class OverlayCoverage:
         self._mandatory = mandatory
         self._roi = instantiate(roi) if isinstance(roi, DictConfig) else roi
         self._suffix = suffix
+        self._min_label = min_label
+        self._max_label = max_label
         if uri is None:
             self._overlay_paths = {}
         else:
@@ -58,6 +68,14 @@ class OverlayCoverage:
         overlay_paths = self._overlay_paths
         roi = self._roi
         name = self._name
+        min_label = self._min_label
+        max_label = self._max_label
+
+        def in_range(label: str) -> bool:
+            value = int(label)
+            return (min_label is None or value >= min_label) and (
+                max_label is None or value <= max_label
+            )
 
         def add_coverage(batch: pa.Table) -> pa.Table:
             stems = [Path(p).stem for p in batch["path"].to_pylist()]
@@ -84,7 +102,14 @@ class OverlayCoverage:
                     with_mask["mpp_y"],
                 )
                 coverage = pa.array(
-                    [1.0 - float((entry or {}).get("0", 0.0) or 0.0) for entry in overlap.to_pylist()],
+                    [
+                        sum(
+                            float(frac or 0.0)
+                            for label, frac in (entry or {}).items()
+                            if in_range(label)
+                        )
+                        for entry in overlap.to_pylist()
+                    ],
                     type=pa.float64(),
                 )
             else:
