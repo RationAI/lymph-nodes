@@ -1,5 +1,14 @@
 # @package _global_
 
+tissue_mask_dir: ???
+ignore_mask_dir: null
+cytokeratin_mask_dir: null
+cyto_ignore_mask_dir: null
+annotation_mask_dir: null
+blur_mask_dir: null
+
+
+
 tissue_roi:
   _target_: shapely.geometry.box
   _args_:

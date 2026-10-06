@@ -16,6 +16,10 @@ class OverlayCoverage:
 
     Tiles whose slide has no corresponding mask file get a null coverage value instead
     of being dropped (unless ``mandatory=True``, in which case they're filtered out).
+    ``uri=None`` means no mask source at all — every tile is treated as having no
+    corresponding mask (same null-coverage behavior, just universal), without
+    attempting a download. Useful for disabling a mask declaratively via config
+    (e.g. ``ignore_mask_dir: null``) rather than removing the tiling block entirely.
 
     Pass ``tile_extent`` matching the global tiling config (use ``${tile_extent}``).
     """
@@ -23,7 +27,7 @@ class OverlayCoverage:
     def __init__(
         self,
         name: str,
-        uri: str,
+        uri: str | None,
         roi: Polygon | DictConfig,
         suffix: str = "tiff",
         mandatory: bool = False,
@@ -34,8 +38,11 @@ class OverlayCoverage:
         self._mandatory = mandatory
         self._roi = instantiate(roi) if isinstance(roi, DictConfig) else roi
         self._suffix = suffix
-        self._overlay_dir = download_artifacts(uri)
-        self._overlay_paths = {p.stem: p for p in Path(self._overlay_dir).rglob(f"*.{suffix}")}
+        if uri is None:
+            self._overlay_paths = {}
+        else:
+            overlay_dir = download_artifacts(uri)
+            self._overlay_paths = {p.stem: p for p in Path(overlay_dir).rglob(f"*.{suffix}")}
 
     def apply(self, tiles: Dataset) -> Dataset:
         from ratiopath.tiling import tile_overlay_overlap
