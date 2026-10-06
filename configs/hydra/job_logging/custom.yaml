@@ -10,4 +10,8 @@ handlers:
 root:
   handlers: [console]
 
+loggers:
+  preprocessing:
+    level: INFO
+
 disable_existing_loggers: false

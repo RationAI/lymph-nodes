@@ -162,14 +162,19 @@ class Virchow2Encoder(FoundationModelEncoder):
         # Virchow2 embedding = CLS token ‖ mean(patch tokens), giving 2 x 1280 = 2560 dims.
         # Compiles the whole extraction as one function so torch.compile sees
         # forward_features + concat as a single traced graph.
+        # The token sequence is CLS, then 4 register tokens, then the patch tokens;
+        # registers carry no image content and must be left out of the patch mean
+        # (the model card uses tokens[:, 5:]). timm's ViT exposes that prefix length.
+        num_prefix_tokens = cast("int", model.num_prefix_tokens)
+
         def embed(images: torch.Tensor) -> torch.Tensor:
             # forward_features is specific to timm's ViT, not declared on the base
             # nn.Module — its __getattr__ stub resolves dynamic attributes to
             # Tensor | Module, so mypy worries this might be calling a Tensor.
-            # (B, 1 + n_patches, 1280)
+            # (B, num_prefix_tokens + n_patches, 1280)
             tokens = model.forward_features(images)  # type: ignore[operator]
-            cls = tokens[:, 0]                         # (B, 1280)
-            patches = tokens[:, 1:].mean(dim=1)        # (B, 1280)
-            return torch.cat([cls, patches], dim=-1)   # (B, 2560)
+            cls = tokens[:, 0]                                         # (B, 1280)
+            patches = tokens[:, num_prefix_tokens:].mean(dim=1)        # (B, 1280)
+            return torch.cat([cls, patches], dim=-1)                   # (B, 2560)
 
         return embed

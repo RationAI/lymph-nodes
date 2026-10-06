@@ -6,7 +6,7 @@ blur_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/fadfd18d81e74cb
 
 dataset_name: HDAB MMCI
 
-dataset:
+datasets:
   - name: fold_0
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource

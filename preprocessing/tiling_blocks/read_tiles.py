@@ -1,7 +1,9 @@
 from ray.data import Dataset
 
+from preprocessing.tiling_blocks.tiling_block import TilingBlock
 
-class ReadTiles:
+
+class ReadTiles(TilingBlock):
     """Reads the raw pixel tile from the slide file into a numpy HWC uint8 array."""
 
     def __init__(self, name: str) -> None:

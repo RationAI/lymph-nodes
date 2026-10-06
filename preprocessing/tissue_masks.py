@@ -14,29 +14,30 @@ from ratiopath.openslide import OpenSlide
 
 
 ####################################################################################
-#      This implementaion differs from traditional tissue_mask used for H&E        #
-# slides beacuse it is not designed for HDAB slides which are used in this project #
+#      This implementation differs from the traditional tissue_mask used for H&E   #
+#      slides because that one is not designed for the HDAB slides used here.      #
 ####################################################################################
 
 
 def tissue_mask(slide: pyvips.Image, disk_size: int = 10) -> pyvips.Image:
-    """Generates a tissue mask from a whole-slide image (WSI) using saturation channel extraction and morphological operations, and saves the mask as a TIFF image.
+    """Generates a tissue mask from a whole-slide image (WSI) via HSV thresholding and morphology.
 
-    The function extracts the saturation channel from the WSI, to identify tissue regions,
-    and performs morphological operations (closing and opening) to refine the mask.
+    A pixel counts as tissue when it is not too dark (V > 50) and either not near-white
+    (V < 240) or noticeably saturated (S > 10). The result is refined by a morphological
+    closing followed by an opening.
 
     Args:
         slide: whole-slide image (WSI) pyvips file handler.
-        disk_size: Size of the disk element for morphological operations (default is 10).
+        disk_size: Radius in pixels of the disk element for the morphological operations.
 
     Returns:
         The generated tissue mask as pyvips.Image.
     """
-    # Extract saturation channel
+    # Extract saturation and value channels
     vi_slide_hsv = slide.sRGB2HSV()
     _, vi_s, vi_v, *_ = vi_slide_hsv.bandsplit()
 
-    tresholded = (vi_v > 50) & ((vi_v < 240) | (vi_s > 10))
+    thresholded = (vi_v > 50) & ((vi_v < 240) | (vi_s > 10))
 
     # Morph Object
     vi_disk_object = pyvips.Image.black(2 * disk_size + 1, 2 * disk_size + 1) + 128
@@ -45,7 +46,7 @@ def tissue_mask(slide: pyvips.Image, disk_size: int = 10) -> pyvips.Image:
     )
 
     # Closing
-    vi_mask = tresholded.morph(vi_disk_object, pyvips.enums.OperationMorphology.DILATE)
+    vi_mask = thresholded.morph(vi_disk_object, pyvips.enums.OperationMorphology.DILATE)
     vi_mask = vi_mask.morph(vi_disk_object, pyvips.enums.OperationMorphology.ERODE)
 
     # Opening
@@ -56,14 +57,15 @@ def tissue_mask(slide: pyvips.Image, disk_size: int = 10) -> pyvips.Image:
 
 
 @ray.remote(memory=3 * 1024**3)
-def process_slide(slide_path: str, mpp: int, output_path: Path) -> None:
+def process_slide(slide_path: str, mpp: float, output_path: Path) -> None:
     with OpenSlide(slide_path) as slide:
         level = slide.closest_level(mpp)
         mpp_x, mpp_y = slide.slide_resolution(level)
 
     slide = cast("pyvips.Image", pyvips.Image.new_from_file(slide_path, level=level))
 
-    mask = tissue_mask(slide, disk_size=int(10 // (mpp_x + mpp_y) / 2))
+    # Disk radius of 10 µm, expressed in pixels at the mask's resolution.
+    mask = tissue_mask(slide, disk_size=max(1, round(10 / ((mpp_x + mpp_y) / 2))))
 
     mask_path = output_path / Path(slide_path).with_suffix(".tiff").name
     write_big_tiff(mask, path=mask_path, mpp_x=mpp_x, mpp_y=mpp_y)

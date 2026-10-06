@@ -86,7 +86,7 @@ async def qc_main(
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
     slides = hydra.utils.instantiate(config.dataset.slides)
 
-    with tempfile.TemporaryDirectory(dir=config.project_dir, prefix="qc_") as tmp_dir:
+    with tempfile.TemporaryDirectory(dir=config.project_root, prefix="qc_") as tmp_dir:
         asyncio.run(
             qc_main(
                 output_path=Path(tmp_dir).absolute().as_posix(),

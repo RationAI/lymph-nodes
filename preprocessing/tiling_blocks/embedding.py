@@ -1,8 +1,10 @@
 from omegaconf import DictConfig
 from ray.data import ActorPoolStrategy, Dataset
 
+from preprocessing.tiling_blocks.tiling_block import TilingBlock
 
-class FoundationModelEmbedding:
+
+class FoundationModelEmbedding(TilingBlock):
     """Foundation model embedding via a configurable encoder class.
 
     Requires a pixel column loaded before this step (e.g. via ReadTiles).

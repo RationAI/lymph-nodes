@@ -15,13 +15,14 @@ from rationai.mlkit.lightning.loggers import MLFlowLogger
 from tqdm import tqdm
 
 from preprocessing.data_exploration.name_parsers import ParsedFilename
+from preprocessing.data_exploration.patients import build_patients_df
 
 
 def _read_slide_metadata(slide_path: str) -> dict[str, Any]:
     with OpenSlide(slide_path) as slide:
         return {
-            "mpp_x": float(slide.properties.get("openslide.mpp-x", float("nan"))),
-            "mpp_y": float(slide.properties.get("openslide.mpp-y", float("nan"))),
+            "base_mpp_x": float(slide.properties.get("openslide.mpp-x", float("nan"))),
+            "base_mpp_y": float(slide.properties.get("openslide.mpp-y", float("nan"))),
             "n_levels": slide.level_count,
             "vendor": slide.properties.get("openslide.vendor"),
         }
@@ -39,7 +40,7 @@ def _process_slide(
 
     damaged = slide_name in damaged_slides
     meta = (
-        {"mpp_x": float("nan"), "mpp_y": float("nan"), "n_levels": None, "vendor": None}
+        {"base_mpp_x": float("nan"), "base_mpp_y": float("nan"), "n_levels": None, "vendor": None}
         if damaged
         else _read_slide_metadata(path)
     )
@@ -77,20 +78,6 @@ def build_slides_df(
     return pd.DataFrame(rows)
 
 
-def build_patients_df(slides_df: pd.DataFrame) -> pd.DataFrame:
-    return (
-        slides_df.groupby("case_id")
-        .agg(
-            n_slides=("slide_path", "count"),
-            n_positive_slides=("tumor", "sum"),
-            n_negative_slides=("tumor", lambda x: (~x).sum()),
-            n_tma_control_slides=("has_tma_control", "sum"),
-            n_confounding_slides=("has_confounding_structures", "sum"),
-        )
-        .reset_index()
-    )
-
-
 @with_cli_args(["+preprocessing=patient_dataset"])
 @hydra.main(
     config_path="../../configs",
@@ -124,12 +111,12 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         "n_slides_tma_control": int(slides_df["has_tma_control"].sum()),
         "n_slides_damaged": int(slides_df["damaged"].sum()),
         "n_slides_confounding": int(slides_df["has_confounding_structures"].sum()),
-        "mpp_x_min": float(readable["mpp_x"].min()),
-        "mpp_x_max": float(readable["mpp_x"].max()),
-        "mpp_x_mean": float(readable["mpp_x"].mean()),
-        "mpp_y_min": float(readable["mpp_y"].min()),
-        "mpp_y_max": float(readable["mpp_y"].max()),
-        "mpp_y_mean": float(readable["mpp_y"].mean()),
+        "base_mpp_x_min": float(readable["base_mpp_x"].min()),
+        "base_mpp_x_max": float(readable["base_mpp_x"].max()),
+        "base_mpp_x_mean": float(readable["base_mpp_x"].mean()),
+        "base_mpp_y_min": float(readable["base_mpp_y"].min()),
+        "base_mpp_y_max": float(readable["base_mpp_y"].max()),
+        "base_mpp_y_mean": float(readable["base_mpp_y"].mean()),
     })
 
     with tempfile.TemporaryDirectory() as tmp_dir:

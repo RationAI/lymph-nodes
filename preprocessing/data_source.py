@@ -40,12 +40,12 @@ class GlobDataSource(ListDataSource):
         self,
         src_dir: str,
         glob_pattern: str | list[str] = "*",
-        exclue_pattern: None | str | list[str] = None,
+        exclude_pattern: None | str | list[str] = None,
     ) -> None:
         dir = Path(src_dir)
 
         self.exclude_paths = (
-            list(self._paths(dir, exclue_pattern)) if exclue_pattern else []
+            list(self._paths(dir, exclude_pattern)) if exclude_pattern else []
         )
         self.include_paths = list(self._paths(dir, glob_pattern))
 
@@ -73,7 +73,7 @@ class MLFlowDataSource(DataSource):
         return pd.read_csv(artifact_path)
 
 
-class ChainedDataSources(DataSource):
+class ChainedDataSources(SizedIterable):
     def __init__(self, sources: list[DataSource]) -> None:
         self.data_sources = sources
 

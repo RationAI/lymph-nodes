@@ -61,8 +61,8 @@ def mmci_tmas_filename(filename: str) -> ParsedFilename:
     - colorectum/tissue_microarray/dab:   KOS<nn>.mrxs
 
     Neither the TNBC nor the colorectal pattern has a stain marker visible in the
-    slide name itself, so `staining` is set to "CK" (cytokeratin) from directory
-    context, not parsed.
+    slide name itself, so their `staining` is set to "CK" (cytokeratin) from directory
+    context, not parsed; FIN slides get "DAB" (the chromogen of their source directory).
 
     TMAs are composite arrays of many patients' cores per slide — there's no single
     per-slide tumor/non-tumor label the way there is for mmci_snb_filename's
@@ -102,12 +102,12 @@ def mmci_snb_test_filename(filename: str) -> ParsedFilename:
     """Parses MMCI SNB test/inference cohort slide filenames.
 
     e.g. SNB_IHC_TEST_CASE-2024_0960-20.mrxs, SNB_IHC_TEST_CASE-2024_1001-19-1.mrxs
-    (configs/data/raw/mmci_ihc_hadb_test.yaml, src_dir .../annotated_ihc_test).
+    (configs/data/raw/mmci_ihc_test.yaml, src_dir .../annotated_ihc_test).
 
     Unlike mmci_snb_filename's labeled cohorts, none of these carry a trailing 0/1
-    tumor indicator — this is the unlabeled test/inference cohort, so `tumor` is
-    always False here (not a real signal; ground truth for this cohort lives in the
-    annotation masks, not the filename). The optional third numeric group (the "-1"
+    tumor indicator, so `tumor` is always True here: the whole cohort is treated as
+    positive, and the actual per-region ground truth lives in the annotation masks,
+    not the filename. The optional third numeric group (the "-1"
     in the second example above) is folded into `slice_id` alongside the slide
     number, as mmci_snb_filename's slice_id does for its own multi-part slide IDs
     (e.g. "14-15", "6-8-B").

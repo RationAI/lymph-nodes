@@ -9,10 +9,10 @@ submit_job(
     gpu=None,
     public=False,
     script=[
-        "git clone https://gitlab.ics.muni.cz/rationai/digital-pathology/pathology/lymph-nodes.git workdir",
+        "git clone https://github.com/RationAI/lymph-nodes.git workdir",
         "cd workdir",
         "uv sync --frozen",
-        "uv run -m preprocessing.tissue_masks +data=slide/<data_file>",
+        "uv run -m preprocessing.tissue_masks +data=raw/...",
     ],
     storage=[storage.secure.DATA, storage.secure.PROJECTS],
 )

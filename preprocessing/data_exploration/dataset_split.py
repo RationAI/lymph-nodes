@@ -13,6 +13,8 @@ from rationai.mlkit.lightning.loggers import MLFlowLogger
 from ratiopath.model_selection import train_test_split
 from sklearn.model_selection import StratifiedGroupKFold
 
+from preprocessing.data_exploration.patients import build_patients_df
+
 
 # ── types ─────────────────────────────────────────────────────────────────────
 
@@ -32,25 +34,6 @@ def _add_derived_case_columns(patients_df: pd.DataFrame) -> pd.DataFrame:
         if count_col in df.columns:
             df[bool_col] = df[count_col] > 0
     return df
-
-
-def _rebuild_patients_df(slides_df: pd.DataFrame) -> pd.DataFrame:
-    if slides_df.empty:
-        return pd.DataFrame(
-            columns=["case_id", "n_slides", "n_positive_slides", "n_negative_slides",
-                     "n_tma_control_slides", "n_confounding_slides"]
-        )
-    return (
-        slides_df.groupby("case_id")
-        .agg(
-            n_slides=("slide_path", "count"),
-            n_positive_slides=("tumor", "sum"),
-            n_negative_slides=("tumor", lambda x: (~x).sum()),
-            n_tma_control_slides=("has_tma_control", "sum"),
-            n_confounding_slides=("has_confounding_structures", "sum"),
-        )
-        .reset_index()
-    )
 
 
 def _apply_slide_filters(slides: pd.DataFrame, exclude_cols: list[str]) -> pd.DataFrame:
@@ -120,7 +103,7 @@ def _apply_kfold(
         fold_slides = _apply_slide_filters(
             slides.iloc[fold_idx].copy(), exclude_slides
         ).reset_index(drop=True)
-        folds.append((fold_slides, _rebuild_patients_df(fold_slides)))
+        folds.append((fold_slides, build_patients_df(fold_slides)))
     return folds
 
 
@@ -132,8 +115,9 @@ def create_splits(
 ) -> dict[str, SplitResult | FoldedSplitResult]:
     """Distribute slides across named splits, respecting case grouping and eligibility.
 
-    Splits with n_folds produce a FoldedSplitResult (list of K {train, val} dicts).
-    Splits without n_folds produce a plain SplitResult (slides_df, patients_df).
+    Splits with n_folds produce a FoldedSplitResult (list of K (slides_df, patients_df)
+    tuples, one per fold). Splits without n_folds produce a plain SplitResult
+    (slides_df, patients_df).
     """
     slides_df = slides_df[~slides_df["damaged"]].copy()
     active_cases = set(slides_df["case_id"].unique())
@@ -205,18 +189,18 @@ def create_splits(
             )
         else:
             part_slides = _apply_slide_filters(part_slides, list(cfg.get("exclude_slides_where") or []))
-            result[name] = (part_slides.reset_index(drop=True), _rebuild_patients_df(part_slides))
+            result[name] = (part_slides.reset_index(drop=True), build_patients_df(part_slides))
 
     return result
 
 
 
-def _log_split_metrics(name: str, slides: pd.DataFrame, prefix: str = "") -> None:
+def _log_split_metrics(name: str, slides: pd.DataFrame) -> None:
     mlflow.log_metrics({
-        f"{prefix}{name}_n_slides": len(slides),
-        f"{prefix}{name}_n_cases": int(slides["case_id"].nunique()),
-        f"{prefix}{name}_n_positive_slides": int(slides["tumor"].sum()),
-        f"{prefix}{name}_n_negative_slides": int((~slides["tumor"]).sum()),
+        f"{name}_n_slides": len(slides),
+        f"{name}_n_cases": int(slides["case_id"].nunique()),
+        f"{name}_n_positive_slides": int(slides["tumor"].sum()),
+        f"{name}_n_negative_slides": int((~slides["tumor"]).sum()),
     })
 
 
@@ -241,7 +225,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
                     out_dir.mkdir(parents=True)
                     part_slides.to_csv(out_dir / "slides.csv", index=False)
                     part_patients.to_csv(out_dir / "patients.csv", index=False)
-                    _log_split_metrics(name, part_slides, prefix=f"fold_{k}_")
+                    _log_split_metrics(f"{name}_fold_{k}", part_slides)
             else:
                 part_slides, part_patients = split_result
                 out_dir = Path(tmp_dir) / name

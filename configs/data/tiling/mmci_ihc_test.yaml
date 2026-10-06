@@ -5,7 +5,7 @@ annotation_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a
 
 dataset_name: HDAB MMCI Test
 
-dataset:
+datasets:
   - name: val
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource

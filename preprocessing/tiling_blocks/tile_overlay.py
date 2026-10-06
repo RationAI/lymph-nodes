@@ -7,21 +7,24 @@ from omegaconf import DictConfig
 from ray.data import Dataset
 from shapely import Polygon
 
+from preprocessing.tiling_blocks.tiling_block import TilingBlock
 
-class OverlayCoverage:
+
+class OverlayCoverage(TilingBlock):
     """Computes per-tile coverage from a pre-built mask directory (MLflow artifact URI).
 
     Coverage = sum of per-tile pixel fractions for mask labels in
-    ``[min_label, max_label]`` (``max_label=None`` means unbounded above). Defaults
-    to ``min_label=1, max_label=None`` — "everything except background label 0" —
-    which is the right choice for a binary mask (e.g. ``JSONPolygonMask``'s 0/255
-    output) but also lets a multi-level mask (severity buckets, several distinct
-    ignore-reason codes, ...) define coverage over just the labels that actually
-    matter, e.g. ``min_label=2, max_label=2`` to count only one specific class.
+    ``[min_label, max_label]``; ``None`` leaves that side unbounded, so the defaults
+    (both ``None``) count every label, background 0 included. Set ``min_label=1`` for
+    "everything except background", ``min_label=255`` for the positive label of a
+    binary 0/255 mask (e.g. ``JSONPolygonMask``'s output), or e.g.
+    ``min_label=2, max_label=2`` to count only one class of a multi-level mask.
     Downloads the artifact directory eagerly so Ray workers never need MLflow credentials.
 
     Tiles whose slide has no corresponding mask file get a null coverage value instead
-    of being dropped (unless ``mandatory=True``, in which case they're filtered out).
+    of being dropped (unless ``mandatory=True``, in which case they're dropped). Use
+    ``has_mask`` to find such slides up front — ``preprocessing.tiling`` does, so that
+    a mandatory mask missing for a slide is reported rather than silently dropping it.
     ``uri=None`` means no mask source at all — every tile is treated as having no
     corresponding mask (same null-coverage behavior, just universal), without
     attempting a download. Useful for disabling a mask declaratively via config
@@ -54,6 +57,17 @@ class OverlayCoverage:
             overlay_dir = download_artifacts(uri)
             self._overlay_paths = {p.stem: p for p in Path(overlay_dir).rglob(f"*.{suffix}")}
 
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def mandatory(self) -> bool:
+        return self._mandatory
+
+    def has_mask(self, slide_path: str) -> bool:
+        return Path(slide_path).stem in self._overlay_paths
+
     def apply(self, tiles: Dataset) -> Dataset:
         from ratiopath.tiling import tile_overlay_overlap
 
@@ -70,6 +84,7 @@ class OverlayCoverage:
         name = self._name
         min_label = self._min_label
         max_label = self._max_label
+        mandatory = self._mandatory
 
         def in_range(label: str) -> bool:
             value = int(label)
@@ -116,13 +131,11 @@ class OverlayCoverage:
                 coverage = pa.array([], type=pa.float64())
 
             with_mask = with_mask.append_column(name, coverage)
+            if mandatory:
+                return with_mask
+
             without_mask = without_mask.append_column(name, pa.nulls(without_mask.num_rows, type=pa.float64()))
 
             return pa.concat_tables([with_mask, without_mask.select(with_mask.column_names)])
 
-        tiles = tiles.map_batches(add_coverage, batch_format="pyarrow")
-
-        if self._mandatory:
-            tiles = tiles.filter(lambda r, c=name: r[c] is not None)
-
-        return tiles
+        return tiles.map_batches(add_coverage, batch_format="pyarrow")

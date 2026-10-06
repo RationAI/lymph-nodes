@@ -1,3 +1,6 @@
+import logging
+import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -13,10 +16,63 @@ from ratiopath.ray import read_slides
 from ratiopath.tiling import grid_tiles
 from ratiopath.tiling.utils import row_hash
 
-from preprocessing.tiling_blocks.tiling_block import TilingBlock
+from preprocessing.tiling_blocks import OverlayCoverage, TilingBlock
 
 
 OmegaConf.register_new_resolver("scale", lambda x, factor: x * factor)
+
+log = logging.getLogger(__name__)
+
+
+def available_cpus() -> int:
+    """Number of CPUs this process may run on.
+
+    os.cpu_count() (and Ray's own detection) reports the whole node, while Kubernetes
+    pins the pod to a subset of cores rather than setting a CFS quota.
+    """
+    if sys.platform == "linux":
+        return len(os.sched_getaffinity(0))
+    return os.cpu_count() or 1
+
+
+def drop_slides_without_mandatory_masks(
+    slides_df: pd.DataFrame, tiling_blocks: list[TilingBlock], dataset_name: str
+) -> pd.DataFrame:
+    """Drop slides that some mandatory mask doesn't cover, reporting each one.
+
+    OverlayCoverage would drop all their tiles anyway; doing it here makes that visible
+    (a warning plus a ``missing_masks/<dataset>.json`` MLflow artifact) and skips tiling
+    them at all. Raises if no slide is left, since an empty dataset makes Ray Data's
+    streaming repartition wait forever instead of finishing.
+    """
+    missing: dict[str, list[str]] = {}
+    for block in tiling_blocks:
+        if isinstance(block, OverlayCoverage) and block.mandatory:
+            paths = [p for p in slides_df["slide_path"] if not block.has_mask(p)]
+            if paths:
+                missing[block.name] = paths
+
+    if not missing:
+        return slides_df
+
+    for name, paths in missing.items():
+        log.warning(
+            "%s: %d/%d slides have no mandatory '%s' mask and are skipped: %s",
+            dataset_name,
+            len(paths),
+            len(slides_df),
+            name,
+            ", ".join(Path(p).name for p in paths),
+        )
+    mlflow.log_dict(missing, f"missing_masks/{dataset_name}.json")
+
+    dropped = {p for paths in missing.values() for p in paths}
+    kept = slides_df[~slides_df["slide_path"].isin(dropped)]
+    if kept.empty:
+        raise ValueError(
+            f"{dataset_name}: no slide has all mandatory masks ({', '.join(missing)}), nothing to tile"
+        )
+    return kept
 
 
 # ── tile generation ───────────────────────────────────────────────────────────
@@ -64,7 +120,7 @@ def tile_dataset(
     slides = read_slides(slide_paths, mpp=mpp, tile_extent=tile_extent, stride=stride)
     slides = slides.map(row_hash)
     slides = slides.map(
-        lambda r, meta=slides_meta: {**r, **meta.get(r["path"], {})},
+        lambda r, meta=slides_meta: {**meta.get(r["path"], {}), **r},
     ).materialize()
 
     # --- Tile grid ---
@@ -123,14 +179,21 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
     #     sys.stdout = _ForceTTY()
 
-    ray.init()
+    ray.init(num_cpus=available_cpus())
+
+    data_context = ray.data.DataContext.get_current()
+    for key, value in config.ray_data_context.items():
+        if not hasattr(data_context, str(key)):
+            raise ValueError(f"ray_data_context.{key} is not a ray.data.DataContext setting")
+        setattr(data_context, str(key), value)
 
     tiling_blocks = [hydra.utils.instantiate(block_conf, _recursive_=False) for block_conf in config.tiling_blocks]
     project_root = Path(config.project_root)
 
-    for i, dataset in enumerate(config.dataset):
-        print(f"Tiling dataset: {dataset.name} ({i + 1}/{len(config.dataset)})")
+    for i, dataset in enumerate(config.datasets):
+        print(f"Tiling dataset: {dataset.name} ({i + 1}/{len(config.datasets)})")
         slides_df = hydra.utils.instantiate(dataset.slides).to_pandas()
+        slides_df = drop_slides_without_mandatory_masks(slides_df, tiling_blocks, dataset.name)
         tile_dataset(
             slides_df=slides_df,
             tiling_blocks=tiling_blocks,
