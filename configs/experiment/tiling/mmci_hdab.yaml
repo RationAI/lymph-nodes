@@ -41,7 +41,7 @@ tiling_blocks:
     mandatory: false
 
   - _target_: preprocessing.tiling_blocks.OverlayCoverage
-    name: brownish_coverage
+    name: brownish_coverage_old
     uri: ${brownish_mask_dir}
     roi: ${rois.full}
     min_label: 127
@@ -51,9 +51,8 @@ tiling_blocks:
     name: tile
 
   - _target_: preprocessing.tiling_blocks.BrownishCoverage
-    name: brownish_coverage_new
+    name: brownish_coverage
     image_col: tile
-    dab_threshold: 0.15
 
   - _target_: preprocessing.tiling_blocks.FoundationModelEmbedding
     name: embedding

@@ -1,6 +1,6 @@
 # @package _global_
 
-dataset_name: HDAB MMCI TMAs
+dataset_name: TMAs
 
 datasets:
   - name: fold_0
