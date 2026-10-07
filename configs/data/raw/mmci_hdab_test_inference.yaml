@@ -2,7 +2,7 @@
 
 dataset:
   institute: mmci
-  name: MMCI HDAB Test Inference
+  name: MMCI inference
   slides:
     _target_: preprocessing.data_source.ListDataSource
     paths:

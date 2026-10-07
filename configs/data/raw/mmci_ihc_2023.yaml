@@ -2,7 +2,7 @@
 
 dataset:
   institute: mmci
-  name: SNB IHC Exploration
+  name: IHC 2023
   cohort_id: mmci_ihc_2023
   slides:
     _target_: preprocessing.data_source.GlobDataSource

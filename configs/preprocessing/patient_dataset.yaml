@@ -3,7 +3,7 @@
 max_workers: 4
 
 metadata:
-  run_name: Patient Dataset of ${dataset.name}
+  run_name: "🏥 Patients · ${dataset.name}"
   description: Data exploration & Patient Dataset of ${dataset.name}
   hyperparams:
     institute: ${dataset.institute}

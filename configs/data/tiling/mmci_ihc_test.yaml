@@ -1,6 +1,6 @@
 # @package _global_
 
-dataset_name: HDAB MMCI Test
+dataset_name: IHC test
 
 datasets:
   - name: val

@@ -25,6 +25,11 @@ rois:
 memory_per_gpu_worker: ???
 batch_size: ???
 embedding_model: ???
+# Display names for run names (the class names' "Encoder" suffix adds nothing there).
+embedding_model_names:
+  GigaPathEncoder: GigaPath
+  UNI2Encoder: UNI2
+  Virchow2Encoder: Virchow2
 
 datasets: ???
 
@@ -38,7 +43,7 @@ ray_data_context:
 
 
 metadata:
-  run_name: Tiling ${dataset_name}
+  run_name: "🧩 Tiling · ${dataset_name} · ${embedding_model_names.${embedding_model}}"
   description: Tile extraction and embedding for ${dataset_name}
   hyperparams:
     mpp: ${mpp}

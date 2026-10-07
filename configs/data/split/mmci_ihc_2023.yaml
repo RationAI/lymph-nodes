@@ -2,7 +2,7 @@
 
 dataset:
   institute: mmci
-  name: SNB IHC
+  name: IHC 2023
 
 slides_uri: mlflow-artifacts:/4/30974f87ffbb448c99dd5db1d0e0fdec/artifacts/slides.csv
 patients_uri: mlflow-artifacts:/4/30974f87ffbb448c99dd5db1d0e0fdec/artifacts/patients.csv

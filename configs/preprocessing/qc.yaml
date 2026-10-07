@@ -6,7 +6,7 @@ mask_level: 3
 sample_level: 1
 
 metadata:
-  run_name: QC Masks ${dataset.name}
+  run_name: "🔍 QC masks · ${dataset.name}"
   description: Quality control masks for ${dataset.name}
   hyperparams:
     mask_level: ${mask_level}

@@ -2,7 +2,7 @@
 
 dataset:
   institute: mmci
-  name: TMAs IHC
+  name: TMAs
 
 slides_uri: mlflow-artifacts:/4/efc9250e63ca4c718c786f00415e69db/artifacts/slides.csv
 patients_uri: mlflow-artifacts:/4/efc9250e63ca4c718c786f00415e69db/artifacts/patients.csv

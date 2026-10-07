@@ -2,7 +2,7 @@
 
 dataset:
   institute: mmci
-  name: TMAs IHC Exploration
+  name: TMAs
   cohort_id: mmci_tmas
   slides:
     _target_: preprocessing.data_source.ChainedDataSources

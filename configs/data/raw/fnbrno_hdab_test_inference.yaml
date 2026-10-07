@@ -2,7 +2,7 @@
 
 dataset:
   institute: fnb
-  name: FN Brno HDAB Test Inference
+  name: FN Brno inference
   slides:
     _target_: preprocessing.data_source.ListDataSource
     paths:

@@ -2,7 +2,7 @@
 
 dataset:
   institute: mmci
-  name: SNB IHC Test Exploration
+  name: IHC test
   cohort_id: mmci_ihc_test
   slides:
     _target_: preprocessing.data_source.GlobDataSource

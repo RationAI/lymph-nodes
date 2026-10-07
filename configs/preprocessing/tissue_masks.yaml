@@ -5,7 +5,7 @@ max_concurrent: 10
 artifact_path: tissue_masks
 
 metadata:
-  run_name: Tissue Masks ${dataset.name}
+  run_name: "🧫 Tissue masks · ${dataset.name}"
   description: Tissue masks for ${dataset.name}
   hyperparams:
     mpp: ${mpp}

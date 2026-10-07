@@ -7,7 +7,7 @@ patients_uri: ???  # e.g. runs:/<run_id>/patients.csv
 splits: {}
 
 metadata:
-  run_name: Dataset Split ${dataset.name}
+  run_name: "✂️ Split · ${dataset.name}"
   description: Dataset split for ${dataset.name}
   hyperparams:
     seed: ${seed}
