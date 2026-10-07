@@ -77,7 +77,7 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
         brownish = np.asarray(self.tiles["brownish_coverage"])
 
         cancer = _is_cancer(annotation, cytokeratin)
-        healthy_brownish = ~cancer & (brownish > 0)
+        healthy_brownish = ~cancer & (brownish > 0.2)
 
         labels = np.full(len(self.tiles), HEALTHY, dtype=np.int64)
         labels[healthy_brownish] = HEALTHY_BROWNISH
