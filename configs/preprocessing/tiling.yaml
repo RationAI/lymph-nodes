@@ -2,8 +2,25 @@
 
 mpp: 0.5
 tile_extent: 224
-stride: 224
+stride: ???
 rows_per_shard: 250_000
+
+rois:
+  tissue:
+    _target_: shapely.geometry.box
+    _args_:
+      - ${scale:${tile_extent},0.25}
+      - ${scale:${tile_extent},0.25}
+      - ${scale:${tile_extent},0.75}
+      - ${scale:${tile_extent},0.75}
+
+  full:
+    _target_: shapely.geometry.box
+    _args_:
+      - 0
+      - 0
+      - ${tile_extent}
+      - ${tile_extent}
 
 memory_per_gpu_worker: ???
 batch_size: ???

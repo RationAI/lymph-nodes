@@ -1,0 +1,71 @@
+# @package _global_
+
+stride: 28
+
+tissue_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/tissue_masks
+patho_ignore_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/ignore_masks
+cytokeratin_ignore_mask_dir: mlflow-artifacts:/4/131fe1a4c09e47ee9b391891897bb82a/artifacts/custom_ignore_annotations
+cytokeratin_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/8ad173ea482d4db999bee7686d9dc2d5/artifacts/cytokeratin_masks
+# Each key becomes a column in the output Parquet.
+# Processors run in config order.
+tiling_blocks:
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: tissue_coverage
+    uri: ${tissue_mask_dir}
+    roi: ${rois.tissue}
+    min_label: 1 # keep everything that is not background (label 0)
+    mandatory: true
+
+  # drop tiles with < 10% tissue coverage
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: filter
+    expr: "tissue_coverage >= 0.1"
+
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: repartition
+    target_num_rows_per_block: 512
+
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: patho_ignore_coverage
+    uri: ${patho_ignore_mask_dir}
+    roi: ${rois.full}
+    min_label: 255
+    mandatory: false
+
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: filter
+    expr: "patho_ignore_coverage == 0 or is_null(patho_ignore_coverage)"
+
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: repartition
+    target_num_rows_per_block: 512
+
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: cytokeratin_ignore_coverage
+    uri: ${cytokeratin_ignore_mask_dir}
+    roi: ${rois.full}
+    min_label: 255
+    mandatory: false
+
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: cytokeratin_coverage
+    uri: ${cytokeratin_mask_dir}
+    roi: ${rois.full}
+    min_label: 255
+    mandatory: false
+
+  - _target_: preprocessing.tiling_blocks.ReadTiles
+    name: tile
+
+  - _target_: preprocessing.tiling_blocks.FoundationModelEmbedding
+    name: embedding
+    image_col: tile
+    encoder:
+      _target_: preprocessing.models.${embedding_model}
+    batch_size: ${batch_size}
+    concurrency: 1
+    memory_per_worker: ${memory_per_gpu_worker}
+
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: drop_columns
+    cols: ["level", "tile", "path", "mpp_x", "mpp_y", "tile_extent_x", "tile_extent_y"]

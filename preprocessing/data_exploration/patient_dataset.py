@@ -30,6 +30,7 @@ def _read_slide_metadata(slide_path: str) -> dict[str, Any]:
 
 def _process_slide(
     path: str,
+    cohort_id: str,
     name_parser: Callable[[str], ParsedFilename],
     tma_control_slides: frozenset[str],
     damaged_slides: frozenset[str],
@@ -48,6 +49,7 @@ def _process_slide(
     return {
         "slide_path": path,
         "slide_name": slide_name,
+        "cohort_id": cohort_id,
         **parsed.__dict__,
         **meta,
         "has_tma_control": slide_name in tma_control_slides,
@@ -58,6 +60,7 @@ def _process_slide(
 
 def build_slides_df(
     slide_paths: list[str],
+    cohort_id: str,
     name_parser: Callable[[str], ParsedFilename],
     tma_control_slides: frozenset[str],
     damaged_slides: frozenset[str],
@@ -66,6 +69,7 @@ def build_slides_df(
 ) -> pd.DataFrame:
     process = partial(
         _process_slide,
+        cohort_id=cohort_id,
         name_parser=name_parser,
         tma_control_slides=tma_control_slides,
         damaged_slides=damaged_slides,
@@ -91,6 +95,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
     slides_df = build_slides_df(
         list(slides),
+        cohort_id=config.dataset.cohort_id,
         name_parser=name_parser,
         tma_control_slides=frozenset(config.dataset.get("tma_control_slides") or []),
         damaged_slides=frozenset(config.dataset.get("damaged_slides") or []),

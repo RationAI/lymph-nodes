@@ -3,6 +3,7 @@ import pandas as pd
 
 PATIENT_COLUMNS = [
     "case_id",
+    "cohort_id",
     "n_slides",
     "n_positive_slides",
     "n_negative_slides",
@@ -12,11 +13,14 @@ PATIENT_COLUMNS = [
 
 
 def build_patients_df(slides_df: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate a slides table into one row per case (patient)."""
+    """Aggregate a slides table into one row per case (patient).
+
+    Grouped by cohort too: case IDs are only unique within a cohort.
+    """
     if slides_df.empty:
         return pd.DataFrame(columns=PATIENT_COLUMNS)
     return (
-        slides_df.groupby("case_id")
+        slides_df.groupby(["case_id", "cohort_id"])
         .agg(
             n_slides=("slide_path", "count"),
             n_positive_slides=("tumor", "sum"),

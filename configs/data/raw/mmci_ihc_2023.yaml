@@ -3,6 +3,7 @@
 dataset:
   institute: mmci
   name: SNB IHC Exploration
+  cohort_id: mmci_ihc_2023
   slides:
     _target_: preprocessing.data_source.GlobDataSource
     src_dir: /mnt/data/MOU/lymph_nodes/dataset1-ihc-2023

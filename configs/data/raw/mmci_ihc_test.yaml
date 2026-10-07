@@ -3,6 +3,7 @@
 dataset:
   institute: mmci
   name: SNB IHC Test Exploration
+  cohort_id: mmci_ihc_test
   slides:
     _target_: preprocessing.data_source.GlobDataSource
     src_dir: /mnt/data/MOU/lymph_nodes/annotated_ihc_test

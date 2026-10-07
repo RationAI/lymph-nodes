@@ -38,8 +38,8 @@ def mmci_snb_filename(filename: str) -> ParsedFilename:
         staining, case_id, slice_id, tumor_indicator = match.groups()
 
         return ParsedFilename(
-            case_id=case_id,
-            slice_id=slice_id,
+            case_id=str(case_id),
+            slice_id=str(slice_id),
             staining=staining,
             tumor=tumor_indicator == "1"
         )
@@ -72,19 +72,19 @@ def mmci_tmas_filename(filename: str) -> ParsedFilename:
         (
             r"^FIN-([A-Z0-9]+-\d+)-([A-Z]+)\.mrxs$",
             lambda m: ParsedFilename(
-                case_id="FIN-" + m.group(1) + '-' + m.group(2), slice_id="", staining="DAB", tumor=False
+                case_id="FIN-" + m.group(1) + '-' + m.group(2), slice_id="None", staining="DAB", tumor=False
             ),
         ),
         (
             r"^TNBC-(BF-\d+)-PNG\.mrxs$",
             lambda m: ParsedFilename(
-                case_id="TNBC-" + m.group(1), slice_id="", staining="CK", tumor=False
+                case_id="TNBC-" + m.group(1), slice_id="None", staining="CK", tumor=False
             ),
         ),
         (
             r"^(KOS\d+)\.mrxs$",
             lambda m: ParsedFilename(
-                case_id=m.group(1), slice_id="", staining="CK", tumor=False
+                case_id=m.group(1), slice_id="None", staining="CK", tumor=False
             ),
         ),
     ]
@@ -122,7 +122,7 @@ def mmci_snb_test_filename(filename: str) -> ParsedFilename:
 
         return ParsedFilename(
             case_id=f"{case_id}-{year}",
-            slice_id=slice_id,
+            slice_id=str(slice_id),
             staining="IHC",
             tumor=True,
         )
