@@ -1,29 +1,16 @@
-from random import randint
-
 import hydra
 from lightning import seed_everything
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 from rationai.mlkit import Trainer, autolog
 from rationai.mlkit.lightning.loggers import MLFlowLogger
 
 from lymph_nodes.data import DataModule
 from lymph_nodes.meta_arch import MetaArch
+from lymph_nodes.resolvers import register_resolvers
 
 
-OmegaConf.register_new_resolver(
-    "random_seed", lambda: randint(0, 2**31), use_cache=True
-)
-
-# Cross-validation fold selection: no plain OmegaConf interpolation can express
-# "all fold_i URIs except the held-out one" (no list-minus-element primitive), so it
-# needs a resolver. Must be registered before Hydra composes/resolves the config —
-# hence living here at the entrypoint's module level, not inside main().
-OmegaConf.register_new_resolver(
-    "other_fold_uris",
-    lambda base, n_folds, fold: [
-        f"{base}/fold_{i}" for i in range(int(n_folds)) if i != int(fold)
-    ],
-)
+# Before @hydra.main composes the config, i.e. at import time, not inside main().
+register_resolvers()
 
 
 @hydra.main(config_path="../configs", config_name="lymph_nodes", version_base=None)

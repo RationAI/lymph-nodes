@@ -61,5 +61,4 @@ metadata:
     mode: ${mode}
     checkpoint: ${checkpoint}
     batch_size: ${data.batch_size}
-    tiling_run_uri: ${tiling_run_uri}
     fold: ${fold}
