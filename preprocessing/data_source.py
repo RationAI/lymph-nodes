@@ -6,6 +6,22 @@ import pandas as pd
 from mlflow.artifacts import download_artifacts
 
 
+# Identifier columns of slides.csv / patients.csv. CSV doesn't store types, so pandas
+# would guess them per file: all-digit IDs ("129") as int64, an all-empty column as
+# float64 NaN — and cohorts would then disagree on the column's type.
+ID_COLUMNS = ("case_id", "slice_id")
+
+
+def read_slides_csv(path: str | Path) -> pd.DataFrame:
+    """Read a slides/patients CSV with its ID columns as strings, a missing ID as "".
+
+    ``converters`` rather than ``dtype=str``: the latter still turns an empty field into
+    a float NaN, which would keep an all-empty ID column non-string.
+    """
+    columns = pd.read_csv(path, nrows=0).columns
+    return pd.read_csv(path, converters={c: str for c in ID_COLUMNS if c in columns})
+
+
 class SizedIterable(Sized, Iterable[str]):
     """A base class for data sources that are both sized and iterable."""
 
@@ -69,8 +85,7 @@ class MLFlowDataSource(DataSource):
 
     @staticmethod
     def _download_dataset(uri: str) -> pd.DataFrame:
-        artifact_path = download_artifacts(uri)
-        return pd.read_csv(artifact_path)
+        return read_slides_csv(download_artifacts(uri))
 
 
 class ChainedDataSources(SizedIterable):

@@ -14,6 +14,7 @@ from ratiopath.model_selection import train_test_split
 from sklearn.model_selection import StratifiedGroupKFold
 
 from preprocessing.data_exploration.patients import build_patients_df
+from preprocessing.data_source import read_slides_csv
 
 
 # ── types ─────────────────────────────────────────────────────────────────────
@@ -212,8 +213,8 @@ def _log_split_metrics(name: str, slides: pd.DataFrame) -> None:
 )
 @autolog
 def main(config: DictConfig, logger: MLFlowLogger) -> None:
-    slides_df = pd.read_csv(download_artifacts(config.slides_uri))
-    patients_df = pd.read_csv(download_artifacts(config.patients_uri))
+    slides_df = read_slides_csv(download_artifacts(config.slides_uri))
+    patients_df = read_slides_csv(download_artifacts(config.patients_uri))
 
     splits = create_splits(slides_df, patients_df, config.splits, config.seed)
 
