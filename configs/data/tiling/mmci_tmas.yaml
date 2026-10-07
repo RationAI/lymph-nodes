@@ -2,29 +2,31 @@
 
 dataset_name: TMAs
 
+slides_run_uri: mlflow-artifacts:/4/b72447f070d74fc4beae3a01faaeece6/artifacts
+
 datasets:
   - name: fold_0
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/9c3365fcdb7342088a33a0c3a914862e/artifacts/train_fold_0/slides.csv
+      uri: ${slides_run_uri}/train_fold_0/slides.csv
   - name: fold_1
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/9c3365fcdb7342088a33a0c3a914862e/artifacts/train_fold_1/slides.csv
+      uri: ${slides_run_uri}/train_fold_1/slides.csv
   - name: fold_2
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/9c3365fcdb7342088a33a0c3a914862e/artifacts/train_fold_2/slides.csv
+      uri: ${slides_run_uri}/train_fold_2/slides.csv
   - name: fold_3
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/9c3365fcdb7342088a33a0c3a914862e/artifacts/train_fold_3/slides.csv
+      uri: ${slides_run_uri}/train_fold_3/slides.csv
   - name: fold_4
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/9c3365fcdb7342088a33a0c3a914862e/artifacts/train_fold_4/slides.csv
+      uri: ${slides_run_uri}/train_fold_4/slides.csv
   - name: val
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/9c3365fcdb7342088a33a0c3a914862e/artifacts/val/slides.csv
+      uri: ${slides_run_uri}/val/slides.csv
 

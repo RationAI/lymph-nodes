@@ -2,8 +2,10 @@
 
 dataset_name: IHC test
 
+slides_run_uri: mlflow-artifacts:/4/21d3ed5b52c146dd9af29283fd7be5b6/artifacts
+
 datasets:
   - name: val
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/21d3ed5b52c146dd9af29283fd7be5b6/artifacts/slides.csv
+      uri: ${slides_run_uri}/slides.csv

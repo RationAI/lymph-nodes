@@ -2,32 +2,34 @@
 
 dataset_name: IHC 2023
 
+slides_run_uri: mlflow-artifacts:/4/095b1692d06a492aafc71c89e9dbd198/artifacts
+
 datasets:
   - name: fold_0
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/train_fold_0/slides.csv
+      uri: ${slides_run_uri}/train_fold_0/slides.csv
   - name: fold_1
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/train_fold_1/slides.csv
+      uri: ${slides_run_uri}/train_fold_1/slides.csv
   - name: fold_2
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/train_fold_2/slides.csv
+      uri: ${slides_run_uri}/train_fold_2/slides.csv
   - name: fold_3
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/train_fold_3/slides.csv
+      uri: ${slides_run_uri}/train_fold_3/slides.csv
   - name: fold_4
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/train_fold_4/slides.csv
+      uri: ${slides_run_uri}/train_fold_4/slides.csv
   - name: val
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/val/slides.csv
+      uri: ${slides_run_uri}/val/slides.csv
   - name: test
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/bde7af80e5b646c5b9058496aa0e3a4b/artifacts/test/slides.csv
+      uri: ${slides_run_uri}/test/slides.csv
