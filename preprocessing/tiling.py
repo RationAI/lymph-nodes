@@ -179,7 +179,11 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
 
     #     sys.stdout = _ForceTTY()
 
-    ray.init(num_cpus=available_cpus())
+    # Logical CPUs are scheduling tokens: Ray Data budgets each CPU stage a share of them
+    # and every task takes a whole one, so with one token per core the CPU stages run a
+    # single task each and starve the GPU stage. Oversubscribing lets them run in
+    # parallel while the OS shares the physical cores.
+    ray.init(num_cpus=available_cpus() * config.ray_cpus_per_core)
 
     data_context = ray.data.DataContext.get_current()
     for key, value in config.ray_data_context.items():

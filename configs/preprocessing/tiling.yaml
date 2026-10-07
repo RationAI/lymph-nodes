@@ -33,10 +33,8 @@ embedding_model_names:
 
 datasets: ???
 
-# Set on ray.data.DataContext before tiling. Without a terminal, Ray Data logs one line
-# per operator every progress_bar_log_interval seconds (~12 lines / 5 s for this
-# pipeline); keep only the dataset-level line, once a minute. Override e.g.
-# ray_data_context.enable_operator_progress_bars=true to see per-operator state.
+ray_cpus_per_core: 4
+
 ray_data_context:
   enable_operator_progress_bars: false
   progress_bar_log_interval: 60
