@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from datasets import Dataset as HFDataset
+from datasets import Value, concatenate_datasets
 from rationai.mlkit.data.datasets import MetaTiledSlides, load_dataset
 
 
@@ -92,11 +93,42 @@ class MetaDataset[T](MetaTiledSlides[T]):
         slide_filters: Sequence[FilterCondition] = (),
     ) -> None:
         uris = list(uris)
-        slides = load_dataset(uris=[str(Path(uri) / "slides") for uri in uris])["train"].with_format("numpy")
-        tiles = load_dataset(uris=[str(Path(uri) / "tiles") for uri in uris])["train"].with_format("numpy")
+        slides = self._load_table(uris, "slides").with_format("numpy")
+        tiles = self._load_table(uris, "tiles").with_format("numpy")
 
         slides, tiles = self._preprocess_dataset(slides, tiles, tile_filters, slide_filters)
         super().__init__(slides=slides, tiles=tiles)
+
+    @staticmethod
+    def _load_table(uris: Sequence[str], table: str) -> HFDataset:
+        """Load one table (``slides`` or ``tiles``) from every run and concatenate them."""
+        return MetaDataset._concatenate(
+            [load_dataset(uris=[str(Path(uri) / table)])["train"] for uri in uris]
+        )
+
+    @staticmethod
+    def _concatenate(parts: Sequence[HFDataset]) -> HFDataset:
+        """``concatenate_datasets``, tolerating columns typed differently across runs.
+
+        Runs from different cohorts can disagree on a column's inferred type — e.g.
+        purely numeric case IDs read as int64 in one cohort, text IDs as strings in
+        another — which ``concatenate_datasets`` refuses. Such columns are cast to
+        string first. An all-null column (type ``null``) aligns with any type as is.
+        """
+        null = repr(Value("null"))
+        types: dict[str, set[str]] = {}
+        for part in parts:
+            for name, feature in part.features.items():
+                types.setdefault(name, set()).add(repr(feature))
+        mismatched = [name for name, seen in types.items() if len(seen - {null}) > 1]
+
+        aligned = []
+        for part in parts:
+            for name in mismatched:
+                if name in part.features:
+                    part = part.cast_column(name, Value("string"))
+            aligned.append(part)
+        return concatenate_datasets(aligned)
 
     @staticmethod
     def _preprocess_dataset(
