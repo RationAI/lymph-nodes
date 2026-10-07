@@ -4,8 +4,8 @@ dataset:
   institute: mmci
   name: IHC 2023
 
-slides_uri: mlflow-artifacts:/4/30974f87ffbb448c99dd5db1d0e0fdec/artifacts/slides.csv
-patients_uri: mlflow-artifacts:/4/30974f87ffbb448c99dd5db1d0e0fdec/artifacts/patients.csv
+slides_uri: mlflow-artifacts:/4/12ddff6f3fc04e7984852d1626f864b4/artifacts/slides.csv
+patients_uri: mlflow-artifacts:/4/12ddff6f3fc04e7984852d1626f864b4/artifacts/patients.csv
 
 splits:
   train:

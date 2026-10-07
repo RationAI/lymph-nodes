@@ -4,8 +4,8 @@ dataset:
   institute: mmci
   name: TMAs
 
-slides_uri: mlflow-artifacts:/4/efc9250e63ca4c718c786f00415e69db/artifacts/slides.csv
-patients_uri: mlflow-artifacts:/4/efc9250e63ca4c718c786f00415e69db/artifacts/patients.csv
+slides_uri: mlflow-artifacts:/4/98745cb3d1114123a254af7e6e53b328/artifacts/slides.csv
+patients_uri: mlflow-artifacts:/4/98745cb3d1114123a254af7e6e53b328/artifacts/patients.csv
 
 splits:
   train:

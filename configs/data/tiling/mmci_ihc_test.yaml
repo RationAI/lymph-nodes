@@ -6,4 +6,4 @@ datasets:
   - name: val
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
-      uri: mlflow-artifacts:/4/c3595cca409a4ebeb1097bdc9f0fc63c/artifacts/slides.csv
+      uri: mlflow-artifacts:/4/21d3ed5b52c146dd9af29283fd7be5b6/artifacts/slides.csv
