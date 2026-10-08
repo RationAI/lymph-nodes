@@ -82,12 +82,16 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
     """One slide's tiles, with a binary cancer label derived from overlay coverage.
 
     ``partitions`` holds each tile's TileLabels partition id and ``rows`` its row in the
-    parent EmbeddingClassificationDataset's table, both in ``tiles`` order.
+    parent EmbeddingClassificationDataset's table, both in ``tiles`` order. ``cohort``
+    (the slide's cohort_id) is passed along with each sample, for per-cohort metrics.
     """
 
-    def __init__(self, name: str, tiles: HFDataset, partitions: np.ndarray, rows: np.ndarray) -> None:
+    def __init__(
+        self, name: str, cohort: str, tiles: HFDataset, partitions: np.ndarray, rows: np.ndarray
+    ) -> None:
         super().__init__()
         self.name = name
+        self.cohort = cohort
         self.tiles = tiles
         self.rows = rows
         self._partitions = partitions
@@ -97,7 +101,7 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
 
     def __getitem__(self, idx: int) -> EmbeddingSample:
         has_cancer = bool(self._partitions[idx] == CANCER)
-        return self.tiles[idx]["embedding"], has_cancer, {"name": self.name}
+        return self.tiles[idx]["embedding"], has_cancer, {"name": self.name, "cohort": self.cohort}
 
     def partition_labels(self) -> np.ndarray:
         """Per-tile group id (HEALTHY, HEALTHY_BROWNISH, or CANCER), for the sampler."""
@@ -121,7 +125,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         slide_filters: Sequence[FilterCondition] = (),
         exclude_unannotated_positive_slides: bool = False,
     ) -> None:
-        self._batch_index: tuple[np.ndarray, np.ndarray, np.ndarray, list[str]] | None = None
+        self._batch_index: tuple[np.ndarray, np.ndarray, np.ndarray, list[str], list[str]] | None = None
         self._chunk_offsets: np.ndarray | None = None
         # Set before super().__init__, which builds the per-slide datasets.
         self.labels = labels or TileLabels(
@@ -149,12 +153,14 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         # column, whereas reading one through a per-slide view (filter_tiles_by_slide)
         # gathers the slide's full rows, embeddings included.
         partitions = self.labels.partition(self.tiles)
+        has_cohort = "cohort_id" in self.slides.column_names
         no_rows = np.array([], dtype=np.int64)
         for slide in self.slides:
             index = self._slide_id_to_indices.get(slide["id"])
             rows = index.values.to_numpy() if index is not None else no_rows
             yield TileEmbeddingClassificationDataset(
                 name=slide["slide_name"],
+                cohort=str(slide["cohort_id"]) if has_cohort else "unknown",
                 tiles=self.filter_tiles_by_slide(slide["id"]),
                 partitions=partitions[rows],
                 rows=rows,
@@ -168,11 +174,11 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         conversion per tile, which leaves the loader workers, not the GPU, as the
         bottleneck.
         """
-        rows, cancer, slide_of, names = self._get_batch_index()
+        rows, cancer, slide_of, names, cohorts = self._get_batch_index()
         batch = np.asarray(indices)
         values = self._embeddings(rows[batch])
         return [
-            (values[i], bool(cancer[index]), {"name": names[slide_of[index]]})
+            (values[i], bool(cancer[index]), {"name": names[slide_of[index]], "cohort": cohorts[slide_of[index]]})
             for i, index in enumerate(batch.tolist())
         ]
 
@@ -199,8 +205,8 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
             out[selected] = values
         return out if out is not None else np.empty((0, 0), dtype=np.float32)
 
-    def _get_batch_index(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, list[str]]:
-        """Per global index: table row, cancer flag, slide position; plus slide names."""
+    def _get_batch_index(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, list[str], list[str]]:
+        """Per global index: table row, cancer flag, slide position; plus slide names, cohorts."""
         if self._batch_index is None:
             slides = cast("list[TileEmbeddingClassificationDataset]", self.datasets)
             self._batch_index = (
@@ -208,5 +214,6 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                 np.concatenate([slide.partition_labels() == CANCER for slide in slides]),
                 np.repeat(np.arange(len(slides)), [len(slide) for slide in slides]),
                 [slide.name for slide in slides],
+                [slide.cohort for slide in slides],
             )
         return self._batch_index
