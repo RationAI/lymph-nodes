@@ -122,6 +122,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         exclude_unannotated_positive_slides: bool = False,
     ) -> None:
         self._batch_index: tuple[np.ndarray, np.ndarray, np.ndarray, list[str]] | None = None
+        self._chunk_offsets: np.ndarray | None = None
         # Set before super().__init__, which builds the per-slide datasets.
         self.labels = labels or TileLabels(
             positive={"annotation_coverage": 0.0, "cytokeratin_coverage": 0.0},
@@ -169,13 +170,34 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         """
         rows, cancer, slide_of, names = self._get_batch_index()
         batch = np.asarray(indices)
-        # _slide_id_to_indices (hence rows) indexes self.tiles.data, the underlying table.
-        embeddings = self.tiles.data.column("embedding").take(pa.array(rows[batch])).combine_chunks()
-        values = embeddings.flatten().to_numpy(zero_copy_only=False).reshape(len(batch), -1)
+        values = self._embeddings(rows[batch])
         return [
             (values[i], bool(cancer[index]), {"name": names[slide_of[index]]})
             for i, index in enumerate(batch.tolist())
         ]
+
+    def _embeddings(self, rows: np.ndarray) -> np.ndarray:
+        """Embeddings of ``rows`` of the underlying table, as one (len(rows), dim) array.
+
+        Taken chunk by chunk: ``ChunkedArray.take`` on the (large_list) embedding column
+        concatenates every chunk first — the whole column, materialized in each loader
+        worker. ``rows`` index self.tiles.data, like _slide_id_to_indices.
+        """
+        column = self.tiles.data.column("embedding")
+        if self._chunk_offsets is None:
+            self._chunk_offsets = np.cumsum([0, *(len(chunk) for chunk in column.chunks)])
+        chunk_of = np.searchsorted(self._chunk_offsets, rows, side="right") - 1
+
+        out: np.ndarray | None = None
+        for chunk in np.unique(chunk_of):
+            selected = np.flatnonzero(chunk_of == chunk)
+            local = pa.array(rows[selected] - self._chunk_offsets[chunk])
+            values = column.chunk(int(chunk)).take(local).flatten().to_numpy(zero_copy_only=False)
+            values = values.reshape(len(selected), -1)
+            if out is None:
+                out = np.empty((len(rows), values.shape[1]), dtype=values.dtype)
+            out[selected] = values
+        return out if out is not None else np.empty((0, 0), dtype=np.float32)
 
     def _get_batch_index(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, list[str]]:
         """Per global index: table row, cancer flag, slide position; plus slide names."""
