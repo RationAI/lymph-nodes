@@ -15,6 +15,17 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
 
+def column_values(dataset: HFDataset, name: str) -> np.ndarray:
+    """A whole column as one numpy array.
+
+    In datasets 5, ``dataset[name]`` is a lazy Column: ``np.asarray`` on it converts
+    row by row, reading every row's full record (embeddings included), which on
+    millions of tiles thrashes through the memory-mapped tables. Slicing it reads the
+    column in one go.
+    """
+    return np.asarray(dataset[name][:])
+
+
 _COMPARISONS: dict[str, Callable[[Any, Any], Any]] = {
     ">": _op.gt, "gt": _op.gt,
     ">=": _op.ge, "ge": _op.ge,
@@ -66,7 +77,7 @@ class FilterCondition:
         self.cohort = cohort
 
     def mask(self, dataset: HFDataset) -> np.ndarray:
-        column = np.asarray(dataset[self.column])
+        column = column_values(dataset, self.column)
         if column.dtype == object and self.op not in ("in", "not in"):
             # A column that is null throughout a run comes back as Python None values
             # rather than NaN; as floats they compare like any other missing coverage.
@@ -174,7 +185,7 @@ class MetaDataset[T](MetaTiledSlides[T]):
         # self.slides) — harmless for correctness, but wasted memory and a larger
         # group_by in MetaTiledSlides._build_tile_index. Folding the membership check
         # into tile_filters keeps this a single combined mask + select() pass.
-        surviving_slide_ids = set(np.asarray(slides["id"]).tolist())
+        surviving_slide_ids = set(column_values(slides, "id").tolist())
         orphan_filter = FilterCondition("slide_id", "in", surviving_slide_ids)
         tiles = MetaDataset._select(tiles, (*tile_filters, orphan_filter), slides=slides)
 
@@ -194,8 +205,8 @@ class MetaDataset[T](MetaTiledSlides[T]):
                 if slides is None or "cohort_id" not in slides.column_names:
                     raise ValueError(f"Filter on {condition.column!r} is scoped to cohort "
                                      f"{condition.cohort!r}, which needs slides with a cohort_id column")
-                cohort_ids = np.asarray(slides["id"])[np.asarray(slides["cohort_id"]) == condition.cohort]
-                keep |= ~np.isin(np.asarray(dataset["slide_id"]), cohort_ids)
+                cohort_ids = column_values(slides, "id")[column_values(slides, "cohort_id") == condition.cohort]
+                keep |= ~np.isin(column_values(dataset, "slide_id"), cohort_ids)
             mask &= keep
 
         selected = dataset.select(np.flatnonzero(mask))
