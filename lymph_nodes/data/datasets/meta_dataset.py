@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import operator as _op
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -28,8 +29,13 @@ class FilterCondition:
     """A single column threshold to keep/drop rows by.
 
     ``op`` is either a comparison (">", ">=", "<", "<=", "==", "!=") applied against
-    a scalar ``value``, or "in" / "not in" applied against an iterable ``value``
-    (set membership).
+    a scalar ``value``, "in" / "not in" applied against an iterable ``value`` (set
+    membership), or "between" with ``value = [low, high]`` (``low < x <= high``).
+
+    ``cohort`` restricts a tile filter to the tiles of slides whose ``cohort_id`` is
+    that cohort; tiles of other cohorts are kept regardless. E.g.
+    ``FilterCondition("cytokeratin_coverage", "<=", 0.5, negate=True, cohort="mmci_tmas")``
+    keeps only cytokeratin-positive TMA tiles and leaves lymph node tiles untouched.
 
     Example: ``FilterCondition("tissue_coverage", ">", 0.2)``.
 
@@ -50,17 +56,28 @@ class FilterCondition:
     skipping instantiation. A plain class with the same shape does not hit that path.
     """
 
-    def __init__(self, column: str, op: str, value: Any, negate: bool = False) -> None:
+    def __init__(
+        self, column: str, op: str, value: Any, negate: bool = False, cohort: str | None = None
+    ) -> None:
         self.column = column
         self.op = op
         self.value = value
         self.negate = negate
+        self.cohort = cohort
 
     def mask(self, dataset: HFDataset) -> np.ndarray:
         column = np.asarray(dataset[self.column])
+        if column.dtype == object and self.op not in ("in", "not in"):
+            # A column that is null throughout a run comes back as Python None values
+            # rather than NaN; as floats they compare like any other missing coverage.
+            with contextlib.suppress(TypeError, ValueError):
+                column = column.astype(np.float64)
         if self.op in ("in", "not in"):
             is_in = np.isin(column, list(self.value))
             result = is_in if self.op == "in" else ~is_in
+        elif self.op == "between":
+            low, high = self.value
+            result = (column > low) & (column <= high)
         else:
             result = _COMPARISONS[self.op](column, self.value)
         return ~result if self.negate else result
@@ -96,8 +113,13 @@ class MetaDataset[T](MetaTiledSlides[T]):
         slides = self._load_table(uris, "slides").with_format("numpy")
         tiles = self._load_table(uris, "tiles").with_format("numpy")
 
+        slides = self._select_slides(slides, tiles)
         slides, tiles = self._preprocess_dataset(slides, tiles, tile_filters, slide_filters)
         super().__init__(slides=slides, tiles=tiles)
+
+    def _select_slides(self, slides: HFDataset, tiles: HFDataset) -> HFDataset:
+        """Hook to drop whole slides based on their tiles; keeps every slide by default."""
+        return slides
 
     @staticmethod
     def _load_table(uris: Sequence[str], table: str) -> HFDataset:
@@ -154,18 +176,27 @@ class MetaDataset[T](MetaTiledSlides[T]):
         # into tile_filters keeps this a single combined mask + select() pass.
         surviving_slide_ids = set(np.asarray(slides["id"]).tolist())
         orphan_filter = FilterCondition("slide_id", "in", surviving_slide_ids)
-        tiles = MetaDataset._select(tiles, (*tile_filters, orphan_filter))
+        tiles = MetaDataset._select(tiles, (*tile_filters, orphan_filter), slides=slides)
 
         return slides, tiles
 
     @staticmethod
-    def _select(dataset: HFDataset, filters: Sequence[FilterCondition]) -> HFDataset:
+    def _select(
+        dataset: HFDataset, filters: Sequence[FilterCondition], slides: HFDataset | None = None
+    ) -> HFDataset:
         if not filters:
             return dataset
 
         mask = np.ones(len(dataset), dtype=bool)
         for condition in filters:
-            mask &= condition.mask(dataset)
+            keep = condition.mask(dataset)
+            if condition.cohort is not None:
+                if slides is None or "cohort_id" not in slides.column_names:
+                    raise ValueError(f"Filter on {condition.column!r} is scoped to cohort "
+                                     f"{condition.cohort!r}, which needs slides with a cohort_id column")
+                cohort_ids = np.asarray(slides["id"])[np.asarray(slides["cohort_id"]) == condition.cohort]
+                keep |= ~np.isin(np.asarray(dataset["slide_id"]), cohort_ids)
+            mask &= keep
 
         selected = dataset.select(np.flatnonzero(mask))
         # select() is normally a pure indices-overlay (no data copy) — but

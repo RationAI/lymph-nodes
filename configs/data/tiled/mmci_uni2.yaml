@@ -1,0 +1,8 @@
+# @package _global_
+
+embedding_model: UNI2
+embedding_dim: 1536
+
+ihc_run_uri: mlflow-artifacts:/4/c5f8f4f9116843c8904be638cda39af1/artifacts  # IHC 2023: fold_0..fold_4, val, test
+tma_run_uri: mlflow-artifacts:/4/ab686cff55ce483da05105709322c89a/artifacts  # TMAs: fold_0..fold_4, val
+ihc_test_run_uri: mlflow-artifacts:/4/f0a52afb80b14ca2a90ffbdccbd4d736/artifacts  # IHC test cohort: val

@@ -1,0 +1,64 @@
+# @package _global_
+
+# Main scenario: learn lymph node metastasis without a single positive lymph node tile.
+#   healthy           - lymph node tissue (training folds hold negative slides only)
+#   healthy_brownish  - lymph node tissue with brown staining, the hard negatives
+#   cancer            - cytokeratin-positive TMA tiles; cytokeratin-negative TMA tiles
+#                       are filtered out, so no negative TMA tissue is trained on
+# Evaluated on lymph nodes with the pathologists' annotations (data.eval / data.test
+# in configs/lymph_nodes.yaml).
+scenario: cross-tissue
+
+cytokeratin_positive_threshold: 0.5  # TMA tiles above this are cancer; the rest are dropped
+# brownish_coverage above this: healthy_brownish. 0.002 of a 224x224 tile is ~100 brown
+# pixels, about a third of a DAB-stained cell at 0.5 um/px: 121-169k tiles per training split.
+brownish_threshold: 0.002
+
+train_labels:
+  _target_: lymph_nodes.data.datasets.embedding.TileLabels
+  positive:
+    cytokeratin_coverage: ${cytokeratin_positive_threshold}
+  brownish_column: brownish_coverage
+  brownish_threshold: ${brownish_threshold}
+
+train_filters:
+  - ${filters.tissue}
+  - ${filters.no_patho_ignore}
+  - ${filters.no_cytokeratin_ignore}
+  - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    column: cytokeratin_coverage
+    op: "<="
+    value: ${cytokeratin_positive_threshold}
+    negate: true
+    cohort: mmci_tmas
+
+# The split already keeps positive lymph node slides out of the training folds; this
+# makes "no positive lymph node tissue" hold regardless (TMA slides are never `tumor`).
+train_slide_filters:
+  - ${filters.negative_slides}
+
+data:
+  train:
+    _target_: lymph_nodes.data.datasets.embedding.EmbeddingClassificationDataset
+    uris: ${other_fold_uris:${fold_run_uris},5,${fold}}
+    labels: ${train_labels}
+    tile_filters: ${train_filters}
+    slide_filters: ${train_slide_filters}
+
+  val:
+    _target_: lymph_nodes.data.datasets.embedding.EmbeddingClassificationDataset
+    uris:
+      - ${ihc_run_uri}/fold_${fold}
+      - ${tma_run_uri}/fold_${fold}
+    labels: ${train_labels}
+    tile_filters: ${train_filters}
+    slide_filters: ${train_slide_filters}
+
+  train_sampler:
+    _target_: lymph_nodes.data.samplers.StratifiedEpochSampler
+    ratio:
+      healthy: 1
+      healthy_brownish: 1
+      cancer: 2
+
+fold_run_uris: ["${ihc_run_uri}", "${tma_run_uri}"]

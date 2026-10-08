@@ -1,0 +1,45 @@
+# @package _global_
+
+# Baseline: an epithelium classifier trained on TMAs alone. Positive = cytokeratin-
+# positive TMA tiles, negative = cytokeratin-negative TMA tiles; tiles in between are
+# ambiguous and left out. Cross-validated over the TMA folds; evaluated on lymph nodes
+# like every scenario (data.eval / data.test in configs/lymph_nodes.yaml).
+scenario: TMA epithelium
+
+cytokeratin_positive_threshold: 0.5  # cytokeratin coverage above this: positive
+cytokeratin_negative_threshold: 0.1  # at or below this: negative; in between: dropped
+
+tma_labels:
+  _target_: lymph_nodes.data.datasets.embedding.TileLabels
+  positive:
+    cytokeratin_coverage: ${cytokeratin_positive_threshold}
+
+tma_filters:
+  - ${filters.tissue}
+  - ${filters.no_patho_ignore}
+  - ${filters.no_cytokeratin_ignore}
+  - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    column: cytokeratin_coverage
+    op: between
+    value: ["${cytokeratin_negative_threshold}", "${cytokeratin_positive_threshold}"]
+    negate: true
+
+data:
+  train:
+    _target_: lymph_nodes.data.datasets.embedding.EmbeddingClassificationDataset
+    uris: ${other_fold_uris:${tma_run_uri},5,${fold}}
+    labels: ${tma_labels}
+    tile_filters: ${tma_filters}
+
+  val:
+    _target_: lymph_nodes.data.datasets.embedding.EmbeddingClassificationDataset
+    uris:
+      - ${tma_run_uri}/fold_${fold}
+    labels: ${tma_labels}
+    tile_filters: ${tma_filters}
+
+  train_sampler:
+    _target_: lymph_nodes.data.samplers.StratifiedEpochSampler
+    ratio:
+      healthy: 1
+      cancer: 1

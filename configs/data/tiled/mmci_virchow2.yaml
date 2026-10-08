@@ -1,0 +1,8 @@
+# @package _global_
+
+embedding_model: Virchow2
+embedding_dim: 2560
+
+ihc_run_uri: mlflow-artifacts:/4/f9812e1474734a62913c8417960b5c13/artifacts  # IHC 2023: fold_0..fold_4, val, test
+tma_run_uri: mlflow-artifacts:/4/229c8d1b6caf4437bbb070f8184d19f7/artifacts  # TMAs: fold_0..fold_4, val
+ihc_test_run_uri: mlflow-artifacts:/4/ad9d3143f3ec44da93a72320106645f5/artifacts  # IHC test cohort: val

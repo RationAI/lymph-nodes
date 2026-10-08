@@ -9,56 +9,87 @@ defaults:
 seed: 42
 mode: ???
 checkpoint: null
+fold: ???
+scenario: ???
 
-tile_filters:
-  train:
-    - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
-      column: tissue_coverage
-      op: ">"
-      value: 0.2
-    - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
-      column: ignore_coverage
-      op: ">"
-      value: 0
-      negate: true
-    - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
-      column: cyto_ignore_coverage
-      op: ">"
-      value: 0
-      negate: true
-    # - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
-    #   column: blur_coverage
-    #   op: "<"
-    #   value: 0.3
-  test:
-    - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
-      column: tissue_coverage
-      op: ">"
-      value: 0
+filters:
+  tissue:
+    _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    column: tissue_coverage
+    op: ">"
+    value: 0.2
+  no_patho_ignore:
+    _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    column: patho_ignore_coverage
+    op: ">"
+    value: 0
+    negate: true
+  no_cytokeratin_ignore:
+    _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    column: cytokeratin_ignore_coverage
+    op: ">"
+    value: 0
+    negate: true
+  negative_slides:
+    _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    column: tumor
+    op: "=="
+    value: false
+  # blur:
+  #   _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+  #   column: blur_coverage
+  #   op: "<"
+  #   value: 0.3
 
+# Lymph node labels for evaluation: the pathologists' metastasis annotations.
+ln_labels:
+  _target_: lymph_nodes.data.datasets.embedding.TileLabels
+  positive:
+    annotation_coverage: 0.0
 
 data:
   batch_size: 2048
   num_workers: 6
 
-  train_sampler:
-    _target_: lymph_nodes.data.samplers.StratifiedEpochSampler
-    ratio:
-      healthy: 2
-      healthy_brownish: 2
-      cancer: 1
+  # Evaluation is the same for every scenario: does the model find real lymph node
+  # metastases? Positive slides without an annotation mask are left out — their
+  # metastases aren't outlined, so all their tiles would count as healthy.
+  eval:
+    _target_: lymph_nodes.data.datasets.embedding.EmbeddingClassificationDataset
+    uris:
+      - ${ihc_run_uri}/val
+      - ${ihc_test_run_uri}/val
+    labels: ${ln_labels}
+    tile_filters:
+      - ${filters.tissue}
+    exclude_unannotated_positive_slides: true
 
-  
+  test:
+    _target_: lymph_nodes.data.datasets.embedding.EmbeddingClassificationDataset
+    uris:
+      - ${ihc_run_uri}/test
+    labels: ${ln_labels}
+    tile_filters:
+      - ${filters.tissue}
+    exclude_unannotated_positive_slides: true
+
+mode_emojis:
+  fit: 🏋️
+  validate: ✅
+  test: 🧪
+  predict: 🔮
 
 metadata:
-  run_name: "[${mode}] tile classification — fold ${fold}"
+  run_name: "${mode_emojis.${mode}} ${scenario} · ${embedding_model} · fold ${fold}"
   description: >-
-    Binary cancer-vs-healthy tile classification on precomputed foundation-model
-    tile embeddings, fold ${fold} of 5-fold cross-validation held out for
-    validation. Mode: ${mode}.
+    Cancer-vs-healthy tile classification on precomputed ${embedding_model} tile
+    embeddings, scenario "${scenario}" (configs/experiment/training/), fold ${fold}
+    of 5-fold cross-validation held out for validation. Mode: ${mode}.
   hyperparams:
     seed: ${seed}
     mode: ${mode}
+    scenario: ${scenario}
     checkpoint: ${checkpoint}
     batch_size: ${data.batch_size}
     fold: ${fold}
+    embedding_model: ${embedding_model}

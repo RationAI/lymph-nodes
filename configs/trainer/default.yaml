@@ -12,7 +12,10 @@ callbacks:
     monitor: validation/auroc
     mode: max
     save_top_k: 1
-    filename: "{epoch}-{validation/auroc:.4f}"
+    # Explicit names instead of auto-inserted "name=value": the metric's "/" would make a
+    # subdirectory, and the checkpoint is referenced by its MLflow URI for testing.
+    filename: "epoch{epoch:02d}-auroc{validation/auroc:.4f}"
+    auto_insert_metric_name: false
   early_stopping:
     _target_: lightning.pytorch.callbacks.EarlyStopping
     monitor: validation/auroc

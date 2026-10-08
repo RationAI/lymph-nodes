@@ -1,0 +1,8 @@
+# @package _global_
+
+embedding_model: GigaPath
+embedding_dim: 1536
+
+ihc_run_uri: mlflow-artifacts:/4/cc640e177149402a9c06140835e0ed90/artifacts  # IHC 2023: fold_0..fold_4, val, test
+tma_run_uri: mlflow-artifacts:/4/b6cc749cab6d487291b67bc1a6be7f25/artifacts  # TMAs: fold_0..fold_4, val
+ihc_test_run_uri: mlflow-artifacts:/4/f48b385d2f8246998b4dfe1944f0ede8/artifacts  # IHC test cohort: val

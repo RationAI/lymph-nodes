@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -10,9 +10,11 @@ from lymph_nodes.typedefs import EmbeddingSample
 
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping, Sequence
 
     from datasets import Dataset as HFDataset
+
+    from lymph_nodes.data.datasets.meta_dataset import FilterCondition
 
 
 # Partition ids used both for the per-tile label (0/1/2 collapsed to healthy/cancer in
@@ -21,73 +23,128 @@ if TYPE_CHECKING:
 HEALTHY, HEALTHY_BROWNISH, CANCER = 0, 1, 2
 
 
-def _is_cancer(annotation_coverage: Any, cytokeratin_coverage: Any) -> Any:
-    """True if either overlay is present.
+def _coverage(tiles: HFDataset, column: str) -> np.ndarray | None:
+    """A coverage column as floats (missing mask -> NaN), or None if no run has it."""
+    if column not in tiles.column_names:
+        return None
+    return np.asarray(tiles[column], dtype=np.float64)
 
-    Works on scalars or numpy arrays alike (hence ``Any`` rather than a precise
-    scalar/array union, which would need an ``@overload`` pair for one line of logic)
-    — NaN > 0 is False, so missing coverage (no mask at all for that slide) needs no
-    separate null handling.
+
+class TileLabels:
+    """How a tile's label is derived from the coverage columns of the tiling pipeline.
+
+    There is no stored "label" column. A tile is cancer if any column in ``positive``
+    exceeds its threshold — e.g. the pathologist's annotation (``annotation_coverage``)
+    or the cytokeratin epithelium overlay (``cytokeratin_coverage``). Otherwise it is
+    "healthy brownish" if ``brownish_column`` exceeds ``brownish_threshold``: tissue that
+    resembles metastasis on staining alone, split out so the StratifiedEpochSampler
+    can oversample it as a static stand-in for hard-negative mining. Everything else
+    is healthy.
+
+    A column absent from the tiles (e.g. no cytokeratin masks for lymph nodes) or
+    undefined for a slide (NaN) never makes a tile positive or brownish.
+
+    Deliberately a plain class rather than a dataclass, like FilterCondition.
     """
-    return (annotation_coverage > 0) | (cytokeratin_coverage > 0)
+
+    def __init__(
+        self,
+        positive: Mapping[str, float],
+        brownish_column: str | None = None,
+        brownish_threshold: float = 0.0,
+    ) -> None:
+        self.positive = dict(positive)
+        self.brownish_column = brownish_column
+        self.brownish_threshold = brownish_threshold
+
+    def partition(self, tiles: HFDataset) -> np.ndarray:
+        """Per-tile partition id: HEALTHY, HEALTHY_BROWNISH, or CANCER."""
+        cancer = np.zeros(len(tiles), dtype=bool)
+        for column, threshold in self.positive.items():
+            values = _coverage(tiles, column)
+            if values is not None:
+                cancer |= values > threshold
+
+        brownish = np.zeros(len(tiles), dtype=bool)
+        if self.brownish_column is not None:
+            values = _coverage(tiles, self.brownish_column)
+            if values is not None:
+                brownish = values > self.brownish_threshold
+
+        labels = np.full(len(tiles), HEALTHY, dtype=np.int64)
+        labels[brownish & ~cancer] = HEALTHY_BROWNISH
+        labels[cancer] = CANCER
+        return labels
 
 
 class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
     """One slide's tiles, with a binary cancer label derived from overlay coverage.
 
-    There is no stored "label" column — it's computed per tile from coverage columns
-    written by the preprocessing pipeline's OverlayCoverage blocks: a tile counts as
-    cancer if the pathologist's cancer annotation overlaps it (``annotation_coverage``)
-    OR the cytokeratin IHC epithelium overlay overlaps it (``cytokeratin_coverage``) —
-    cytokeratin stains epithelial cells, which should not be present in healthy lymph
-    node tissue, so cytokeratin positivity is treated as (metastatic) epithelium
-    regardless of whether the region was also annotated.
+    Labels are computed once per slide from ``labels`` (see TileLabels), not per item.
     """
 
-    def __init__(
-        self,
-        name: str,
-        tiles: HFDataset,
-    ):
-         super().__init__()
-         self.name = name
-         self.tiles = tiles
+    def __init__(self, name: str, tiles: HFDataset, labels: TileLabels) -> None:
+        super().__init__()
+        self.name = name
+        self.tiles = tiles
+        self._partitions = labels.partition(tiles)
 
     def __len__(self) -> int:
         return len(self.tiles)
 
     def __getitem__(self, idx: int) -> EmbeddingSample:
-        tile = self.tiles[idx]
-        has_cancer = bool(_is_cancer(tile["annotation_coverage"], tile["cytokeratin_coverage"]))
-        return tile["embedding"], has_cancer, {"name": self.name}
+        has_cancer = bool(self._partitions[idx] == CANCER)
+        return self.tiles[idx]["embedding"], has_cancer, {"name": self.name}
 
     def partition_labels(self) -> np.ndarray:
-        """Vectorized per-tile group id: HEALTHY, HEALTHY_BROWNISH, or CANCER.
-
-        "Healthy brownish" is DAB/brown-stain coverage with no cancer overlay — tissue
-        that resembles metastasis on staining alone but wasn't annotated or
-        cytokeratin-positive. It's the hardest class to tell apart from true cancer,
-        so it's split out as its own partition for
-        lymph_nodes.data.samplers.stratified_sampler.StratifiedEpochSampler to
-        oversample relative to its natural (rare) frequency, as a static stand-in for
-        online hard-negative mining.
-        """
-        annotation = np.asarray(self.tiles["annotation_coverage"])
-        cytokeratin = np.asarray(self.tiles["cytokeratin_coverage"])
-        brownish = np.asarray(self.tiles["brownish_coverage"])
-
-        cancer = _is_cancer(annotation, cytokeratin)
-        healthy_brownish = ~cancer & (brownish > 0.2)
-
-        labels = np.full(len(self.tiles), HEALTHY, dtype=np.int64)
-        labels[healthy_brownish] = HEALTHY_BROWNISH
-        labels[cancer] = CANCER
-        return labels
+        """Per-tile group id (HEALTHY, HEALTHY_BROWNISH, or CANCER), for the sampler."""
+        return self._partitions
 
 
 class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
+    """Tile embeddings of every slide in ``uris`` with labels from ``labels``.
+
+    ``exclude_unannotated_positive_slides`` drops slides labelled positive (``tumor``)
+    that have no annotation mask at all: their metastases aren't outlined, so every
+    tile would be labelled healthy. Needed wherever lymph node slides are evaluated
+    by ``annotation_coverage``, since most positive slides have no annotation.
+    """
+
+    def __init__(
+        self,
+        uris: Iterable[str],
+        labels: TileLabels | None = None,
+        tile_filters: Sequence[FilterCondition] = (),
+        slide_filters: Sequence[FilterCondition] = (),
+        exclude_unannotated_positive_slides: bool = False,
+    ) -> None:
+        # Set before super().__init__, which builds the per-slide datasets.
+        self.labels = labels or TileLabels(
+            positive={"annotation_coverage": 0.0, "cytokeratin_coverage": 0.0},
+            brownish_column="brownish_coverage",
+            brownish_threshold=0.2,
+        )
+        self.exclude_unannotated_positive_slides = exclude_unannotated_positive_slides
+        super().__init__(uris, tile_filters=tile_filters, slide_filters=slide_filters)
+
+    def _select_slides(self, slides: HFDataset, tiles: HFDataset) -> HFDataset:
+        if not self.exclude_unannotated_positive_slides:
+            return slides
+        annotation = _coverage(tiles, "annotation_coverage")
+        annotated = (
+            np.unique(np.asarray(tiles["slide_id"])[~np.isnan(annotation)])
+            if annotation is not None
+            else np.array([])
+        )
+        keep = ~np.asarray(slides["tumor"], dtype=bool) | np.isin(np.asarray(slides["id"]), annotated)
+        return slides.select(np.flatnonzero(keep)).flatten_indices()
+
     def generate_datasets(self) -> Iterable[TileEmbeddingClassificationDataset]:
-        return (TileEmbeddingClassificationDataset(
-            name = slide["slide_name"],
-            tiles = self.filter_tiles_by_slide(slide["id"])
-        ) for slide in self.slides)
+        return (
+            TileEmbeddingClassificationDataset(
+                name=slide["slide_name"],
+                tiles=self.filter_tiles_by_slide(slide["id"]),
+                labels=self.labels,
+            )
+            for slide in self.slides
+        )

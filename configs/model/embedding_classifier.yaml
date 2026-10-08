@@ -1,5 +1,5 @@
-# No backbone to train — the embedding (1536-dim, GigaPath) was already computed by
-# the preprocessing pipeline. decode_head is the actual trainable classifier.
+# No backbone to train — the embedding was already computed by the preprocessing
+# pipeline (its size comes from the data config). decode_head is the trainable classifier.
 backbone:
   _target_: torch.nn.Identity
 
@@ -7,7 +7,7 @@ decode_head:
   _target_: torch.nn.Sequential
   _args_:
     - _target_: torch.nn.Linear
-      in_features: 1536
+      in_features: ${embedding_dim}
       out_features: 256
     - _target_: torch.nn.ReLU
     - _target_: torch.nn.Dropout
