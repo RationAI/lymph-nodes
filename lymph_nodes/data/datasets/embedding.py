@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from torch.utils.data import Dataset
 
-from lymph_nodes.data.datasets.meta_dataset import MetaDataset
+from lymph_nodes.data.datasets.meta_dataset import MetaDataset, column_values
 from lymph_nodes.typedefs import EmbeddingSample
 
 
@@ -27,7 +27,7 @@ def _coverage(tiles: HFDataset, column: str) -> np.ndarray | None:
     """A coverage column as floats (missing mask -> NaN), or None if no run has it."""
     if column not in tiles.column_names:
         return None
-    return np.asarray(tiles[column], dtype=np.float64)
+    return column_values(tiles, column).astype(np.float64)
 
 
 class TileLabels:
@@ -80,14 +80,14 @@ class TileLabels:
 class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
     """One slide's tiles, with a binary cancer label derived from overlay coverage.
 
-    Labels are computed once per slide from ``labels`` (see TileLabels), not per item.
+    ``partitions`` holds each tile's TileLabels partition id, in ``tiles`` order.
     """
 
-    def __init__(self, name: str, tiles: HFDataset, labels: TileLabels) -> None:
+    def __init__(self, name: str, tiles: HFDataset, partitions: np.ndarray) -> None:
         super().__init__()
         self.name = name
         self.tiles = tiles
-        self._partitions = labels.partition(tiles)
+        self._partitions = partitions
 
     def __len__(self) -> int:
         return len(self.tiles)
@@ -132,19 +132,23 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
             return slides
         annotation = _coverage(tiles, "annotation_coverage")
         annotated = (
-            np.unique(np.asarray(tiles["slide_id"])[~np.isnan(annotation)])
+            np.unique(column_values(tiles, "slide_id")[~np.isnan(annotation)])
             if annotation is not None
             else np.array([])
         )
-        keep = ~np.asarray(slides["tumor"], dtype=bool) | np.isin(np.asarray(slides["id"]), annotated)
+        keep = ~column_values(slides, "tumor").astype(bool) | np.isin(column_values(slides, "id"), annotated)
         return slides.select(np.flatnonzero(keep)).flatten_indices()
 
     def generate_datasets(self) -> Iterable[TileEmbeddingClassificationDataset]:
-        return (
-            TileEmbeddingClassificationDataset(
+        # Labels for the whole table at once: a column of the flat table reads just that
+        # column, whereas reading one through a per-slide view (filter_tiles_by_slide)
+        # gathers the slide's full rows, embeddings included.
+        partitions = self.labels.partition(self.tiles)
+        no_rows = np.array([], dtype=np.int64)
+        for slide in self.slides:
+            rows = self._slide_id_to_indices.get(slide["id"])
+            yield TileEmbeddingClassificationDataset(
                 name=slide["slide_name"],
                 tiles=self.filter_tiles_by_slide(slide["id"]),
-                labels=self.labels,
+                partitions=partitions[rows.values.to_numpy() if rows is not None else no_rows],
             )
-            for slide in self.slides
-        )
