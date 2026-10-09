@@ -1,0 +1,44 @@
+# @package _global_
+
+# cross_tissue.yaml with negative TMA tissue trained on as well. There every positive
+# is a TMA tile and every negative a lymph node tile, so telling the tissues apart
+# already separates the classes: the model calls nearly every TMA tile cancer (TMA
+# recall ~1.0, accuracy 0.36-0.52 in data.eval) and the validation during fit, split
+# the same way, sits at AUROC 1.0. Cytokeratin-negative TMA tiles as a fourth sampler
+# partition (healthy_tma) make it find the epithelium within the TMAs instead, and
+# give the validation during fit TMA negatives too. Still no positive lymph node tile.
+#   healthy           - lymph node tissue (training folds hold negative slides only)
+#   healthy_brownish  - lymph node tissue with brown staining, the hard negatives
+#   healthy_tma       - TMA tiles with cytokeratin coverage at most the negative threshold
+#   cancer            - TMA tiles with cytokeratin coverage above the positive threshold
+# TMA tiles in between are ambiguous and left out, as in tma_epithelium.yaml.
+defaults:
+  - /experiment/training/cross_tissue
+  - _self_
+
+scenario: cross-tissue TMA negatives
+
+cytokeratin_negative_threshold: 0.1
+
+train_labels:
+  tma_column: cytokeratin_coverage
+
+train_filters:
+  - ${filters.tissue}
+  - ${filters.no_patho_ignore}
+  - ${filters.no_cytokeratin_ignore}
+  - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    column: cytokeratin_coverage
+    op: between
+    value: ["${cytokeratin_negative_threshold}", "${cytokeratin_positive_threshold}"]
+    negate: true
+    cohort: mmci_tmas
+
+data:
+  # Half cancer as before; the negatives split evenly between the three kinds.
+  train_sampler:
+    ratio:
+      healthy: 1
+      healthy_brownish: 1
+      healthy_tma: 1
+      cancer: 3

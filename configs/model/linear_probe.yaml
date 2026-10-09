@@ -1,0 +1,13 @@
+# A single linear layer on the precomputed embedding (see embedding_classifier.yaml):
+# the standard probe of foundation-model features, with the least capacity to memorize
+# the training tiles.
+backbone:
+  _target_: torch.nn.Identity
+
+decode_head:
+  _target_: torch.nn.Linear
+  in_features: ${embedding_dim}
+  out_features: 1
+
+lr: 1.0e-4
+weight_decay: 0.05

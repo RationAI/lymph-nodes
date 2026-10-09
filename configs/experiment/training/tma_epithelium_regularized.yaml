@@ -1,0 +1,27 @@
+# @package _global_
+
+# The TMA epithelium baseline (tma_epithelium.yaml) against its overfitting: its MLP
+# reaches a training loss of ~0.001 within two epochs while the validation loss keeps
+# rising (TMA tiles at stride 28 overlap 64-fold, so neighbours are near-duplicates).
+#   - linear probe, lower lr, more weight decay (configs/model/linear_probe.yaml)
+#   - soft targets: a tile's target is its cytokeratin coverage, so no target pushes
+#     the logits to infinity, and the ambiguous tiles between the thresholds, dropped
+#     by the baseline, are trained on too
+# Validation during fit keeps the baseline's tiles and its hard labels for the metrics
+# (coverage above the threshold, 0.5), so its AUROC compares with the baseline's.
+defaults:
+  - /experiment/training/tma_epithelium
+  - override /model: linear_probe
+  - _self_
+
+scenario: TMA epithelium regularized
+
+tma_labels:
+  soft_target: cytokeratin_coverage
+
+data:
+  train:
+    tile_filters:
+      - ${filters.tissue}
+      - ${filters.no_patho_ignore}
+      - ${filters.no_cytokeratin_ignore}

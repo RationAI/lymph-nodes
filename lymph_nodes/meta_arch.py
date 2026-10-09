@@ -55,13 +55,23 @@ class MetaArch(LightningModule):
     ``<phase>/<cohort>/<metric>`` next to the overall ``<phase>/<metric>``: an
     evaluation set can mix cohorts that behave very differently. The validation and test
     steps return their logits for callbacks, e.g. lymph_nodes.callbacks.PredictionMasks.
+
+    Targets may be soft (TileLabels.soft_target): the loss takes them as they are, the
+    metrics count a tile as cancer when its target is above 0.5.
     """
 
-    def __init__(self, backbone: nn.Module, decode_head: nn.Module, lr: float = 1e-3) -> None:
+    def __init__(
+        self,
+        backbone: nn.Module,
+        decode_head: nn.Module,
+        lr: float = 1e-3,
+        weight_decay: float = 0.01,  # AdamW's default
+    ) -> None:
         super().__init__()
         self.backbone = backbone
         self.decode_head = decode_head
         self.lr = lr
+        self.weight_decay = weight_decay
 
         # Class imbalance (~20:1 healthy:cancer) is handled at the data level by
         # StratifiedEpochSampler (lymph_nodes/data/samplers/stratified_sampler.py),
@@ -103,11 +113,12 @@ class MetaArch(LightningModule):
         loss = self.criterion(outputs, targets.float())
         self.log("validation/loss", loss, on_epoch=True, prog_bar=True)
 
-        self.val_metrics.update(outputs, targets)
+        labels = targets > 0.5
+        self.val_metrics.update(outputs, labels)
         self.log_dict(self.val_metrics, on_epoch=True)
 
         if self.trainer.state.fn == TrainerFn.VALIDATING:
-            self._collect_by_cohort(outputs, targets, meta)
+            self._collect_by_cohort(outputs, labels, meta)
         return outputs
 
     def on_validation_epoch_end(self) -> None:
@@ -118,10 +129,11 @@ class MetaArch(LightningModule):
         inputs, targets, meta = batch
         outputs = self(inputs)
 
-        self.test_metrics.update(outputs, targets)
+        labels = targets > 0.5
+        self.test_metrics.update(outputs, labels)
         self.log_dict(self.test_metrics, on_epoch=True)
 
-        self._collect_by_cohort(outputs, targets, meta)
+        self._collect_by_cohort(outputs, labels, meta)
         return outputs
 
     def on_test_epoch_end(self) -> None:
@@ -150,4 +162,4 @@ class MetaArch(LightningModule):
         self._cohort_outputs.clear()
 
     def configure_optimizers(self) -> Optimizer:
-        return torch.optim.AdamW(self.parameters(), lr=self.lr)
+        return torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)

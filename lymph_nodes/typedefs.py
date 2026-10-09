@@ -12,7 +12,8 @@ if TYPE_CHECKING:
 
 type EmbeddingInput = NDArray[np.float32]
 
-type EmbeddingLabel = bool
+# The cancer target: 0/1, or a soft target in between (TileLabels.soft_target).
+type EmbeddingLabel = float
 
 type Sample[I, O] = tuple[I, O, dict[str, Any]]
 
@@ -23,6 +24,6 @@ type Input = Tensor
 type Outputs = Tensor
 
 # What a DataLoader/MetaArch step actually receives: EmbeddingSample describes one
-# uncollated sample (label as a plain bool), but after collation the label becomes a
+# uncollated sample (label as a plain float), but after collation the label becomes a
 # Tensor too — a distinct type from EmbeddingSample, not just its "batched" form.
 type Batch = tuple[Input, Tensor, dict[str, Any]]

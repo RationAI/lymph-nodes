@@ -18,10 +18,10 @@ if TYPE_CHECKING:
     from lymph_nodes.data.datasets.meta_dataset import FilterCondition
 
 
-# Partition ids used both for the per-tile label (0/1/2 collapsed to healthy/cancer in
-# __getitem__) and for lymph_nodes.data.samplers.stratified_sampler's rebalancing.
+# Partition ids used both for the per-tile target (0/1/2 collapsed to healthy/cancer in
+# TileLabels.targets) and for lymph_nodes.data.samplers.stratified_sampler's rebalancing.
 # Keep in sync with that module's PARTITION_NAMES.
-HEALTHY, HEALTHY_BROWNISH, CANCER = 0, 1, 2
+HEALTHY, HEALTHY_BROWNISH, CANCER, HEALTHY_TMA = 0, 1, 2, 3
 
 
 def _coverage(tiles: HFDataset, column: str) -> np.ndarray | None:
@@ -39,11 +39,21 @@ class TileLabels:
     or the cytokeratin epithelium overlay (``cytokeratin_coverage``). Otherwise it is
     "healthy brownish" if ``brownish_column`` exceeds ``brownish_threshold``: tissue that
     resembles metastasis on staining alone, split out so the StratifiedEpochSampler
-    can oversample it as a static stand-in for hard-negative mining. Everything else
-    is healthy.
+    can oversample it as a static stand-in for hard-negative mining. Otherwise it is
+    "healthy TMA" if ``tma_column`` — a column only TMA tiles have, e.g.
+    ``cytokeratin_coverage`` — is defined for it: negative TMA tissue, split out so the
+    sampler can draw it in its own ratio next to the lymph node negatives. Everything
+    else is healthy.
 
     A column absent from the tiles (e.g. no cytokeratin masks for lymph nodes) or
     undefined for a slide (NaN) never makes a tile positive or brownish.
+
+    The training target is the 0/1 cancer label, unless ``soft_target`` names a
+    coverage column: then a tile's target is that coverage (e.g. the fraction of its
+    pixels that are cytokeratin positive), so the predicted probability estimates it.
+    Ambiguous tiles get an in-between target instead of being forced to 0 or 1, and no
+    target pushes the logits to infinity. Tiles where the column is NaN keep their 0/1
+    label. Metrics still count a tile as cancer when its target is above 0.5 (MetaArch).
 
     Deliberately a plain class rather than a dataclass, like FilterCondition.
     """
@@ -53,13 +63,17 @@ class TileLabels:
         positive: Mapping[str, float],
         brownish_column: str | None = None,
         brownish_threshold: float = 0.0,
+        soft_target: str | None = None,
+        tma_column: str | None = None,
     ) -> None:
         self.positive = dict(positive)
         self.brownish_column = brownish_column
         self.brownish_threshold = brownish_threshold
+        self.soft_target = soft_target
+        self.tma_column = tma_column
 
     def partition(self, tiles: HFDataset) -> np.ndarray:
-        """Per-tile partition id: HEALTHY, HEALTHY_BROWNISH, or CANCER."""
+        """Per-tile partition id: HEALTHY, HEALTHY_BROWNISH, HEALTHY_TMA, or CANCER."""
         cancer = np.zeros(len(tiles), dtype=bool)
         for column, threshold in self.positive.items():
             values = _coverage(tiles, column)
@@ -72,17 +86,35 @@ class TileLabels:
             if values is not None:
                 brownish = values > self.brownish_threshold
 
+        tma = np.zeros(len(tiles), dtype=bool)
+        if self.tma_column is not None:
+            values = _coverage(tiles, self.tma_column)
+            if values is not None:
+                tma = ~np.isnan(values)
+
         labels = np.full(len(tiles), HEALTHY, dtype=np.int64)
         labels[brownish & ~cancer] = HEALTHY_BROWNISH
+        labels[tma & ~cancer] = HEALTHY_TMA
         labels[cancer] = CANCER
         return labels
 
+    def targets(self, tiles: HFDataset, partitions: np.ndarray) -> np.ndarray:
+        """Per-tile training target in [0, 1], given the tiles' ``partition``."""
+        targets = (partitions == CANCER).astype(np.float32)
+        if self.soft_target is not None:
+            values = _coverage(tiles, self.soft_target)
+            if values is not None:
+                defined = ~np.isnan(values)
+                targets[defined] = np.clip(values[defined], 0.0, 1.0)
+        return targets
+
 
 class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
-    """One slide's tiles, with a binary cancer label derived from overlay coverage.
+    """One slide's tiles, with a cancer target derived from overlay coverage.
 
-    ``partitions`` holds each tile's TileLabels partition id and ``rows`` its row in the
-    parent EmbeddingClassificationDataset's table, both in ``tiles`` order. Each sample
+    ``partitions`` holds each tile's TileLabels partition id, ``targets`` its target
+    (TileLabels.targets) and ``rows`` its row in the parent
+    EmbeddingClassificationDataset's table, all in ``tiles`` order. Each sample
     carries, besides the slide's ``name``, its ``cohort`` (the slide's cohort_id, for
     per-cohort metrics) and where the tile lies — ``slide``, the slide's position in the
     parent's ``slides``, and ``tile_x``/``tile_y`` — for the PredictionMasks callback.
@@ -95,6 +127,7 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
         slide: int,
         tiles: HFDataset,
         partitions: np.ndarray,
+        targets: np.ndarray,
         rows: np.ndarray,
     ) -> None:
         super().__init__()
@@ -102,6 +135,7 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
         self.cohort = cohort
         self.slide = slide
         self.tiles = tiles
+        self.targets = targets
         self.rows = rows
         self._partitions = partitions
 
@@ -110,7 +144,6 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
 
     def __getitem__(self, idx: int) -> EmbeddingSample:
         tile = self.tiles[idx]
-        has_cancer = bool(self._partitions[idx] == CANCER)
         meta = {
             "name": self.name,
             "cohort": self.cohort,
@@ -118,10 +151,10 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
             "tile_x": int(tile["tile_x"]),
             "tile_y": int(tile["tile_y"]),
         }
-        return tile["embedding"], has_cancer, meta
+        return tile["embedding"], float(self.targets[idx]), meta
 
     def partition_labels(self) -> np.ndarray:
-        """Per-tile group id (HEALTHY, HEALTHY_BROWNISH, or CANCER), for the sampler."""
+        """Per-tile group id (HEALTHY, HEALTHY_BROWNISH, HEALTHY_TMA, or CANCER), for the sampler."""
         return self._partitions
 
 
@@ -129,7 +162,7 @@ class _BatchIndex(NamedTuple):
     """Per global index of an EmbeddingClassificationDataset, plus per-slide values."""
 
     rows: np.ndarray  # row in the flat tile table
-    cancer: np.ndarray
+    target: np.ndarray
     slide_of: np.ndarray  # position in .datasets (= in .slides)
     tile_x: np.ndarray
     tile_y: np.ndarray
@@ -182,6 +215,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         # column, whereas reading one through a per-slide view (filter_tiles_by_slide)
         # gathers the slide's full rows, embeddings included.
         partitions = self.labels.partition(self.tiles)
+        targets = self.labels.targets(self.tiles, partitions)
         has_cohort = "cohort_id" in self.slides.column_names
         no_rows = np.array([], dtype=np.int64)
         for position, slide in enumerate(self.slides):
@@ -193,6 +227,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                 slide=position,
                 tiles=self.filter_tiles_by_slide(slide["id"]),
                 partitions=partitions[rows],
+                targets=targets[rows],
                 rows=rows,
             )
 
@@ -211,7 +246,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         return [
             (
                 values[i],
-                bool(cancer),
+                target,
                 {
                     "name": index.names[slide],
                     "cohort": index.cohorts[slide],
@@ -220,9 +255,9 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                     "tile_y": tile_y,
                 },
             )
-            for i, (cancer, slide, tile_x, tile_y) in enumerate(
+            for i, (target, slide, tile_x, tile_y) in enumerate(
                 zip(
-                    index.cancer[batch].tolist(),
+                    index.target[batch].tolist(),
                     slides,
                     index.tile_x[batch].tolist(),
                     index.tile_y[batch].tolist(),
@@ -260,7 +295,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
             rows = np.concatenate([slide.rows for slide in slides])
             self._batch_index = _BatchIndex(
                 rows=rows,
-                cancer=np.concatenate([slide.partition_labels() == CANCER for slide in slides]),
+                target=np.concatenate([slide.targets for slide in slides]),
                 slide_of=np.repeat(np.arange(len(slides)), [len(slide) for slide in slides]),
                 # rows index self.tiles.data, as in _embeddings
                 tile_x=self.tiles.data.column("tile_x").to_numpy()[rows],

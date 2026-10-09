@@ -6,7 +6,12 @@ import mlflow
 import numpy as np
 from torch.utils.data import Sampler
 
-from lymph_nodes.data.datasets.embedding import CANCER, HEALTHY, HEALTHY_BROWNISH
+from lymph_nodes.data.datasets.embedding import (
+    CANCER,
+    HEALTHY,
+    HEALTHY_BROWNISH,
+    HEALTHY_TMA,
+)
 
 
 if TYPE_CHECKING:
@@ -20,6 +25,7 @@ if TYPE_CHECKING:
 PARTITION_NAMES: dict[str, int] = {
     "healthy": HEALTHY,
     "healthy_brownish": HEALTHY_BROWNISH,
+    "healthy_tma": HEALTHY_TMA,
     "cancer": CANCER,
 }
 
@@ -27,8 +33,9 @@ PARTITION_NAMES: dict[str, int] = {
 class StratifiedEpochSampler(Sampler[int]):
     """Draws a fresh random subset per partition each epoch, in a caller-chosen ratio.
 
-    Partitions are healthy / healthy_brownish / cancer, drawn fresh instead of a full
-    pass over every tile. Built for severe class imbalance (e.g. ~20:1 healthy:cancer):
+    Partitions are healthy / healthy_brownish / healthy_tma / cancer (see TileLabels),
+    drawn fresh instead of a full pass over every tile. Built for severe class
+    imbalance (e.g. ~20:1 healthy:cancer):
     grinding through every negative tile each epoch wastes compute on the easy majority
     and still under-represents cancer tiles in every batch. Resampling a fresh subset
     each epoch — rather than a fixed one — means every negative tile is still eventually
@@ -42,8 +49,8 @@ class StratifiedEpochSampler(Sampler[int]):
     Expects ``dataset.datasets`` (as built by ``torch.utils.data.ConcatDataset``,
     which ``MetaTiledSlides`` subclasses) to be
     ``TileEmbeddingClassificationDataset``-like: each must expose
-    ``partition_labels()`` returning one ``HEALTHY`` / ``HEALTHY_BROWNISH`` / ``CANCER``
-    code per tile, in the same order as that sub-dataset's own indexing — matching how
+    ``partition_labels()`` returning one ``HEALTHY`` / ``HEALTHY_BROWNISH`` /
+    ``HEALTHY_TMA`` / ``CANCER`` code per tile, in the same order as that sub-dataset's own indexing — matching how
     ``ConcatDataset`` concatenates them into the global flat tile index.
 
     ``ratio`` is keyed by partition name (not forced equal — tune it to your actual
