@@ -2,8 +2,9 @@
 
 # Baseline: an epithelium classifier trained on TMAs alone. Positive = cytokeratin-
 # positive TMA tiles, negative = cytokeratin-negative TMA tiles; tiles in between are
-# ambiguous and left out. Cross-validated over the TMA folds; evaluated on lymph nodes
-# like every scenario (data.eval / data.test in configs/lymph_nodes.yaml).
+# ambiguous and left out in training. Cross-validated over the TMA folds; evaluated
+# like every scenario on lymph nodes and the TMA validation set (data.eval / data.test
+# in configs/lymph_nodes.yaml).
 scenario: TMA epithelium
 
 cytokeratin_positive_threshold: 0.5  # cytokeratin coverage above this: positive

@@ -11,6 +11,9 @@ mode: ???
 checkpoint: null
 fold: ???
 scenario: ???
+# TMA tiles with cytokeratin coverage above this are cancer, in training (set by the
+# scenario, configs/experiment/training/) and in the TMA part of data.eval.
+cytokeratin_positive_threshold: ???
 
 filters:
   tissue:
@@ -47,6 +50,14 @@ ln_labels:
   positive:
     annotation_coverage: 0.0
 
+# data.eval labels: the lymph node ones plus cytokeratin for the TMAs. Each column
+# exists for one tissue only (NaN for the other), and NaN is never positive.
+eval_labels:
+  _target_: lymph_nodes.data.datasets.embedding.TileLabels
+  positive:
+    annotation_coverage: 0.0
+    cytokeratin_coverage: ${cytokeratin_positive_threshold}
+
 data:
   batch_size: 2048
   num_workers: 6
@@ -54,14 +65,22 @@ data:
   # Evaluation is the same for every scenario: does the model find real lymph node
   # metastases? Positive slides without an annotation mask are left out — their
   # metastases aren't outlined, so all their tiles would count as healthy.
+  # The TMA validation set is evaluated too: does the model still tell cytokeratin-
+  # positive from cytokeratin-negative TMA tissue? Every TMA tile is kept, the ones
+  # with coverage between 0 and the threshold included (labelled negative), to see the
+  # predictions at the boundary as well. The ignore filters only concern the TMAs
+  # (`negate` keeps the lymph nodes' NaN); per-cohort metrics keep the cohorts apart.
   eval:
     _target_: lymph_nodes.data.datasets.embedding.EmbeddingClassificationDataset
     uris:
       - ${ihc_run_uri}/val
       - ${ihc_test_run_uri}/val
-    labels: ${ln_labels}
+      - ${tma_run_uri}/val
+    labels: ${eval_labels}
     tile_filters:
       - ${filters.tissue}
+      - ${filters.no_patho_ignore}
+      - ${filters.no_cytokeratin_ignore}
     exclude_unannotated_positive_slides: true
 
   test:
