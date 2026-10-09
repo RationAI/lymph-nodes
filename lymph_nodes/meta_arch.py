@@ -53,7 +53,8 @@ class MetaArch(LightningModule):
     The final evaluations (``validate`` and ``test``, not the validation during ``fit``)
     also log every metric per cohort of the evaluated data (the slides' cohort_id), as
     ``<phase>/<cohort>/<metric>`` next to the overall ``<phase>/<metric>``: an
-    evaluation set can mix cohorts that behave very differently.
+    evaluation set can mix cohorts that behave very differently. The validation and test
+    steps return their logits for callbacks, e.g. lymph_nodes.callbacks.PredictionMasks.
     """
 
     def __init__(self, backbone: nn.Module, decode_head: nn.Module, lr: float = 1e-3) -> None:
@@ -95,7 +96,7 @@ class MetaArch(LightningModule):
 
         return loss
 
-    def validation_step(self, batch: Batch, batch_idx: int) -> None:
+    def validation_step(self, batch: Batch, batch_idx: int) -> Outputs:
         inputs, targets, meta = batch
         outputs = self(inputs)
 
@@ -107,12 +108,13 @@ class MetaArch(LightningModule):
 
         if self.trainer.state.fn == TrainerFn.VALIDATING:
             self._collect_by_cohort(outputs, targets, meta)
+        return outputs
 
     def on_validation_epoch_end(self) -> None:
         if self.trainer.state.fn == TrainerFn.VALIDATING:
             self._log_by_cohort("validation")
 
-    def test_step(self, batch: Batch, batch_idx: int) -> None:
+    def test_step(self, batch: Batch, batch_idx: int) -> Outputs:
         inputs, targets, meta = batch
         outputs = self(inputs)
 
@@ -120,6 +122,7 @@ class MetaArch(LightningModule):
         self.log_dict(self.test_metrics, on_epoch=True)
 
         self._collect_by_cohort(outputs, targets, meta)
+        return outputs
 
     def on_test_epoch_end(self) -> None:
         self._log_by_cohort("test")

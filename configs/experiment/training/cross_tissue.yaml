@@ -6,7 +6,7 @@
 #   cancer            - cytokeratin-positive TMA tiles; cytokeratin-negative TMA tiles
 #                       are filtered out, so no negative TMA tissue is trained on
 # Evaluated on lymph nodes with the pathologists' annotations (data.eval / data.test
-# in configs/lymph_nodes.yaml).
+# in configs/lymph_nodes.yaml), and data.eval also on the TMA validation set.
 scenario: cross-tissue
 
 cytokeratin_positive_threshold: 0.5  # TMA tiles above this are cancer; the rest are dropped
@@ -53,6 +53,28 @@ data:
     labels: ${train_labels}
     tile_filters: ${train_filters}
     slide_filters: ${train_slide_filters}
+
+  # The lymph node evaluation of every scenario plus the TMA validation set: does the
+  # model still tell cytokeratin-positive from cytokeratin-negative TMA tissue, the
+  # latter never seen in training? Every TMA tile is kept, ambiguous coverage between
+  # 0 and the threshold included (labelled negative), to see the predictions at the
+  # boundary too. Each label/filter column exists for one tissue only, so it leaves
+  # the other alone (NaN is never positive, `negate` keeps NaN); per-cohort metrics
+  # keep them apart.
+  eval:
+    uris:
+      - ${ihc_run_uri}/val
+      - ${ihc_test_run_uri}/val
+      - ${tma_run_uri}/val
+    labels:
+      _target_: lymph_nodes.data.datasets.embedding.TileLabels
+      positive:
+        annotation_coverage: 0.0
+        cytokeratin_coverage: ${cytokeratin_positive_threshold}
+    tile_filters:
+      - ${filters.tissue}
+      - ${filters.no_patho_ignore}
+      - ${filters.no_cytokeratin_ignore}
 
   train_sampler:
     _target_: lymph_nodes.data.samplers.StratifiedEpochSampler

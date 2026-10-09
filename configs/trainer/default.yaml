@@ -21,3 +21,6 @@ callbacks:
     monitor: validation/auroc
     mode: max
     patience: 5
+  # Only active in the final evaluations (validate / test), not during fit.
+  prediction_masks:
+    _target_: lymph_nodes.callbacks.PredictionMasks
