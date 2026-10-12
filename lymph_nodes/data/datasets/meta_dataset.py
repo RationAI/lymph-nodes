@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import pyarrow as pa
+import pyarrow.compute as pc
 from datasets import Dataset as HFDataset
 from datasets import Value, concatenate_datasets
 from rationai.mlkit.data.datasets import MetaTiledSlides, load_dataset
@@ -94,6 +96,33 @@ class FilterCondition:
         return ~result if self.negate else result
 
 
+def _normalize_lists(dataset: HFDataset) -> HFDataset:
+    """List-like columns as ``large_list<element>``, so runs agree on their type.
+
+    The same column can come in several list types: a fixed-size or a plain list, or
+    Ray Data's tensor extension — a struct of the row's values (``data``) and shape —
+    which Ray writes for columns that passed through numpy batches (e.g. the coverage
+    grids of preprocessing.tiling_blocks.OverlayGrid). Concatenating runs that differ
+    would otherwise fall back to casting the column to string (_concatenate).
+    """
+    table = dataset.data
+    changed = False
+    for index, name in enumerate(table.column_names):
+        column = table.column(name)
+        kind = column.type.storage_type if isinstance(column.type, pa.ExtensionType) else column.type
+        if isinstance(column.type, pa.ExtensionType):
+            column = pa.chunked_array([chunk.storage for chunk in column.chunks], type=kind)
+        if pa.types.is_struct(kind) and {kind.field(i).name for i in range(kind.num_fields)} == {"data", "shape"}:
+            column = pc.struct_field(column, "data")
+            kind = column.type
+        if (pa.types.is_list(kind) or pa.types.is_fixed_size_list(kind)) and not pa.types.is_large_list(kind):
+            column = column.cast(pa.large_list(kind.value_type))
+        if column.type != table.column(name).type:
+            table = table.set_column(index, name, column)
+            changed = True
+    return HFDataset(table) if changed else dataset
+
+
 class MetaDataset[T](MetaTiledSlides[T]):
     """Adds MLflow-URI loading and lazy threshold filtering on top of ``MetaTiledSlides``.
 
@@ -136,7 +165,7 @@ class MetaDataset[T](MetaTiledSlides[T]):
     def _load_table(uris: Sequence[str], table: str) -> HFDataset:
         """Load one table (``slides`` or ``tiles``) from every run and concatenate them."""
         return MetaDataset._concatenate(
-            [load_dataset(uris=[str(Path(uri) / table)])["train"] for uri in uris]
+            [_normalize_lists(load_dataset(uris=[str(Path(uri) / table)])["train"]) for uri in uris]
         )
 
     @staticmethod

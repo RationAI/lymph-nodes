@@ -39,3 +39,12 @@ data:
 trainer:
   precision: bf16-mixed
   max_epochs: 30
+  # Model selection on the patches, what is trained: the tile AUROC (a tile scored by
+  # its most confident patch, against a label from its coverage) plateaus within an
+  # epoch or two while the patch metrics keep improving.
+  callbacks:
+    checkpoint:
+      monitor: validation/patch/auroc
+      filename: "epoch{epoch:02d}-patch_auroc{validation/patch/auroc:.4f}"
+    early_stopping:
+      monitor: validation/patch/auroc
