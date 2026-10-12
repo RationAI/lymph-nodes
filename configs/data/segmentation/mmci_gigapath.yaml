@@ -1,0 +1,7 @@
+# @package _global_
+
+defaults:
+  - /data/segmentation/runs
+
+embedding_model: GigaPath
+patch_token_dim: 1536

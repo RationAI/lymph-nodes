@@ -1,0 +1,28 @@
+# @package _global_
+
+# cross_tissue_tma_negatives.yaml with the regularization of
+# tma_epithelium_regularized.yaml. With TMA negatives the MLP overfits like the
+# epithelium baseline did: the validation loss is lowest after the first epoch and
+# doubles by the end. Here:
+#   - linear probe, lower lr, more weight decay (configs/model/linear_probe.yaml)
+#   - soft targets for TMA tiles: their cytokeratin coverage (lymph node tiles have
+#     none and keep 0/1), so the ambiguous TMA tiles between the thresholds are
+#     trained on too, in the healthy_tma partition
+# Validation during fit keeps the tiles of cross_tissue_tma_negatives.yaml
+# (data.val uses train_filters, unchanged here), so its AUROC compares.
+defaults:
+  - /experiment/training/cross_tissue_tma_negatives
+  - override /model: linear_probe
+  - _self_
+
+scenario: cross-tissue TMA negatives regularized
+
+train_labels:
+  soft_target: cytokeratin_coverage
+
+data:
+  train:
+    tile_filters:
+      - ${filters.tissue}
+      - ${filters.no_patho_ignore}
+      - ${filters.no_cytokeratin_ignore}

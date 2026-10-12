@@ -44,19 +44,29 @@ filters:
   #   op: "<"
   #   value: 0.3
 
-# Lymph node labels for evaluation: the pathologists' metastasis annotations.
+# Lymph node labels for evaluation: the pathologists' metastasis annotations. A tile
+# touching an annotation is positive, but one with at most a quarter of it annotated is
+# borderline (often a tiny focus in lymphoid tissue): still evaluated, and the metrics
+# are also reported without the borderline tiles (<cohort>/unambiguous/, see MetaArch).
 ln_labels:
   _target_: lymph_nodes.data.datasets.embedding.TileLabels
   positive:
     annotation_coverage: 0.0
+  ambiguous:
+    annotation_coverage: [0.0, 0.25]
 
 # data.eval labels: the lymph node ones plus cytokeratin for the TMAs. Each column
-# exists for one tissue only (NaN for the other), and NaN is never positive.
+# exists for one tissue only (NaN for the other), and NaN is never positive. TMA tiles
+# with cytokeratin coverage between 0.1 and the positive threshold are borderline, the
+# band the TMA epithelium baseline drops in training.
 eval_labels:
   _target_: lymph_nodes.data.datasets.embedding.TileLabels
   positive:
     annotation_coverage: 0.0
     cytokeratin_coverage: ${cytokeratin_positive_threshold}
+  ambiguous:
+    annotation_coverage: ${ln_labels.ambiguous.annotation_coverage}
+    cytokeratin_coverage: [0.1, "${cytokeratin_positive_threshold}"]
 
 data:
   batch_size: 2048

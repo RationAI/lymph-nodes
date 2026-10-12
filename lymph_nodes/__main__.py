@@ -5,7 +5,6 @@ from rationai.mlkit import Trainer, autolog
 from rationai.mlkit.lightning.loggers import MLFlowLogger
 
 from lymph_nodes.data import DataModule
-from lymph_nodes.meta_arch import MetaArch
 from lymph_nodes.resolvers import register_resolvers
 
 
@@ -23,7 +22,8 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         _recursive_=False,  # to avoid instantiating all the datasets
         _target_=DataModule,
     )
-    model = hydra.utils.instantiate(config.model, _target_=MetaArch)
+    # The model config names its class (MetaArch, SegmentationMetaArch, ...).
+    model = hydra.utils.instantiate(config.model)
 
     trainer = hydra.utils.instantiate(config.trainer, _target_=Trainer, logger=logger)
     getattr(trainer, config.mode)(model, datamodule=data, ckpt_path=config.checkpoint)

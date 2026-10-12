@@ -1,0 +1,11 @@
+# @package _global_
+
+# tma_epithelium_regularized.yaml as segmentation: a linear probe of every patch token
+# of the frozen foundation model, trained on TMA tiles against each patch's
+# cytokeratin coverage (see segmentation_common.yaml).
+defaults:
+  - /experiment/training/tma_epithelium_regularized
+  - /experiment/training/segmentation_common
+  - _self_
+
+scenario: TMA epithelium segmentation

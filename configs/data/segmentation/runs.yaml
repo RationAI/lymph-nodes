@@ -1,0 +1,7 @@
+# @package _global_
+
+# Segmentation tiling runs (configs/experiment/tiling/*_segmentation.yaml): stride
+# 224, coverage grids, no embeddings — the same for every foundation model.
+ihc_run_uri: ???  # IHC 2023: fold_0..fold_4, val, test
+tma_run_uri: ???  # TMAs: fold_0..fold_4, val
+ihc_test_run_uri: ???  # IHC test cohort: val

@@ -55,6 +55,11 @@ class TileLabels:
     target pushes the logits to infinity. Tiles where the column is NaN keep their 0/1
     label. Metrics still count a tile as cancer when its target is above 0.5 (MetaArch).
 
+    ``ambiguous`` maps a coverage column to ``[low, high]``: tiles with ``low < value <=
+    high`` are borderline, e.g. lymph node tiles only touching an annotation
+    (``annotation_coverage: [0.0, 0.25]``). They keep their label and are evaluated as
+    usual, but MetaArch also reports every metric without them (``<cohort>/unambiguous/``).
+
     Deliberately a plain class rather than a dataclass, like FilterCondition.
     """
 
@@ -65,12 +70,14 @@ class TileLabels:
         brownish_threshold: float = 0.0,
         soft_target: str | None = None,
         tma_column: str | None = None,
+        ambiguous: Mapping[str, Sequence[float]] | None = None,
     ) -> None:
         self.positive = dict(positive)
         self.brownish_column = brownish_column
         self.brownish_threshold = brownish_threshold
         self.soft_target = soft_target
         self.tma_column = tma_column
+        self.ambiguous = {column: (float(low), float(high)) for column, (low, high) in (ambiguous or {}).items()}
 
     def partition(self, tiles: HFDataset) -> np.ndarray:
         """Per-tile partition id: HEALTHY, HEALTHY_BROWNISH, HEALTHY_TMA, or CANCER."""
@@ -98,6 +105,15 @@ class TileLabels:
         labels[cancer] = CANCER
         return labels
 
+    def ambiguous_mask(self, tiles: HFDataset) -> np.ndarray:
+        """Per-tile flag: borderline by any ``ambiguous`` range (NaN never is)."""
+        ambiguous = np.zeros(len(tiles), dtype=bool)
+        for column, (low, high) in self.ambiguous.items():
+            values = _coverage(tiles, column)
+            if values is not None:
+                ambiguous |= (values > low) & (values <= high)
+        return ambiguous
+
     def targets(self, tiles: HFDataset, partitions: np.ndarray) -> np.ndarray:
         """Per-tile training target in [0, 1], given the tiles' ``partition``."""
         targets = (partitions == CANCER).astype(np.float32)
@@ -113,11 +129,12 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
     """One slide's tiles, with a cancer target derived from overlay coverage.
 
     ``partitions`` holds each tile's TileLabels partition id, ``targets`` its target
-    (TileLabels.targets) and ``rows`` its row in the parent
-    EmbeddingClassificationDataset's table, all in ``tiles`` order. Each sample
-    carries, besides the slide's ``name``, its ``cohort`` (the slide's cohort_id, for
-    per-cohort metrics) and where the tile lies — ``slide``, the slide's position in the
-    parent's ``slides``, and ``tile_x``/``tile_y`` — for the PredictionMasks callback.
+    (TileLabels.targets), ``ambiguous`` its TileLabels.ambiguous_mask flag and ``rows``
+    its row in the parent EmbeddingClassificationDataset's table, all in ``tiles``
+    order. Each sample carries, besides the slide's ``name``, its ``cohort`` (the
+    slide's cohort_id) and ``ambiguous`` flag, for the per-cohort metrics, and where the
+    tile lies — ``slide``, the slide's position in the parent's ``slides``, and
+    ``tile_x``/``tile_y`` — for the PredictionMasks callback.
     """
 
     def __init__(
@@ -128,6 +145,7 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
         tiles: HFDataset,
         partitions: np.ndarray,
         targets: np.ndarray,
+        ambiguous: np.ndarray,
         rows: np.ndarray,
     ) -> None:
         super().__init__()
@@ -136,6 +154,7 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
         self.slide = slide
         self.tiles = tiles
         self.targets = targets
+        self.ambiguous = ambiguous
         self.rows = rows
         self._partitions = partitions
 
@@ -150,6 +169,7 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
             "slide": self.slide,
             "tile_x": int(tile["tile_x"]),
             "tile_y": int(tile["tile_y"]),
+            "ambiguous": bool(self.ambiguous[idx]),
         }
         return tile["embedding"], float(self.targets[idx]), meta
 
@@ -163,6 +183,7 @@ class _BatchIndex(NamedTuple):
 
     rows: np.ndarray  # row in the flat tile table
     target: np.ndarray
+    ambiguous: np.ndarray
     slide_of: np.ndarray  # position in .datasets (= in .slides)
     tile_x: np.ndarray
     tile_y: np.ndarray
@@ -216,6 +237,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         # gathers the slide's full rows, embeddings included.
         partitions = self.labels.partition(self.tiles)
         targets = self.labels.targets(self.tiles, partitions)
+        ambiguous = self.labels.ambiguous_mask(self.tiles)
         has_cohort = "cohort_id" in self.slides.column_names
         no_rows = np.array([], dtype=np.int64)
         for position, slide in enumerate(self.slides):
@@ -228,6 +250,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                 tiles=self.filter_tiles_by_slide(slide["id"]),
                 partitions=partitions[rows],
                 targets=targets[rows],
+                ambiguous=ambiguous[rows],
                 rows=rows,
             )
 
@@ -253,14 +276,16 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                     "slide": slide,
                     "tile_x": tile_x,
                     "tile_y": tile_y,
+                    "ambiguous": ambiguous,
                 },
             )
-            for i, (target, slide, tile_x, tile_y) in enumerate(
+            for i, (target, slide, tile_x, tile_y, ambiguous) in enumerate(
                 zip(
                     index.target[batch].tolist(),
                     slides,
                     index.tile_x[batch].tolist(),
                     index.tile_y[batch].tolist(),
+                    index.ambiguous[batch].tolist(),
                     strict=True,
                 )
             )
@@ -296,6 +321,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
             self._batch_index = _BatchIndex(
                 rows=rows,
                 target=np.concatenate([slide.targets for slide in slides]),
+                ambiguous=np.concatenate([slide.ambiguous for slide in slides]),
                 slide_of=np.repeat(np.arange(len(slides)), [len(slide) for slide in slides]),
                 # rows index self.tiles.data, as in _embeddings
                 tile_x=self.tiles.data.column("tile_x").to_numpy()[rows],

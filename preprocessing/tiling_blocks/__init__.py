@@ -3,6 +3,7 @@ from preprocessing.tiling_blocks.embedding import FoundationModelEmbedding
 from preprocessing.tiling_blocks.ray_operator import Operator
 from preprocessing.tiling_blocks.read_tiles import ReadTiles
 from preprocessing.tiling_blocks.tile_overlay import OverlayCoverage
+from preprocessing.tiling_blocks.tile_overlay_grid import OverlayGrid
 from preprocessing.tiling_blocks.tiling_block import TilingBlock
 
 
@@ -11,6 +12,7 @@ __all__ = [
     "FoundationModelEmbedding",
     "Operator",
     "OverlayCoverage",
+    "OverlayGrid",
     "ReadTiles",
     "TilingBlock",
 ]

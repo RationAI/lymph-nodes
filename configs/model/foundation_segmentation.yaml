@@ -1,0 +1,20 @@
+# Segmentation on the patch tokens of a frozen foundation model: a linear probe of
+# every patch token (1x1 convolution) over the last n_layers blocks (see
+# FrozenFoundationModel and SegmentationMetaArch). ${embedding_model} and
+# ${patch_token_dim} come from the data config (configs/data/segmentation/).
+_target_: lymph_nodes.segmentation_meta_arch.SegmentationMetaArch
+
+backbone:
+  _target_: lymph_nodes.modeling.FrozenFoundationModel
+  name: ${embedding_model}
+  n_layers: 4
+
+decode_head:
+  _target_: torch.nn.Conv2d
+  in_channels: ${multiply:${model.backbone.n_layers},${patch_token_dim}}
+  out_channels: 1
+  kernel_size: 1
+
+lr: 1.0e-4
+weight_decay: 0.05
+tile_score: max  # a tile scores its most confident patch

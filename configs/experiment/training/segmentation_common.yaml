@@ -1,0 +1,41 @@
+# @package _global_
+
+# What turns a (regularized) classification scenario into its segmentation version;
+# included by the segmentation_*.yaml scenarios, not used on its own. Run with a
+# segmentation data config (+data=segmentation/mmci_<model>) on a GPU.
+#   - model: a linear probe of the frozen foundation model's patch tokens
+#     (configs/model/foundation_segmentation.yaml), trained per patch
+#   - data: the same tiles, labels, filters and sampler partitions, but from the
+#     segmentation tiling runs and as images with per-patch coverage targets
+#     (TileSegmentationDataset): cytokeratin for TMAs; lymph node tiles have none
+#     (all 0, as their training slides are negative); annotations in the evaluation
+defaults:
+  - override /model: foundation_segmentation
+
+segmentation_dataset: lymph_nodes.data.datasets.segmentation.TileSegmentationDataset
+
+data:
+  batch_size: 256
+  num_workers: 8
+
+  train:
+    _target_: ${segmentation_dataset}
+    target_grids: [cytokeratin_grid]
+  val:
+    _target_: ${segmentation_dataset}
+    target_grids: [cytokeratin_grid]
+  eval:
+    _target_: ${segmentation_dataset}
+    target_grids: [cytokeratin_grid, annotation_grid]
+  test:
+    _target_: ${segmentation_dataset}
+    target_grids: [annotation_grid]
+
+  # Each sample passes the frozen foundation model (~300-400 tiles/s on a 2g MIG
+  # slice), so an epoch is a fixed draw rather than the largest the pools allow.
+  train_sampler:
+    epoch_length: 200_000
+
+trainer:
+  precision: bf16-mixed
+  max_epochs: 30

@@ -1,0 +1,11 @@
+# @package _global_
+
+# cross_tissue_tma_negatives_regularized.yaml as segmentation: TMA patches against
+# their cytokeratin coverage, negative lymph node tiles (and their brownish hard
+# negatives) with all-zero targets (see segmentation_common.yaml).
+defaults:
+  - /experiment/training/cross_tissue_tma_negatives_regularized
+  - /experiment/training/segmentation_common
+  - _self_
+
+scenario: cross-tissue segmentation

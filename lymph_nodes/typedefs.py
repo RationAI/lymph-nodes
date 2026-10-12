@@ -19,6 +19,9 @@ type Sample[I, O] = tuple[I, O, dict[str, Any]]
 
 type EmbeddingSample = Sample[EmbeddingInput, EmbeddingLabel]
 
+# A tile's RGB pixels (H, W, 3) and its per-patch target grid (grid, grid) in [0, 1].
+type SegmentationSample = Sample[NDArray[np.uint8], NDArray[np.float32]]
+
 type Input = Tensor
 
 type Outputs = Tensor

@@ -92,71 +92,96 @@ class FoundationModelEncoder(ABC):
         return batch
 
 
-class GigaPathEncoder(FoundationModelEncoder):
-    """Microsoft GigaPath — output: 1536-dim embedding.
+def create_gigapath() -> torch.nn.Module:
+    """Microsoft GigaPath tile encoder, a timm ViT-g/14 (1536-dim tokens).
 
     https://huggingface.co/prov-gigapath/prov-gigapath
     """
+    import timm
 
-    def _create_model(self) -> torch.nn.Module:
-        import timm
-        return timm.create_model("hf_hub:prov-gigapath/prov-gigapath", pretrained=True)
+    return timm.create_model("hf_hub:prov-gigapath/prov-gigapath", pretrained=True)
 
 
-class UNI2Encoder(FoundationModelEncoder):
-    """MahmoodLab UNI2-h — output: 1536-dim embedding.
+def create_uni2() -> torch.nn.Module:
+    """MahmoodLab UNI2-h, a timm ViT-H/14 (1536-dim tokens).
 
     https://huggingface.co/MahmoodLab/UNI2-h
     """
+    import timm
+    from timm.layers import SwiGLUPacked  # type: ignore[attr-defined]
 
-    def _create_model(self) -> torch.nn.Module:
-        import timm
-        from timm.layers import SwiGLUPacked  # type: ignore[attr-defined]
-
-        # UNI2-h's HF hub config only carries a generic base architecture; the actual
-        # checkpoint is a DINOv2-style ViT-g with 8 register tokens and no CLS-token
-        # embedding, so those overrides must be passed explicitly (per the model card)
-        # or the position-embedding tensor's token count won't match a square grid,
-        # crashing timm's checkpoint-resampling code on load.
-        return timm.create_model(
-            "hf_hub:MahmoodLab/uni2-h",
-            pretrained=True,
-            img_size=224,
-            patch_size=14,
-            depth=24,
-            num_heads=24,
-            init_values=1e-5,
-            embed_dim=1536,
-            mlp_ratio=2.66667 * 2,
-            num_classes=0,
-            no_embed_class=True,
-            mlp_layer=SwiGLUPacked,
-            # Pass an activation factory explicitly; passing an activation
-            # instance here causes timm to fail when constructing the MLP.
-            act_layer=lambda **kwargs: torch.nn.SiLU(**kwargs),
-            reg_tokens=8,
-            dynamic_img_size=True,
-        )
+    # UNI2-h's HF hub config only carries a generic base architecture; the actual
+    # checkpoint is a DINOv2-style ViT-g with 8 register tokens and no CLS-token
+    # embedding, so those overrides must be passed explicitly (per the model card)
+    # or the position-embedding tensor's token count won't match a square grid,
+    # crashing timm's checkpoint-resampling code on load.
+    return timm.create_model(
+        "hf_hub:MahmoodLab/uni2-h",
+        pretrained=True,
+        img_size=224,
+        patch_size=14,
+        depth=24,
+        num_heads=24,
+        init_values=1e-5,
+        embed_dim=1536,
+        mlp_ratio=2.66667 * 2,
+        num_classes=0,
+        no_embed_class=True,
+        mlp_layer=SwiGLUPacked,
+        # Pass an activation factory explicitly; passing an activation
+        # instance here causes timm to fail when constructing the MLP.
+        act_layer=lambda **kwargs: torch.nn.SiLU(**kwargs),
+        reg_tokens=8,
+        dynamic_img_size=True,
+    )
 
 
-class Virchow2Encoder(FoundationModelEncoder):
-    """Paige Virchow2 — output: 2560-dim embedding (CLS token + mean patch tokens).
+def create_virchow2() -> torch.nn.Module:
+    """Paige Virchow2, a timm ViT-H/14 (1280-dim tokens).
 
     https://huggingface.co/paige-ai/Virchow2
     """
+    import timm
+    from timm.layers import SwiGLUPacked  # type: ignore[attr-defined]
+
+    return timm.create_model(
+        "hf_hub:paige-ai/Virchow2",
+        pretrained=True,
+        mlp_layer=SwiGLUPacked,
+        # Pass an activation factory explicitly; passing an activation
+        # tensor here causes timm to fail when constructing the MLP.
+        act_layer=lambda **kwargs: torch.nn.SiLU(**kwargs),
+    )
+
+
+# By display name (as in the data configs' embedding_model), e.g. for training on the
+# models' patch tokens (lymph_nodes.modeling.FrozenFoundationModel).
+FOUNDATION_MODELS: dict[str, Callable[[], torch.nn.Module]] = {
+    "GigaPath": create_gigapath,
+    "UNI2": create_uni2,
+    "Virchow2": create_virchow2,
+}
+
+
+class GigaPathEncoder(FoundationModelEncoder):
+    """Microsoft GigaPath — output: 1536-dim embedding."""
 
     def _create_model(self) -> torch.nn.Module:
-        import timm
-        from timm.layers import SwiGLUPacked  # type: ignore[attr-defined]
+        return create_gigapath()
 
-        return timm.create_model(
-            "hf_hub:paige-ai/Virchow2",
-            pretrained=True,
-            mlp_layer=SwiGLUPacked,
-            # Pass an activation factory explicitly; passing an activation
-            # tensor here causes timm to fail when constructing the MLP.
-            act_layer=lambda **kwargs: torch.nn.SiLU(**kwargs),
-        )
+
+class UNI2Encoder(FoundationModelEncoder):
+    """MahmoodLab UNI2-h — output: 1536-dim embedding."""
+
+    def _create_model(self) -> torch.nn.Module:
+        return create_uni2()
+
+
+class Virchow2Encoder(FoundationModelEncoder):
+    """Paige Virchow2 — output: 2560-dim embedding (CLS token + mean patch tokens)."""
+
+    def _create_model(self) -> torch.nn.Module:
+        return create_virchow2()
 
     def _build_embedding_fn(self, model: torch.nn.Module) -> Callable[[torch.Tensor], torch.Tensor]:
         # Virchow2 embedding = CLS token ‖ mean(patch tokens), giving 2 x 1280 = 2560 dims.

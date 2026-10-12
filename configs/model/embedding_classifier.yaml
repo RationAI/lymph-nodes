@@ -1,5 +1,7 @@
 # No backbone to train — the embedding was already computed by the preprocessing
 # pipeline (its size comes from the data config). decode_head is the trainable classifier.
+_target_: lymph_nodes.meta_arch.MetaArch
+
 backbone:
   _target_: torch.nn.Identity
 

@@ -23,7 +23,16 @@ if TYPE_CHECKING:
 
 
 # Slide columns (written by preprocessing/tiling.py) describing the tiling level's grid.
-_GEOMETRY = ("extent_x", "extent_y", "stride_x", "stride_y", "mpp_x", "mpp_y")
+_GEOMETRY = (
+    "extent_x",
+    "extent_y",
+    "tile_extent_x",
+    "tile_extent_y",
+    "stride_x",
+    "stride_y",
+    "mpp_x",
+    "mpp_y",
+)
 
 
 class PredictionMasks(Callback):
@@ -43,12 +52,17 @@ class PredictionMasks(Callback):
     MaskBuilder over the full overlapping tiles would have to work at a resolution of
     gcd(tile extent, stride): 2 px for that grid.
 
+    Per-patch outputs (B, g, g), as from SegmentationMetaArch, give a mask with one
+    pixel per patch instead (tile extent / g px of the level: 14 for the foundation
+    models' patches), assembled by MaskBuilder from the full tiles — meant for tilings
+    without overlap (stride = tile extent, configs/experiment/tiling/*_segmentation.yaml).
+
     Needs the steps to return their logits and the samples' meta to carry ``slide``
     (position in the dataset's ``slides``), ``tile_x`` and ``tile_y``.
     """
 
     def __init__(self) -> None:
-        # Per batch: slide positions, tile_x, tile_y, probabilities.
+        # Per batch: slide positions, tile_x, tile_y, probabilities (per tile or patch).
         self._predictions: list[
             tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
         ] = []
@@ -92,7 +106,10 @@ class PredictionMasks(Callback):
                 meta["slide"].cpu().numpy(),
                 meta["tile_x"].cpu().numpy(),
                 meta["tile_y"].cpu().numpy(),
-                torch.sigmoid(outputs.detach().float()).cpu().numpy(),
+                torch.sigmoid(outputs.detach().float())
+                .cpu()
+                .numpy()
+                .astype(np.float16),
             )
         )
 
@@ -131,18 +148,14 @@ class PredictionMasks(Callback):
                 slide_geometry = {
                     column: values[position] for column, values in geometry.items()
                 }
+                mask, (pixel_y, pixel_x) = _prediction_mask(
+                    slide_geometry, tile_x[tiles], tile_y[tiles], probability[tiles]
+                )
                 write_big_tiff(
-                    pyvips.Image.new_from_array(
-                        _prediction_mask(
-                            slide_geometry,
-                            tile_x[tiles],
-                            tile_y[tiles],
-                            probability[tiles],
-                        )
-                    ),
+                    pyvips.Image.new_from_array(mask),
                     path=directory / f"{names[position]}.tiff",
-                    mpp_x=float(slide_geometry["mpp_x"] * slide_geometry["stride_x"]),
-                    mpp_y=float(slide_geometry["mpp_y"] * slide_geometry["stride_y"]),
+                    mpp_x=float(slide_geometry["mpp_x"] * pixel_x),
+                    mpp_y=float(slide_geometry["mpp_y"] * pixel_y),
                 )
             cast("MLFlowLogger", trainer.logger).log_artifacts(tmp, "prediction_masks")
 
@@ -152,22 +165,33 @@ def _prediction_mask(
     tile_x: np.ndarray,
     tile_y: np.ndarray,
     probability: np.ndarray,
-) -> np.ndarray:
-    """The uint8 probability mask of one slide, one pixel per tile (see PredictionMasks)."""
-    stride = (int(slide["stride_y"]), int(slide["stride_x"]))
+) -> tuple[np.ndarray, np.ndarray]:
+    """The uint8 probability mask of one slide (see PredictionMasks).
 
-    # A "tile" of stride x stride source pixels per mask pixel.
+    Also returns the size of a mask pixel in pixels of the tiling level, (y, x).
+    """
+    stride = (int(slide["stride_y"]), int(slide["stride_x"]))
+    output_extent: int | tuple[int, ...]
+    if probability.ndim == 1:
+        # One mask pixel per tile: a "tile" of stride x stride source pixels.
+        tile_extent, output_extent, values = stride, 1, probability[:, np.newaxis]
+    else:
+        # One mask pixel per patch of the full tile.
+        tile_extent = (int(slide["tile_extent_y"]), int(slide["tile_extent_x"]))
+        output_extent, values = probability.shape[1:], probability[:, np.newaxis]
+
     builder = MaskBuilder(
         source_extents=(int(slide["extent_y"]), int(slide["extent_x"])),
-        source_tile_extent=stride,
-        output_tile_extent=1,
+        source_tile_extent=tile_extent,
+        output_tile_extent=output_extent,
         stride=stride,
     )
     try:
         builder.update_batch(
-            probability[:, np.newaxis],
+            values.astype(np.float32),
             np.stack([tile_y, tile_x], axis=1).astype(np.int64),
         )
-        return np.round(builder.finalize()["mask"][0] * 255).astype(np.uint8)
+        mask = np.round(builder.finalize()["mask"][0] * 255).astype(np.uint8)
+        return mask, builder.span / builder.mask_extents
     finally:
         builder.cleanup()

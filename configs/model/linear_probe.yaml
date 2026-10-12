@@ -1,6 +1,8 @@
 # A single linear layer on the precomputed embedding (see embedding_classifier.yaml):
 # the standard probe of foundation-model features, with the least capacity to memorize
 # the training tiles.
+_target_: lymph_nodes.meta_arch.MetaArch
+
 backbone:
   _target_: torch.nn.Identity
 

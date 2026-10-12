@@ -43,6 +43,18 @@ _COHORT_METRICS: dict[str, Callable[[Tensor, Tensor], Tensor]] = {
 }
 
 
+def _cohort_metrics(prefix: str, preds: Tensor, target: Tensor) -> dict[str, float | Tensor]:
+    values: dict[str, float | Tensor] = {
+        f"{prefix}/n_tiles": float(len(target)),
+        f"{prefix}/n_positive": float(target.sum()),
+    }
+    for name, metric in _COHORT_METRICS.items():
+        # AUROC is undefined for a cohort holding a single class.
+        if name != "auroc" or target.unique().numel() == 2:
+            values[f"{prefix}/{name}"] = metric(preds, target)
+    return values
+
+
 class MetaArch(LightningModule):
     """Binary (cancer / healthy) tile classifier on top of a precomputed embedding.
 
@@ -53,7 +65,9 @@ class MetaArch(LightningModule):
     The final evaluations (``validate`` and ``test``, not the validation during ``fit``)
     also log every metric per cohort of the evaluated data (the slides' cohort_id), as
     ``<phase>/<cohort>/<metric>`` next to the overall ``<phase>/<metric>``: an
-    evaluation set can mix cohorts that behave very differently. The validation and test
+    evaluation set can mix cohorts that behave very differently. Cohorts with borderline
+    tiles (TileLabels.ambiguous, flagged in the samples' meta) also get every metric
+    without them, as ``<phase>/<cohort>/unambiguous/<metric>``. The validation and test
     steps return their logits for callbacks, e.g. lymph_nodes.callbacks.PredictionMasks.
 
     Targets may be soft (TileLabels.soft_target): the loss takes them as they are, the
@@ -90,8 +104,8 @@ class MetaArch(LightningModule):
         self.val_metrics = metrics.clone(prefix="validation/")
         self.test_metrics = metrics.clone(prefix="test/")
 
-        # cohort -> (logits, targets) of the running final evaluation
-        self._cohort_outputs: dict[str, tuple[list[Tensor], list[Tensor]]] = {}
+        # cohort -> (logits, targets, ambiguous flags) of the running final evaluation
+        self._cohort_outputs: dict[str, tuple[list[Tensor], list[Tensor], list[Tensor]]] = {}
 
     def forward(self, x: Input) -> Outputs:
         features = self.backbone(x)
@@ -143,21 +157,17 @@ class MetaArch(LightningModule):
         cohorts: list[str] = meta["cohort"]
         for cohort in set(cohorts):
             mask = torch.tensor([c == cohort for c in cohorts], device=outputs.device)
-            logits, labels = self._cohort_outputs.setdefault(cohort, ([], []))
+            logits, labels, ambiguous = self._cohort_outputs.setdefault(cohort, ([], [], []))
             logits.append(outputs[mask].detach().float().cpu())
             labels.append(targets[mask].detach().cpu())
+            ambiguous.append(meta["ambiguous"][mask.cpu()].cpu())
 
     def _log_by_cohort(self, phase: str) -> None:
-        for cohort, (logits, labels) in sorted(self._cohort_outputs.items()):
-            preds, target = torch.cat(logits), torch.cat(labels).int()
-            values: dict[str, float | Tensor] = {
-                f"{phase}/{cohort}/n_tiles": float(len(target)),
-                f"{phase}/{cohort}/n_positive": float(target.sum()),
-            }
-            for name, metric in _COHORT_METRICS.items():
-                # AUROC is undefined for a cohort holding a single class.
-                if name != "auroc" or target.unique().numel() == 2:
-                    values[f"{phase}/{cohort}/{name}"] = metric(preds, target)
+        for cohort, (logits, labels, ambiguous) in sorted(self._cohort_outputs.items()):
+            preds, target, borderline = torch.cat(logits), torch.cat(labels).int(), torch.cat(ambiguous)
+            values = _cohort_metrics(f"{phase}/{cohort}", preds, target)
+            if borderline.any():
+                values |= _cohort_metrics(f"{phase}/{cohort}/unambiguous", preds[~borderline], target[~borderline])
             self.log_dict(values)
         self._cohort_outputs.clear()
 

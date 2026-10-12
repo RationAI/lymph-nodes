@@ -30,6 +30,12 @@ def other_fold_uris(bases: str | Iterable[str], n_folds: int | str, fold: int | 
     ]
 
 
+def multiply(a: float, b: float) -> float:
+    """``a * b``: OmegaConf interpolation has no arithmetic (e.g. layers x token width)."""
+    return a * b
+
+
 def register_resolvers() -> None:
     OmegaConf.register_new_resolver("random_seed", lambda: randint(0, 2**31), use_cache=True)
     OmegaConf.register_new_resolver("other_fold_uris", other_fold_uris)
+    OmegaConf.register_new_resolver("multiply", multiply)
