@@ -118,27 +118,47 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         return out.reshape(len(rows), side, side)
 
     def _take_grid(self, name: str, rows: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """One fixed-size list column at ``rows`` (as in _embeddings, chunk by chunk).
+        """One grid column at ``rows`` (as in _embeddings, chunk by chunk).
 
-        Returns the values (len(rows), grid * grid) and which rows have any (not null).
+        Returns the values (len(rows), cells) and which rows have any (not null).
         """
         column = self.tiles.data.column(name)
         offsets = np.cumsum([0, *(len(chunk) for chunk in column.chunks)])
         chunk_of = np.searchsorted(offsets, rows, side="right") - 1
-        size = column.type.list_size
-        values = np.zeros((len(rows), size), dtype=np.uint8)
+        values: np.ndarray | None = None
         valid = np.zeros(len(rows), dtype=bool)
         for chunk in np.unique(chunk_of):
             selected = np.flatnonzero(chunk_of == chunk)
             taken = column.chunk(int(chunk)).take(
                 pa.array(rows[selected] - offsets[chunk])
             )
-            # .values of a fixed-size list holds size slots per row, null rows included
-            # (as nulls, filled so they convert to uint8; masked by `valid` anyway).
-            flat = pc.fill_null(taken.values, 0).to_numpy(zero_copy_only=False)
-            start = taken.offset * size
-            values[selected] = flat[start : start + len(taken) * size].reshape(
-                len(taken), size
-            )
-            valid[selected] = taken.is_valid().to_numpy(zero_copy_only=False)
+            chunk_values, chunk_valid = _grid_rows(taken)
+            if values is None:
+                values = np.zeros((len(rows), chunk_values.shape[1]), dtype=np.uint8)
+            values[selected], valid[selected] = chunk_values, chunk_valid
+        assert values is not None
         return values, valid
+
+
+def _grid_rows(array: pa.Array) -> tuple[np.ndarray, np.ndarray]:
+    """The rows of a grid column: uint8 (len(array), cells) (0 where null), and validity.
+
+    OverlayGrid writes a list, but Ray Data may store such a column as its tensor
+    extension — a struct of the row's values (``data``) and shape — in the parquet
+    (e.g. after a block with numpy batches); both are read here, as are fixed-size
+    lists (earlier OverlayGrid output).
+    """
+    if isinstance(array, pa.ExtensionArray):
+        array = array.storage
+    valid = array.is_valid().to_numpy(zero_copy_only=False)
+    if pa.types.is_struct(array.type):
+        array = pc.struct_field(array, "data")
+    # Flattening skips null rows: the values of the valid ones, in order.
+    flat = pc.list_flatten(array).to_numpy(zero_copy_only=False)
+    n_valid = int(valid.sum())
+    cells = len(flat) // n_valid if n_valid else 0
+    if n_valid * cells != len(flat):
+        raise ValueError("Grid rows of different sizes")
+    values = np.zeros((len(array), cells), dtype=np.uint8)
+    values[valid] = flat.reshape(n_valid, cells)
+    return values, valid

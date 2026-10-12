@@ -57,6 +57,15 @@ tiling_blocks:
     min_label: 255
     mandatory: false
 
+  - _target_: preprocessing.tiling_blocks.ReadTiles
+    name: tile
+
+  - _target_: preprocessing.tiling_blocks.BrownishCoverage
+    name: brownish_coverage
+    image_col: tile
+
+  # After BrownishCoverage: its numpy batches can't carry a grid column mixing values
+  # and nulls (slides with and without an annotation mask) back into Arrow.
   - _target_: preprocessing.tiling_blocks.OverlayGrid
     name: annotation_grid
     uri: ${annotation_mask_dir}
@@ -64,13 +73,6 @@ tiling_blocks:
     grid: ${grid}
     min_label: 255
     mandatory: false
-
-  - _target_: preprocessing.tiling_blocks.ReadTiles
-    name: tile
-
-  - _target_: preprocessing.tiling_blocks.BrownishCoverage
-    name: brownish_coverage
-    image_col: tile
 
   - _target_: preprocessing.tiling_blocks.Operator
     operator: drop_columns

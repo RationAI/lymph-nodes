@@ -38,6 +38,11 @@ class OverlayGrid(OverlayCoverage):
     column holds ``grid * grid`` uint8 values (coverage * 255) in row-major order, top
     row first; null for tiles whose slide has no mask (dropped if ``mandatory``).
     Labels are counted as in OverlayCoverage (``min_label``/``max_label``).
+
+    Ray Data stores the column as its tensor extension (see TileSegmentationDataset).
+    A non-mandatory grid can mix values and nulls within a batch, which a later block
+    with numpy batches (e.g. BrownishCoverage) fails to convert back to Arrow: place
+    such grids after those blocks.
     """
 
     def __init__(
@@ -74,7 +79,10 @@ class OverlayGrid(OverlayCoverage):
         min_label = -np.inf if self._min_label is None else self._min_label
         max_label = np.inf if self._max_label is None else self._max_label
         mandatory = self._mandatory
-        column_type = pa.list_(pa.uint8(), grid * grid)
+        # A variable-size list although every row has grid * grid values: parquet
+        # can't read null rows of a fixed-size list back ("Expected all lists to be
+        # of size=...").
+        column_type = pa.list_(pa.uint8())
 
         def add_grid(batch: pa.Table) -> pa.Table:
             stems = [Path(p).stem for p in batch["path"].to_pylist()]
