@@ -247,4 +247,12 @@ class MetaDataset[T](MetaTiledSlides[T]):
         # already-filtered table indexes out of range. flatten_indices() bakes the
         # selection into a real, compacted base table — a one-time O(kept rows)
         # rewrite, done once here rather than being silently wrong downstream.
-        return selected.flatten_indices()
+        # Flattened in Arrow format: flatten_indices() maps over the dataset's format,
+        # and numpy can't hold list columns with null rows (e.g. a coverage grid of
+        # slides without that mask).
+        fmt = dataset.format
+        return (
+            selected.with_format("arrow")
+            .flatten_indices()
+            .with_format(fmt["type"], columns=fmt["columns"], output_all_columns=fmt["output_all_columns"], **fmt["format_kwargs"])
+        )
