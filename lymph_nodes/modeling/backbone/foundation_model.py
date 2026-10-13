@@ -13,12 +13,13 @@ if TYPE_CHECKING:
 class FrozenFoundationModel(nn.Module):
     """Patch tokens of a frozen foundation model, as one feature map per tile.
 
-    ``name`` is a display name of preprocessing.models.FOUNDATION_MODELS (GigaPath,
-    UNI2, Virchow2: timm ViTs with 14 px patches). Takes uint8 RGB tiles (B, H, W, 3),
-    normalizes them as the model expects, and returns the normalized patch tokens of
-    its last ``n_layers`` blocks concatenated along the channels: (B, n_layers * D,
-    H / 14, W / 14) — 16 x 16 at 224 px. Several blocks rather than only the last one:
-    dense tasks gain from the intermediate layers (the DINOv2 "multi-scale" probe).
+    ``name`` is a display name of preprocessing.models.FOUNDATION_MODELS (timm ViTs:
+    UNI2 and Virchow2 with 14 px patches, GigaPath with 16 px). Takes uint8 RGB tiles
+    (B, H, W, 3), normalizes them as the model expects, and returns the normalized
+    patch tokens of its last ``n_layers`` blocks concatenated along the channels:
+    (B, n_layers * D, H / patch, W / patch) — 16 x 16 at 224 px for 14 px patches,
+    14 x 14 for 16 px. Several blocks rather than only the last one: dense tasks gain
+    from the intermediate layers (the DINOv2 "multi-scale" probe).
 
     Never trained: no gradients, always in eval mode, and left out of checkpoints
     (see SegmentationMetaArch) — the weights come from the hub every time.

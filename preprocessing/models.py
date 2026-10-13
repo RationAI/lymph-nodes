@@ -93,7 +93,7 @@ class FoundationModelEncoder(ABC):
 
 
 def create_gigapath() -> torch.nn.Module:
-    """Microsoft GigaPath tile encoder, a timm ViT-g/14 (1536-dim tokens).
+    """Microsoft GigaPath tile encoder, a timm ViT-g with 16 px patches (1536-dim tokens).
 
     https://huggingface.co/prov-gigapath/prov-gigapath
     """

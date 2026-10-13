@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Literal
 
 import torch
+import torch.nn.functional as F
 from lightning.pytorch.trainer.states import TrainerFn
 from torchmetrics import MetricCollection
 from torchmetrics.classification import BinaryAUROC, BinaryF1Score
@@ -23,7 +24,9 @@ class SegmentationMetaArch(MetaArch):
     patch tokens — and ``decode_head`` that to one logit per patch, (B, 1, g, g): e.g.
     a 1x1 convolution, a linear probe of every patch token. Trained with BCE per patch
     against the target grid (TileSegmentationDataset: each patch's coverage, a soft
-    target).
+    target). A model whose patch grid differs from the targets' (GigaPath: 16 px
+    patches, 14 x 14 per 224 px tile, against the 16 x 16 grids of 14 px) has its
+    logits bilinearly resized to the target grid first.
 
     Evaluated per patch (``<phase>/patch/{auroc,f1}``, a patch counting as cancer when
     its target is above 0.5) and per tile, like MetaArch — overall and per cohort, the
@@ -70,7 +73,7 @@ class SegmentationMetaArch(MetaArch):
 
     def training_step(self, batch: Batch, batch_idx: int) -> Tensor:
         tiles, grids, _meta = batch
-        loss = self.criterion(self(tiles), grids.float())
+        loss = self.criterion(self._logits(tiles, grids), grids.float())
         self.log("train/loss", loss, on_step=True, prog_bar=True)
         return loss
 
@@ -91,12 +94,21 @@ class SegmentationMetaArch(MetaArch):
         self._collect_by_cohort(scores, labels, batch[2])
         return logits
 
+    def _logits(self, tiles: Tensor, grids: Tensor) -> Tensor:
+        """Per-patch logits on the grid of the targets (B, g, g)."""
+        logits = self(tiles)
+        if logits.shape[-2:] != grids.shape[-2:]:
+            logits = F.interpolate(
+                logits.unsqueeze(1), size=grids.shape[-2:], mode="bilinear"
+            ).squeeze(1)
+        return logits
+
     def _evaluate(
         self, batch: Batch, phase: str, patch_metrics: MetricCollection
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Per-patch logits, tile scores (probabilities) and tile labels; logs the patch side."""
         tiles, grids, meta = batch
-        logits = self(tiles)
+        logits = self._logits(tiles, grids)
         self.log(
             f"{phase}/loss",
             self.criterion(logits, grids.float()),
