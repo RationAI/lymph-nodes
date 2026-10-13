@@ -35,18 +35,23 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
       has none of them (e.g. a lymph node slide without an annotation mask, i.e. a
       negative one),
     - the usual meta, plus ``label``: the tile's TileLabels target, for tile metrics.
+
+    ``grid`` is the side of the target grids (OverlayGrid's ``grid`` in the tiling),
+    so that a batch none of whose tiles has a grid still gets targets of that shape.
     """
 
     def __init__(
         self,
         uris: Iterable[str],
         target_grids: Sequence[str],
+        grid: int = 16,
         labels: TileLabels | None = None,
         tile_filters: Sequence[FilterCondition] = (),
         slide_filters: Sequence[FilterCondition] = (),
         exclude_unannotated_positive_slides: bool = False,
     ) -> None:
         self.target_grids = list(target_grids)
+        self.grid = grid
         self._open_slides: dict[int, OpenSlide] = {}
         super().__init__(
             uris,
@@ -114,8 +119,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             raise ValueError(
                 f"None of the target grids {self.target_grids} is a column of the tiles"
             )
-        side = round(np.sqrt(out.shape[1]))
-        return out.reshape(len(rows), side, side)
+        return out.reshape(len(rows), self.grid, self.grid)
 
     def _take_grid(self, name: str, rows: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """One grid column at ``rows`` (as in _embeddings, chunk by chunk).
@@ -125,22 +129,18 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         column = self.tiles.data.column(name)
         offsets = np.cumsum([0, *(len(chunk) for chunk in column.chunks)])
         chunk_of = np.searchsorted(offsets, rows, side="right") - 1
-        values: np.ndarray | None = None
+        values = np.zeros((len(rows), self.grid * self.grid), dtype=np.uint8)
         valid = np.zeros(len(rows), dtype=bool)
         for chunk in np.unique(chunk_of):
             selected = np.flatnonzero(chunk_of == chunk)
             taken = column.chunk(int(chunk)).take(
                 pa.array(rows[selected] - offsets[chunk])
             )
-            chunk_values, chunk_valid = _grid_rows(taken)
-            if values is None:
-                values = np.zeros((len(rows), chunk_values.shape[1]), dtype=np.uint8)
-            values[selected], valid[selected] = chunk_values, chunk_valid
-        assert values is not None
+            values[selected], valid[selected] = _grid_rows(taken, self.grid * self.grid)
         return values, valid
 
 
-def _grid_rows(array: pa.Array) -> tuple[np.ndarray, np.ndarray]:
+def _grid_rows(array: pa.Array, cells: int) -> tuple[np.ndarray, np.ndarray]:
     """The rows of a grid column: uint8 (len(array), cells) (0 where null), and validity.
 
     OverlayGrid writes a list, but Ray Data may store such a column as its tensor
@@ -156,9 +156,8 @@ def _grid_rows(array: pa.Array) -> tuple[np.ndarray, np.ndarray]:
     # Flattening skips null rows: the values of the valid ones, in order.
     flat = pc.list_flatten(array).to_numpy(zero_copy_only=False)
     n_valid = int(valid.sum())
-    cells = len(flat) // n_valid if n_valid else 0
     if n_valid * cells != len(flat):
-        raise ValueError("Grid rows of different sizes")
+        raise ValueError(f"Grid rows with other than {cells} values")
     values = np.zeros((len(array), cells), dtype=np.uint8)
     values[valid] = flat.reshape(n_valid, cells)
     return values, valid
