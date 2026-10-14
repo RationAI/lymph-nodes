@@ -20,4 +20,5 @@ submit_scenario(
     data="segmentation" if segmentation else "tiled",
     trained=False,
     foundation_model=False,
+    name="brown_baseline_segmentation_tiling" if segmentation else None,
 )

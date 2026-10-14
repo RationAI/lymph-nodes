@@ -18,3 +18,12 @@ decode_head:
 lr: 1.0e-4
 weight_decay: 0.05
 tile_score: max  # a tile scores its most confident patch
+
+# Weighted focal + soft Dice per patch (lymph_nodes.modeling.DiceFocalLoss). The
+# segmentation runs before it (up to 2026-10-14) trained with plain BCE, which
+# `criterion: {_target_: torch.nn.BCEWithLogitsLoss}` reproduces.
+criterion:
+  _target_: lymph_nodes.modeling.DiceFocalLoss
+  focal_weight: 1.0
+  dice_weight: 1.0
+  gamma: 2.0

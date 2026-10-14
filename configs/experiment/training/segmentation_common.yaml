@@ -66,3 +66,8 @@ trainer:
       filename: "epoch{epoch:02d}-patch_auroc{validation/patch/auroc:.4f}"
     early_stopping:
       monitor: validation/patch/auroc
+
+# The loss isn't in the run name; this keeps runs with different criteria apart.
+metadata:
+  hyperparams:
+    criterion: ${model.criterion._target_}

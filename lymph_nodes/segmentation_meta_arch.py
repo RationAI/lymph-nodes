@@ -22,11 +22,12 @@ class SegmentationMetaArch(MetaArch):
 
     ``backbone`` maps tiles to a (B, C, g, g) feature map — FrozenFoundationModel, its
     patch tokens — and ``decode_head`` that to one logit per patch, (B, 1, g, g): e.g.
-    a 1x1 convolution, a linear probe of every patch token. Trained with BCE per patch
-    against the target grid (TileSegmentationDataset: each patch's coverage, a soft
-    target). A model whose patch grid differs from the targets' (GigaPath: 16 px
-    patches, 14 x 14 per 224 px tile, against the 16 x 16 grids of 14 px) has its
-    logits bilinearly resized to the target grid first.
+    a 1x1 convolution, a linear probe of every patch token. Trained per patch against
+    the target grid (TileSegmentationDataset: each patch's coverage, a soft target)
+    with ``criterion``: BCE when not given, e.g. DiceFocalLoss
+    (configs/model/foundation_segmentation.yaml). A model whose patch grid differs from
+    the targets' (GigaPath: 16 px patches, 14 x 14 per 224 px tile, against the
+    16 x 16 grids of 14 px) has its logits bilinearly resized to the target grid first.
 
     Evaluated per patch (``<phase>/patch/{auroc,f1}``, a patch counting as cancer when
     its target is above 0.5) and per tile, like MetaArch — overall and per cohort, the
@@ -45,8 +46,15 @@ class SegmentationMetaArch(MetaArch):
         lr: float = 1e-4,
         weight_decay: float = 0.05,
         tile_score: Literal["max", "mean"] = "max",
+        criterion: nn.Module | None = None,
     ) -> None:
-        super().__init__(backbone, decode_head, lr=lr, weight_decay=weight_decay)
+        super().__init__(
+            backbone,
+            decode_head,
+            lr=lr,
+            weight_decay=weight_decay,
+            criterion=criterion,
+        )
         self.tile_score = tile_score
         # Checkpoints hold the head only (on_save_checkpoint).
         self.strict_loading = False

@@ -71,7 +71,9 @@ class MetaArch(LightningModule):
     steps return their logits for callbacks, e.g. lymph_nodes.callbacks.PredictionMasks.
 
     Targets may be soft (TileLabels.soft_target): the loss takes them as they are, the
-    metrics count a tile as cancer when its target is above 0.5.
+    metrics count a tile as cancer when its target is above 0.5. ``criterion`` maps
+    (logits, targets) to the loss; BCE when not given (e.g. DiceFocalLoss for the
+    per-patch targets of SegmentationMetaArch).
     """
 
     def __init__(
@@ -80,6 +82,7 @@ class MetaArch(LightningModule):
         decode_head: nn.Module,
         lr: float = 1e-3,
         weight_decay: float = 0.01,  # AdamW's default
+        criterion: nn.Module | None = None,
     ) -> None:
         super().__init__()
         self.backbone = backbone
@@ -90,7 +93,7 @@ class MetaArch(LightningModule):
         # Class imbalance (~20:1 healthy:cancer) is handled at the data level by
         # StratifiedEpochSampler (lymph_nodes/data/samplers/stratified_sampler.py),
         # not here — avoid double-compensating with e.g. BCEWithLogitsLoss(pos_weight=...).
-        self.criterion = nn.BCEWithLogitsLoss()
+        self.criterion = criterion if criterion is not None else nn.BCEWithLogitsLoss()
 
         # torchmetrics' Binary* metrics auto-apply sigmoid to inputs outside [0, 1],
         # so raw logits can be passed directly without a separate activation step.
