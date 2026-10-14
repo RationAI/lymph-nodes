@@ -1,0 +1,35 @@
+# @package _global_
+
+# Baseline: on these cytokeratin (H-DAB) slides, how well does the amount of brown
+# staining alone find metastases? A tile's brownish_coverage (fraction of brown pixels,
+# preprocessing/tiling_blocks/brownish.py) is its score, evaluated exactly like the
+# models (mode=validate, no checkpoint): the same tiles, labels and filters, per-cohort
+# and unambiguous metrics, and prediction masks. The thresholded metrics count a tile
+# with brownish_coverage above brownish_threshold (the brownish hard-negative
+# threshold of cross_tissue.yaml) as positive.
+#
+# Lymph node cohorts only: the TMA tilings have no brownish_coverage. Run on both
+# tilings, to compare with classification (+data=tiled/mmci_<model>, stride 122) and
+# with segmentation (+data=segmentation/mmci_<model>, stride 224); the model in the
+# data config doesn't matter.
+defaults:
+  - override /model: brown_baseline
+  - _self_
+
+scenario: brown baseline
+brownish_threshold: 0.002
+cytokeratin_positive_threshold: 0.5  # required by the eval labels; no TMAs here
+
+data:
+  eval:
+    uris:
+      - ${ihc_run_uri}/val
+      - ${ihc_test_run_uri}/val
+    tile_filters:
+      - ${filters.tissue}
+    input_column: brownish_coverage
+  test:
+    input_column: brownish_coverage
+
+metadata:
+  run_name: "${mode_emojis.${mode}} ${scenario} · ${tiling} tiling"

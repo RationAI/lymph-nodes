@@ -1,6 +1,7 @@
 # @package _global_
 
 embedding_model: Virchow2
+tiling: classification  # which tiling the runs are (see brown_baseline.yaml)
 embedding_dim: 2560
 
 ihc_run_uri: mlflow-artifacts:/4/f9812e1474734a62913c8417960b5c13/artifacts  # IHC 2023: fold_0..fold_4, val, test

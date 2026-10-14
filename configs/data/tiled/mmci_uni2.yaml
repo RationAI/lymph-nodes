@@ -1,6 +1,7 @@
 # @package _global_
 
 embedding_model: UNI2
+tiling: classification  # which tiling the runs are (see brown_baseline.yaml)
 embedding_dim: 1536
 
 ihc_run_uri: mlflow-artifacts:/4/c5f8f4f9116843c8904be638cda39af1/artifacts  # IHC 2023: fold_0..fold_4, val, test

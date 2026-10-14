@@ -147,8 +147,10 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
         targets: np.ndarray,
         ambiguous: np.ndarray,
         rows: np.ndarray,
+        input_column: str = "embedding",
     ) -> None:
         super().__init__()
+        self.input_column = input_column
         self.name = name
         self.cohort = cohort
         self.slide = slide
@@ -171,7 +173,8 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
             "tile_y": int(tile["tile_y"]),
             "ambiguous": bool(self.ambiguous[idx]),
         }
-        return tile["embedding"], float(self.targets[idx]), meta
+        value = np.atleast_1d(np.asarray(tile[self.input_column], dtype=np.float32))
+        return np.nan_to_num(value), float(self.targets[idx]), meta
 
     def partition_labels(self) -> np.ndarray:
         """Per-tile group id (HEALTHY, HEALTHY_BROWNISH, HEALTHY_TMA, or CANCER), for the sampler."""
@@ -198,6 +201,11 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
     that have no annotation mask at all: their metastases aren't outlined, so every
     tile would be labelled healthy. Needed wherever lymph node slides are evaluated
     by ``annotation_coverage``, since most positive slides have no annotation.
+
+    ``input_column`` is what a sample's input is read from: the embedding by default,
+    or a scalar column as a one-element input (missing values as 0) — e.g.
+    ``brownish_coverage`` for the brown-staining baseline (configs/experiment/
+    training/brown_baseline.yaml).
     """
 
     def __init__(
@@ -207,7 +215,9 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         tile_filters: Sequence[FilterCondition] = (),
         slide_filters: Sequence[FilterCondition] = (),
         exclude_unannotated_positive_slides: bool = False,
+        input_column: str = "embedding",
     ) -> None:
+        self.input_column = input_column
         self._batch_index: _BatchIndex | None = None
         self._chunk_offsets: np.ndarray | None = None
         # Set before super().__init__, which builds the per-slide datasets.
@@ -252,6 +262,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                 targets=targets[rows],
                 ambiguous=ambiguous[rows],
                 rows=rows,
+                input_column=self.input_column,
             )
 
     def __getitems__(self, indices: Sequence[int]) -> list[EmbeddingSample]:
@@ -292,13 +303,13 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         ]
 
     def _embeddings(self, rows: np.ndarray) -> np.ndarray:
-        """Embeddings of ``rows`` of the underlying table, as one (len(rows), dim) array.
+        """Inputs (``input_column``) of ``rows`` of the underlying table, as one (len(rows), dim) array.
 
         Taken chunk by chunk: ``ChunkedArray.take`` on the (large_list) embedding column
         concatenates every chunk first — the whole column, materialized in each loader
         worker. ``rows`` index self.tiles.data, like _slide_id_to_indices.
         """
-        column = self.tiles.data.column("embedding")
+        column = self.tiles.data.column(self.input_column)
         if self._chunk_offsets is None:
             self._chunk_offsets = np.cumsum([0, *(len(chunk) for chunk in column.chunks)])
         chunk_of = np.searchsorted(self._chunk_offsets, rows, side="right") - 1
@@ -307,7 +318,11 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         for chunk in np.unique(chunk_of):
             selected = np.flatnonzero(chunk_of == chunk)
             local = pa.array(rows[selected] - self._chunk_offsets[chunk])
-            values = column.chunk(int(chunk)).take(local).flatten().to_numpy(zero_copy_only=False)
+            taken = column.chunk(int(chunk)).take(local)
+            if pa.types.is_floating(taken.type) or pa.types.is_integer(taken.type):
+                values = np.nan_to_num(taken.to_numpy(zero_copy_only=False).astype(np.float32))
+            else:
+                values = taken.flatten().to_numpy(zero_copy_only=False)
             values = values.reshape(len(selected), -1)
             if out is None:
                 out = np.empty((len(rows), values.shape[1]), dtype=values.dtype)

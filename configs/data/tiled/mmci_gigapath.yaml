@@ -1,6 +1,7 @@
 # @package _global_
 
 embedding_model: GigaPath
+tiling: classification  # which tiling the runs are (see brown_baseline.yaml)
 embedding_dim: 1536
 
 ihc_run_uri: mlflow-artifacts:/4/cc640e177149402a9c06140835e0ed90/artifacts  # IHC 2023: fold_0..fold_4, val, test

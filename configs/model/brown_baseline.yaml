@@ -1,0 +1,10 @@
+# The brown-staining baseline as a "model": a tile's brownish_coverage (the input,
+# see configs/experiment/training/brown_baseline.yaml) as its score — no training.
+_target_: lymph_nodes.meta_arch.MetaArch
+
+backbone:
+  _target_: torch.nn.Identity
+
+decode_head:
+  _target_: lymph_nodes.modeling.CoverageLogit
+  threshold: ${brownish_threshold}
