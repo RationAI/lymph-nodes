@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import OrderedDict
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -38,6 +39,11 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
 
     ``grid`` is the side of the target grids (OverlayGrid's ``grid`` in the tiling),
     so that a batch none of whose tiles has a grid still gets targets of that shape.
+
+    Each DataLoader worker keeps at most ``max_open_slides`` slides open (least
+    recently used closed first), all sharing one tile cache of ``cache_mib`` MiB:
+    sampling across hundreds of lymph node slides, a handle per slide each with its own
+    cache grew past the job's memory.
     """
 
     def __init__(
@@ -45,6 +51,8 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         uris: Iterable[str],
         target_grids: Sequence[str],
         grid: int = 16,
+        max_open_slides: int = 64,
+        cache_mib: int = 256,
         labels: TileLabels | None = None,
         tile_filters: Sequence[FilterCondition] = (),
         slide_filters: Sequence[FilterCondition] = (),
@@ -52,7 +60,10 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
     ) -> None:
         self.target_grids = list(target_grids)
         self.grid = grid
-        self._open_slides: dict[int, OpenSlide] = {}
+        self.max_open_slides = max_open_slides
+        self.cache_mib = cache_mib
+        self._open_slides: OrderedDict[int, OpenSlide] = OrderedDict()
+        self._slide_cache: Any = None
         super().__init__(
             uris,
             labels=labels,
@@ -74,7 +85,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
     def __getstate__(self) -> dict[str, Any]:
         # Open slide handles stay in the process that opened them (DataLoader workers
         # open their own).
-        return {**self.__dict__, "_open_slides": {}}
+        return {**self.__dict__, "_open_slides": OrderedDict(), "_slide_cache": None}
 
     def __getitems__(self, indices: Sequence[int]) -> list[SegmentationSample]:  # type: ignore[override]
         index = self._get_batch_index()
@@ -99,12 +110,29 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
     def _read_tile(self, slide: int, tile_x: int, tile_y: int) -> np.ndarray:
         from ratiopath.openslide import OpenSlide
 
-        if slide not in self._open_slides:
-            self._open_slides[slide] = OpenSlide(self._slide_paths[slide])
+        if slide in self._open_slides:
+            self._open_slides.move_to_end(slide)
+        else:
+            if len(self._open_slides) >= self.max_open_slides:
+                self._open_slides.popitem(last=False)[1].close()
+            handle = OpenSlide(self._slide_paths[slide])
+            self._share_cache(handle)
+            self._open_slides[slide] = handle
         extent_x, extent_y = self._tile_extents[slide]
         return self._open_slides[slide].read_tile(
             tile_x, tile_y, extent_x, extent_y, self._slide_levels[slide]
         )
+
+    def _share_cache(self, handle: OpenSlide) -> None:
+        """Points the handle at the worker's shared tile cache (OpenSlide >= 4.0 only)."""
+        from openslide import OpenSlideCache, OpenSlideVersionError
+
+        try:
+            if self._slide_cache is None:
+                self._slide_cache = OpenSlideCache(self.cache_mib * 2**20)
+            handle.set_cache(self._slide_cache)
+        except OpenSlideVersionError:
+            pass  # an older library: only max_open_slides bounds the memory
 
     def _grids(self, rows: np.ndarray) -> np.ndarray:
         """Target grids of ``rows`` of the underlying table: float32 (len(rows), grid, grid)."""
