@@ -1,0 +1,27 @@
+# @package _global_
+
+# cross_tissue.yaml as segmentation: positive TMA tiles (cytokeratin coverage above the
+# threshold) against negative lymph node tissue and its brownish hard negatives — no
+# negative TMA tiles. Unlike the tile classifier, which then learned TMA vs lymph node
+# (every TMA tile positive), the per-patch targets keep negatives within the TMAs: the
+# patches between the epithelium of positive tiles (~12% under 0.1 coverage, ~10% in
+# between). The lymph node tissue, all-zero targets, is what the TMA-only model
+# produces its false positives on.
+#
+# Model selection validates on the TMA negatives as well (without the ambiguous band),
+# so that telling TMA from lymph node tissue doesn't score by itself.
+defaults:
+  - /experiment/training/cross_tissue
+  - /experiment/training/segmentation_common
+  - _self_
+
+scenario: cross-tissue segmentation TMA positives
+
+data:
+  val:
+    tile_filters:
+      - ${filters.tissue}
+      - ${filters.no_patho_ignore}
+      - ${filters.no_cytokeratin_ignore}
+      - ${tma_ambiguous_band}
+      - ${ln_validation_subset}

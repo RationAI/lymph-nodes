@@ -14,6 +14,24 @@ defaults:
 
 segmentation_dataset: lymph_nodes.data.datasets.segmentation.TileSegmentationDataset
 
+# For the validation during fit of scenarios with lymph node negatives: each sample
+# passes the foundation model (~200 tiles/s), and a whole IHC 2023 fold (~350k tiles)
+# would take ~30 min per epoch. A fixed tenth of them is plenty for model selection.
+ln_validation_subset:
+  _target_: lymph_nodes.data.datasets.meta_dataset.RandomSubset
+  fraction: 0.1
+  cohort: mmci_ihc_2023
+
+# TMA tiles with cytokeratin coverage between these are ambiguous (TMA epithelium
+# baseline); dropped from the validation during fit.
+tma_ambiguous_band:
+  _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+  column: cytokeratin_coverage
+  op: between
+  value: [0.1, "${cytokeratin_positive_threshold}"]
+  negate: true
+  cohort: mmci_tmas
+
 data:
   batch_size: 256
   num_workers: 8

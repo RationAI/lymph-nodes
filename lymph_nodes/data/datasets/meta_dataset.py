@@ -96,6 +96,27 @@ class FilterCondition:
         return ~result if self.negate else result
 
 
+class RandomSubset:
+    """Keeps a fixed random ``fraction`` of the rows, usable among tile filters.
+
+    E.g. to validate on a tenth of a large cohort's tiles during ``fit``:
+    ``RandomSubset(0.1, cohort="mmci_ihc_2023")`` (``cohort`` scopes it like
+    FilterCondition's: tiles of other cohorts are kept). The subset is drawn with
+    ``seed`` over the rows in table order, so the same data gives the same subset.
+    """
+
+    def __init__(self, fraction: float, cohort: str | None = None, seed: int = 0) -> None:
+        if not 0 < fraction <= 1:
+            raise ValueError(f"fraction must be in (0, 1], got {fraction}")
+        self.fraction = fraction
+        self.cohort = cohort
+        self.seed = seed
+        self.column = f"<random {fraction:.0%}>"  # for _select's messages
+
+    def mask(self, dataset: HFDataset) -> np.ndarray:
+        return np.random.default_rng(self.seed).random(len(dataset)) < self.fraction
+
+
 def _normalize_lists(dataset: HFDataset) -> HFDataset:
     """List-like columns as ``large_list<element>``, so runs agree on their type.
 

@@ -9,3 +9,12 @@ defaults:
   - _self_
 
 scenario: cross-tissue segmentation
+
+data:
+  val:
+    tile_filters:
+      - ${filters.tissue}
+      - ${filters.no_patho_ignore}
+      - ${filters.no_cytokeratin_ignore}
+      - ${tma_ambiguous_band}
+      - ${ln_validation_subset}
