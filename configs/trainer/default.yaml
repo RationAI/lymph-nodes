@@ -24,3 +24,8 @@ callbacks:
   # Only active in the final evaluations (validate / test), not during fit.
   prediction_masks:
     _target_: lymph_nodes.callbacks.PredictionMasks
+  # Lesion-level detection (lymph_nodes/callbacks/lesion_metrics.py), final
+  # evaluations only. Lymph node cohorts only: TMA slides have no tumour status.
+  lesion_metrics:
+    _target_: lymph_nodes.callbacks.LesionMetrics
+    cohorts: [mmci_ihc_2023, mmci_ihc_test]
