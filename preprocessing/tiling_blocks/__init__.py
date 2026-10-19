@@ -5,6 +5,7 @@ from preprocessing.tiling_blocks.read_tiles import ReadTiles
 from preprocessing.tiling_blocks.tile_overlay import OverlayCoverage
 from preprocessing.tiling_blocks.tile_overlay_grid import OverlayGrid
 from preprocessing.tiling_blocks.tiling_block import TilingBlock
+from preprocessing.tiling_blocks.white_balance import WhiteBalance
 
 
 __all__ = [
@@ -15,4 +16,5 @@ __all__ = [
     "OverlayGrid",
     "ReadTiles",
     "TilingBlock",
+    "WhiteBalance",
 ]

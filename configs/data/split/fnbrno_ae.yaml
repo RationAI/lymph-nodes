@@ -1,0 +1,21 @@
+# @package _global_
+
+# As configs/data/split/mmci_ihc_2023.yaml: patient-level, the training pool holds
+# negative patients only, positives go to validation and test.
+dataset:
+  institute: fnb
+  name: FN Brno AE
+
+slides_uri: ???  # mlflow-artifacts:/4/<patient dataset run>/artifacts/slides.csv
+patients_uri: ???  # mlflow-artifacts:/4/<patient dataset run>/artifacts/patients.csv
+
+splits:
+  train:
+    fraction: 0.7
+    n_folds: 5
+    exclude_cases_where:
+      - has_positive_slides
+  val:
+    fraction: 0.15
+  test:
+    fraction: 0.15

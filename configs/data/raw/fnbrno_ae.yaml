@@ -1,0 +1,19 @@
+# @package _global_
+
+# FN Brno sentinel lymph nodes of breast cancer, AE1/AE3 cytokeratin IHC (H-DAB),
+# Zeiss Axio Scan.Z1 (CZI, 0.111 um/px; read by the RationAI OpenSlide fork). Labels
+# are slide-level only (the file name's last digit). Many scans are underexposed: the
+# white point in the slides table (preprocessing.white_balance) corrects them.
+dataset:
+  institute: fnb
+  name: FN Brno AE
+  cohort_id: fnb_ae
+  slides:
+    _target_: preprocessing.data_source.GlobDataSource
+    src_dir: /mnt/data/FNBrno/lymph_nodes/maternity_hospital_dataset
+    glob_pattern: "*-AE-*.czi"
+  name_parser:
+    _target_: preprocessing.data_exploration.name_parsers.fnb_filename
+
+# Tissue masks of underexposed scans need the white-point correction (preprocessing.tissue_masks).
+white_balance: true

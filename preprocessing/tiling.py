@@ -17,6 +17,7 @@ from ratiopath.tiling import grid_tiles
 from ratiopath.tiling.utils import row_hash
 
 from preprocessing.tiling_blocks import OverlayCoverage, TilingBlock
+from preprocessing.white_balance import WHITE_POINT_COLUMNS
 
 
 OmegaConf.register_new_resolver("scale", lambda x, factor: x * factor)
@@ -86,6 +87,8 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
         "tile_extent_x": row["tile_extent_x"],
         "tile_extent_y": row["tile_extent_y"],
         "level": row["level"],
+        # The slide's white point, if the slides table has one (preprocessing.white_balance).
+        **{column: row[column] for column in WHITE_POINT_COLUMNS if column in row},
     }
     return [
         {"tile_x": int(x), "tile_y": int(y), **common}

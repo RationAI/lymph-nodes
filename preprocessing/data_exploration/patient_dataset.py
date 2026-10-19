@@ -16,15 +16,21 @@ from tqdm import tqdm
 
 from preprocessing.data_exploration.name_parsers import ParsedFilename
 from preprocessing.data_exploration.patients import build_patients_df
+from preprocessing.white_balance import estimate_white_point
 
 
 def _read_slide_metadata(slide_path: str) -> dict[str, Any]:
     with OpenSlide(slide_path) as slide:
+        white_r, white_g, white_b = estimate_white_point(slide)
         return {
             "base_mpp_x": float(slide.properties.get("openslide.mpp-x", float("nan"))),
             "base_mpp_y": float(slide.properties.get("openslide.mpp-y", float("nan"))),
             "n_levels": slide.level_count,
             "vendor": slide.properties.get("openslide.vendor"),
+            # The colour of the slide's empty glass (preprocessing.white_balance).
+            "white_r": white_r,
+            "white_g": white_g,
+            "white_b": white_b,
         }
 
 
@@ -41,7 +47,15 @@ def _process_slide(
 
     damaged = slide_name in damaged_slides
     meta = (
-        {"base_mpp_x": float("nan"), "base_mpp_y": float("nan"), "n_levels": None, "vendor": None}
+        {
+            "base_mpp_x": float("nan"),
+            "base_mpp_y": float("nan"),
+            "n_levels": None,
+            "vendor": None,
+            "white_r": float("nan"),
+            "white_g": float("nan"),
+            "white_b": float("nan"),
+        }
         if damaged
         else _read_slide_metadata(path)
     )
@@ -122,6 +136,8 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         "base_mpp_y_min": float(readable["base_mpp_y"].min()),
         "base_mpp_y_max": float(readable["base_mpp_y"].max()),
         "base_mpp_y_mean": float(readable["base_mpp_y"].mean()),
+        "white_mean_min": float(readable[["white_r", "white_g", "white_b"]].mean(axis=1).min()),
+        "white_mean_median": float(readable[["white_r", "white_g", "white_b"]].mean(axis=1).median()),
     })
 
     with tempfile.TemporaryDirectory() as tmp_dir:

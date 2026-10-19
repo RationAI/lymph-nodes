@@ -9,6 +9,7 @@ import pyarrow.compute as pc
 
 from lymph_nodes.data.datasets.embedding import EmbeddingClassificationDataset
 from lymph_nodes.data.datasets.meta_dataset import column_values
+from preprocessing.white_balance import WHITE_POINT_COLUMNS, apply_white_point
 
 
 if TYPE_CHECKING:
@@ -81,6 +82,19 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             ],
             axis=1,
         ).astype(int)
+        # The slides' white points, if the slides table has them: tiles of underexposed
+        # scans are corrected as in the tiling (preprocessing.white_balance).
+        self._white_points = (
+            np.stack(
+                [
+                    column_values(self.slides, c).astype(float)
+                    for c in WHITE_POINT_COLUMNS
+                ],
+                axis=1,
+            )
+            if all(c in self.slides.column_names for c in WHITE_POINT_COLUMNS)
+            else None
+        )
 
     def __getstate__(self) -> dict[str, Any]:
         # Open slide handles stay in the process that opened them (DataLoader workers
@@ -119,8 +133,12 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             self._share_cache(handle)
             self._open_slides[slide] = handle
         extent_x, extent_y = self._tile_extents[slide]
-        return self._open_slides[slide].read_tile(
+        tile = self._open_slides[slide].read_tile(
             tile_x, tile_y, extent_x, extent_y, self._slide_levels[slide]
+        )
+        white = None if self._white_points is None else self._white_points[slide]
+        return apply_white_point(
+            tile, white if white is not None and np.isfinite(white).all() else None
         )
 
     def _share_cache(self, handle: OpenSlide) -> None:

@@ -1,0 +1,35 @@
+# @package _global_
+
+dataset_name: FN Brno AE
+
+slides_run_uri: ???  # mlflow-artifacts:/4/<FN Brno split run>/artifacts
+
+datasets:
+  - name: fold_0
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: ${slides_run_uri}/train_fold_0/slides.csv
+  - name: fold_1
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: ${slides_run_uri}/train_fold_1/slides.csv
+  - name: fold_2
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: ${slides_run_uri}/train_fold_2/slides.csv
+  - name: fold_3
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: ${slides_run_uri}/train_fold_3/slides.csv
+  - name: fold_4
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: ${slides_run_uri}/train_fold_4/slides.csv
+  - name: val
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: ${slides_run_uri}/val/slides.csv
+  - name: test
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: ${slides_run_uri}/test/slides.csv

@@ -1,0 +1,49 @@
+# @package _global_
+
+# FN Brno AE slides tiled for segmentation, as mmci_hdab_segmentation.yaml: stride 224,
+# brown coverage, no embeddings. Without annotation or blur masks (FN Brno has
+# slide-level labels only) and without a tissue grid (unused in training), and with the
+# tile pixels corrected by the slide's white point (WhiteBalance;
+# preprocessing.white_balance) before the brown coverage. CPU only.
+
+stride: ${tile_extent}
+tissue_mask_dir: ???  # FN Brno tissue mask run (preprocessing.tissue_masks, white_balance)
+
+embedding_model: null
+memory_per_gpu_worker: null
+batch_size: null
+
+tiling_blocks:
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: tissue_coverage
+    uri: ${tissue_mask_dir}
+    roi: ${rois.tissue}
+    min_label: 1 # keep everything that is not background (label 0)
+    mandatory: true
+
+  # drop tiles with < 10% tissue coverage
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: filter
+    expr: "tissue_coverage >= 0.1"
+
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: repartition
+    target_num_rows_per_block: 512
+
+  - _target_: preprocessing.tiling_blocks.ReadTiles
+    name: tile
+
+  - _target_: preprocessing.tiling_blocks.WhiteBalance
+    image_col: tile
+
+  - _target_: preprocessing.tiling_blocks.BrownishCoverage
+    name: brownish_coverage
+    image_col: tile
+
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: drop_columns
+    cols: ["level", "tile", "path", "mpp_x", "mpp_y", "tile_extent_x", "tile_extent_y", "white_r", "white_g", "white_b"]
+
+metadata:
+  run_name: "🧩 Segmentation tiling · ${dataset_name}"
+  description: Tile extraction with per-patch coverage grids (no embeddings), white-balanced, for ${dataset_name}

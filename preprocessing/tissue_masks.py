@@ -12,6 +12,8 @@ from rationai.mlkit.lightning.loggers import MLFlowLogger
 from ratiopath.masks import write_big_tiff
 from ratiopath.openslide import OpenSlide
 
+from preprocessing.white_balance import estimate_white_point
+
 
 ####################################################################################
 #      This implementation differs from the traditional tissue_mask used for H&E   #
@@ -57,12 +59,19 @@ def tissue_mask(slide: pyvips.Image, disk_size: int = 10) -> pyvips.Image:
 
 
 @ray.remote(memory=3 * 1024**3)
-def process_slide(slide_path: str, mpp: float, output_path: Path) -> None:
+def process_slide(slide_path: str, mpp: float, output_path: Path, white_balance: bool = False) -> None:
     with OpenSlide(slide_path) as slide:
         level = slide.closest_level(mpp)
         mpp_x, mpp_y = slide.slide_resolution(level)
+        white = estimate_white_point(slide) if white_balance else None
 
     slide = cast("pyvips.Image", pyvips.Image.new_from_file(slide_path, level=level))
+    if white is not None:
+        # Underexposed scans: their grey glass would pass the V < 240 tissue test
+        # (preprocessing.white_balance).
+        gain = [255.0 / max(value, 100.0) for value in white]
+        rgb = (slide.extract_band(0, n=3) * gain).cast("uchar")
+        slide = rgb.bandjoin(slide.extract_band(3)) if slide.bands > 3 else rgb
 
     # Disk radius of 10 µm, expressed in pixels at the mask's resolution.
     mask = tissue_mask(slide, disk_size=max(1, round(10 / ((mpp_x + mpp_y) / 2))))
@@ -88,6 +97,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
             fn_kwargs={
                 "mpp": config.mpp,
                 "output_path": Path(output_dir),
+                "white_balance": config.get("white_balance", False),
             },
             max_concurrent=config.max_concurrent,
         )
