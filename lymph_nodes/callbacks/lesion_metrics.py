@@ -38,6 +38,16 @@ class LesionMetrics(Callback):
     - false positives are the tiles flagged on *negative* slides (the slides' ``tumor``
       status); a *region* is an 8-connected group of them.
 
+    The annotations are rough outlines that may include lymphoid tissue, and single
+    tumour cells may be left unannotated (or be mimicked by benign cells), whereas
+    groups of cells must not be missed. Lesions are therefore also split by size: the
+    number of CK-stained cells, estimated from the brown pixels of the lesion's tiles
+    (``brown_column``, counted over each tile's stride x stride core so that overlapping
+    tiles are not counted twice) divided by ``cell_pixels``, the brown pixels of one
+    stained cell at the tiling level (~300-500 at 0.5 um/px). Lesions of at least
+    ``min_cells`` cells are *clusters*, the target; smaller ones are reported apart
+    (``single/``) and not required. False-positive regions are split the same way.
+
     Logged as ``<phase>/lesions/...`` (all cohorts pooled) and
     ``<phase>/lesions/<cohort>/...``:
 
@@ -48,7 +58,13 @@ class LesionMetrics(Callback):
     - pooled, at 0.5: ``fp_tiles_per_negative_slide``, ``fp_regions_per_negative_slide``
       and ``clean_negative_slides`` (the share without a flagged tile); and
       ``fp_tiles_per_negative_slide_full_sensitivity``, at the highest threshold that
-      still detects every lesion.
+      still detects every lesion,
+    - with sizes (``brown_column`` present): ``clusters/`` and ``single/`` versions of
+      ``n_lesions`` and the sensitivities; ``sensitivity_fpr<r>`` (and
+      ``clusters/sensitivity_fpr<r>``) for each ``region_budget`` r, at the lowest
+      threshold that flags at most r regions per negative slide on average (FROC in
+      regions, what a reader sees); and, at 0.5, ``fp_cluster_regions_per_negative_slide``
+      and ``fp_small_regions_per_negative_slide``.
 
     A tile's score is its probability; for per-patch outputs (SegmentationMetaArch) its
     patches' maximum, or mean with ``tile_score="mean"``, as in the tile metrics. Tile
@@ -62,9 +78,17 @@ class LesionMetrics(Callback):
         self,
         cohorts: Sequence[str] | None = None,
         budgets: Sequence[int] = (5, 10, 25, 50, 100, 250),
+        region_budgets: Sequence[float] = (0.5, 1, 2, 4, 8),
+        min_cells: float = 3,
+        cell_pixels: float = 400,
+        brown_column: str = "brownish_coverage",
     ) -> None:
         self.cohorts = None if cohorts is None else set(cohorts)
         self.budgets = list(budgets)
+        self.region_budgets = list(region_budgets)
+        self.min_cells = min_cells
+        self.cell_pixels = cell_pixels
+        self.brown_column = brown_column
         # Per batch: slide positions, tile_x, tile_y, tile scores, tile labels.
         self._tiles: list[tuple[np.ndarray, ...]] = []
 
@@ -142,19 +166,55 @@ class LesionMetrics(Callback):
         )
         if not keep.any():
             return
+        stride_x = column_values(slides, "stride_x")[slide[keep]]
+        stride_y = column_values(slides, "stride_y")[slide[keep]]
+        brown = self._brown(dataset, slide[keep], tile_x[keep], tile_y[keep])
         values = lesion_metrics(
             slide=slide[keep],
-            grid_x=tile_x[keep] // column_values(slides, "stride_x")[slide[keep]],
-            grid_y=tile_y[keep] // column_values(slides, "stride_y")[slide[keep]],
+            grid_x=tile_x[keep] // stride_x,
+            grid_y=tile_y[keep] // stride_y,
             score=score[keep],
             label=label[keep],
             slide_negative=~column_values(slides, "tumor").astype(bool),
             slide_cohort=cohorts,
             budgets=self.budgets,
+            cells=None
+            if brown is None
+            else brown * stride_x * stride_y / self.cell_pixels,
+            min_cells=self.min_cells,
+            region_budgets=self.region_budgets,
         )
         pl_module.log_dict(
             {f"{phase}/lesions/{key}": value for key, value in values.items()}
         )
+
+    def _brown(
+        self,
+        dataset: EmbeddingClassificationDataset,
+        slide: np.ndarray,
+        tile_x: np.ndarray,
+        tile_y: np.ndarray,
+    ) -> np.ndarray | None:
+        """``brown_column`` of the given tiles, or None if the tiles have no such column."""
+        if self.brown_column not in dataset.tiles.column_names:
+            return None
+        index = dataset._get_batch_index()
+        brown = dataset.tiles.data.column(self.brown_column).to_numpy(
+            zero_copy_only=False
+        )
+        brown = np.nan_to_num(brown[index.rows].astype(float))
+
+        def key(s: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+            return (
+                (s.astype(np.int64) << 42)
+                | (x.astype(np.int64) << 21)
+                | y.astype(np.int64)
+            )
+
+        table = key(index.slide_of, index.tile_x, index.tile_y)
+        order = np.argsort(table)
+        found = order[np.searchsorted(table[order], key(slide, tile_x, tile_y))]
+        return brown[found]
 
 
 def lesion_metrics(
@@ -166,34 +226,41 @@ def lesion_metrics(
     slide_negative: np.ndarray,
     slide_cohort: np.ndarray,
     budgets: Iterable[int],
+    cells: np.ndarray | None = None,
+    min_cells: float = 3,
+    region_budgets: Iterable[float] = (),
 ) -> dict[str, float]:
     """The metrics of LesionMetrics from per-tile arrays (see there).
 
     ``slide`` indexes ``slide_negative`` and ``slide_cohort``; ``grid_x``, ``grid_y``
-    are tile positions on the slide's tile grid (tile coordinate // stride).
+    are tile positions on the slide's tile grid (tile coordinate // stride). ``cells``,
+    if given, is each tile's estimated number of CK-stained cells, for the size split.
     """
-    lesions: list[tuple[str, float]] = []  # (cohort, best score) per lesion
-    negative_scores: dict[int, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
+    tile_cells = np.zeros(len(slide)) if cells is None else np.asarray(cells, float)
+    # Per lesion: cohort, best score, estimated cells.
+    lesions: list[tuple[str, float, float]] = []
+    negative_tiles: dict[int, np.ndarray] = {}  # negative slide -> its tile indices
     for position in np.unique(slide):
         tiles = slide == position
         if slide_negative[position]:
-            negative_scores[int(position)] = (
-                grid_x[tiles],
-                grid_y[tiles],
-                score[tiles],
-            )
+            negative_tiles[int(position)] = np.flatnonzero(tiles)
             continue
-        positive = tiles & label
-        cells = np.stack([grid_x[positive], grid_y[positive]], axis=1)
-        for component in _components(cells):
+        positive = np.flatnonzero(tiles & label)
+        grid = np.stack([grid_x[positive], grid_y[positive]], axis=1)
+        for component in _components(grid):
+            members = positive[component]
             lesions.append(
-                (str(slide_cohort[position]), float(score[positive][component].max()))
+                (
+                    str(slide_cohort[position]),
+                    float(score[members].max()),
+                    float(tile_cells[members].sum()),
+                )
             )
 
     negatives = np.concatenate(
-        [s for _, _, s in negative_scores.values()] or [np.empty(0)]
+        [score[t] for t in negative_tiles.values()] or [np.empty(0)]
     )
-    n_negative_slides = len(negative_scores)
+    n_negative_slides = len(negative_tiles)
     thresholds = {"": 0.5}
     if n_negative_slides:
         # Highest-first; flagging score > the (k+1)-th highest flags at most k tiles.
@@ -203,42 +270,119 @@ def lesion_metrics(
             thresholds[f"_fp{budget}"] = (
                 float(np.nextafter(ranked[k], np.inf)) if k < len(ranked) else -np.inf
             )
+        if cells is not None:
+            for region_budget, threshold in _region_thresholds(
+                negative_tiles, grid_x, grid_y, score, ranked, region_budgets
+            ).items():
+                thresholds[f"_fpr{region_budget:g}"] = threshold
 
     values: dict[str, float] = {}
-    lesion_cohorts = np.array([c for c, _ in lesions])
-    lesion_scores = np.array([s for _, s in lesions])
-    for prefix, members in [("", np.ones(len(lesions), bool))] + [
+    lesion_cohorts = np.array([c for c, _, _ in lesions])
+    lesion_scores = np.array([s for _, s, _ in lesions])
+    lesion_cells = np.array([n for _, _, n in lesions])
+    groups = [("", np.ones(len(lesions), bool))] + [
         (f"{cohort}/", lesion_cohorts == cohort) for cohort in np.unique(lesion_cohorts)
-    ]:
-        values[f"{prefix}n_lesions"] = float(members.sum())
-        if not members.any():
-            continue
-        for suffix, threshold in thresholds.items():
-            values[f"{prefix}sensitivity{suffix}"] = float(
-                (lesion_scores[members] >= threshold).mean()
-            )
+    ]
+    sizes = [("", np.ones(len(lesions), bool))]
+    if cells is not None:
+        sizes += [
+            ("clusters/", lesion_cells >= min_cells),
+            ("single/", lesion_cells < min_cells),
+        ]
+    for prefix, members in groups:
+        for size, in_size in sizes:
+            selected = members & in_size
+            values[f"{prefix}{size}n_lesions"] = float(selected.sum())
+            if not selected.any():
+                continue
+            for suffix, threshold in thresholds.items():
+                values[f"{prefix}{size}sensitivity{suffix}"] = float(
+                    (lesion_scores[selected] >= threshold).mean()
+                )
 
     if n_negative_slides:
-        flagged = [(s >= 0.5) for _, _, s in negative_scores.values()]
+        regions = [
+            _flagged_regions(t, grid_x, grid_y, score, 0.5)
+            for t in negative_tiles.values()
+        ]
         values["fp_tiles_per_negative_slide"] = float(
-            np.mean([f.sum() for f in flagged])
+            np.mean([(score[t] >= 0.5).sum() for t in negative_tiles.values()])
         )
         values["fp_regions_per_negative_slide"] = float(
-            np.mean(
-                [
-                    len(_components(np.stack([x[f], y[f]], axis=1)))
-                    for (x, y, _), f in zip(
-                        negative_scores.values(), flagged, strict=True
-                    )
-                ]
-            )
+            np.mean([len(r) for r in regions])
         )
-        values["clean_negative_slides"] = float(np.mean([not f.any() for f in flagged]))
+        values["clean_negative_slides"] = float(np.mean([not r for r in regions]))
+        if cells is not None:
+            region_cells = [
+                [tile_cells[members].sum() for members in r] for r in regions
+            ]
+            values["fp_cluster_regions_per_negative_slide"] = float(
+                np.mean([sum(n >= min_cells for n in r) for r in region_cells])
+            )
+            values["fp_small_regions_per_negative_slide"] = float(
+                np.mean([sum(n < min_cells for n in r) for r in region_cells])
+            )
         if lesions:
             values["fp_tiles_per_negative_slide_full_sensitivity"] = float(
                 (negatives >= lesion_scores.min()).sum() / n_negative_slides
             )
     return values
+
+
+def _flagged_regions(
+    tiles: np.ndarray,
+    grid_x: np.ndarray,
+    grid_y: np.ndarray,
+    score: np.ndarray,
+    threshold: float,
+) -> list[np.ndarray]:
+    """The regions (8-connected) of the ``tiles`` scoring at least ``threshold``, as tile indices."""
+    flagged = tiles[score[tiles] >= threshold]
+    grid = np.stack([grid_x[flagged], grid_y[flagged]], axis=1)
+    return [flagged[component] for component in _components(grid)]
+
+
+def _region_thresholds(
+    negative_tiles: dict[int, np.ndarray],
+    grid_x: np.ndarray,
+    grid_y: np.ndarray,
+    score: np.ndarray,
+    ranked: np.ndarray,
+    budgets: Iterable[float],
+) -> dict[float, float]:
+    """Per budget r, the lowest threshold flagging at most r regions per negative slide.
+
+    Candidate thresholds are negative tile scores at geometrically spaced ranks; the
+    region count is not monotonic in the threshold (regions merge), so the lowest
+    candidate within the budget whose higher candidates are all within it too is taken.
+    """
+    budgets = sorted(budgets)
+    if not budgets or not len(ranked):
+        return {}
+    n_slides = len(negative_tiles)
+    ranks = np.unique(np.geomspace(1, len(ranked), 120).astype(int))
+    chosen = dict.fromkeys(budgets, np.inf)
+    open_budgets = list(budgets)
+    for rank in ranks:  # thresholds from high to low
+        threshold = float(ranked[rank - 1])
+        per_slide = (
+            np.mean(
+                [
+                    len(_flagged_regions(t, grid_x, grid_y, score, threshold))
+                    for t in negative_tiles.values()
+                ]
+            )
+            if n_slides
+            else 0.0
+        )
+        for budget in list(open_budgets):
+            if per_slide <= budget:
+                chosen[budget] = threshold
+            else:
+                open_budgets.remove(budget)
+        if not open_budgets:
+            break
+    return chosen
 
 
 def _components(cells: np.ndarray) -> list[np.ndarray]:
