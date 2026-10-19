@@ -73,8 +73,10 @@ data:
   num_workers: 6
 
   # Evaluation is the same for every scenario: does the model find real lymph node
-  # metastases? Positive slides without an annotation mask are left out — their
-  # metastases aren't outlined, so all their tiles would count as healthy.
+  # metastases? Positive slides without an annotation mask are evaluated, but their
+  # tiles are left out of the tile metrics (meta `ignore`) — their metastases aren't
+  # outlined, so all their tiles would count as healthy; they count in the slide
+  # metrics (lymph_nodes.callbacks.SlideMetrics) and get prediction masks.
   # The TMA validation set is evaluated too: does the model still tell cytokeratin-
   # positive from cytokeratin-negative TMA tissue? Every TMA tile is kept, the ones
   # with coverage between 0 and the threshold included (labelled negative), to see the
@@ -91,7 +93,7 @@ data:
       - ${filters.tissue}
       - ${filters.no_patho_ignore}
       - ${filters.no_cytokeratin_ignore}
-    exclude_unannotated_positive_slides: true
+    ignore_unannotated_positive_slides: true
 
   test:
     _target_: lymph_nodes.data.datasets.embedding.EmbeddingClassificationDataset
@@ -100,7 +102,7 @@ data:
     labels: ${ln_labels}
     tile_filters:
       - ${filters.tissue}
-    exclude_unannotated_positive_slides: true
+    ignore_unannotated_positive_slides: true
 
 mode_emojis:
   fit: 🏋️

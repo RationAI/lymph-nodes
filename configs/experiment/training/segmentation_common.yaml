@@ -42,8 +42,15 @@ data:
   val:
     _target_: ${segmentation_dataset}
     target_grids: [cytokeratin_grid]
+  # data.eval of configs/lymph_nodes.yaml plus the FN Brno validation split: slide
+  # status only (no annotations), so it counts in the slide metrics only.
   eval:
     _target_: ${segmentation_dataset}
+    uris:
+      - ${ihc_run_uri}/val
+      - ${ihc_test_run_uri}/val
+      - ${tma_run_uri}/val
+      - ${fnb_run_uri}/val
     target_grids: [cytokeratin_grid, annotation_grid]
   test:
     _target_: ${segmentation_dataset}

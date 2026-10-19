@@ -8,7 +8,7 @@ from lightning.pytorch.trainer.states import TrainerFn
 from torchmetrics import MetricCollection
 from torchmetrics.classification import BinaryAUROC, BinaryF1Score
 
-from lymph_nodes.meta_arch import MetaArch
+from lymph_nodes.meta_arch import MetaArch, _kept, _select
 
 
 if TYPE_CHECKING:
@@ -35,6 +35,7 @@ class SegmentationMetaArch(MetaArch):
     patches' probabilities: ``tile_score="max"``, its most confident patch (detection:
     is there cancer in the tile?), or ``"mean"``, its predicted coverage. The validation
     and test steps return the per-patch logits (B, g, g), so the masks show patches.
+    Samples flagged ``ignore`` are left out of the loss and the metrics, as in MetaArch.
 
     The frozen backbone is left out of checkpoints (it is reloaded from the hub).
     """
@@ -86,20 +87,24 @@ class SegmentationMetaArch(MetaArch):
         return loss
 
     def validation_step(self, batch: Batch, batch_idx: int) -> Outputs:
-        logits, scores, labels = self._evaluate(
-            batch, "validation", self.val_patch_metrics
-        )
-        self.val_metrics.update(scores, labels)
-        self.log_dict(self.val_metrics, on_epoch=True)
-        if self.trainer.state.fn == TrainerFn.VALIDATING:
-            self._collect_by_cohort(scores, labels, batch[2])
+        logits, keep = self._evaluate(batch, "validation", self.val_patch_metrics)
+        if keep is not None:
+            scores = self._tile_scores(logits[keep])
+            labels = batch[2]["label"][keep] > 0.5
+            self.val_metrics.update(scores, labels)
+            self.log_dict(self.val_metrics, on_epoch=True)
+            if self.trainer.state.fn == TrainerFn.VALIDATING:
+                self._collect_by_cohort(scores, labels, _select(batch[2], keep))
         return logits
 
     def test_step(self, batch: Batch, batch_idx: int) -> Outputs:
-        logits, scores, labels = self._evaluate(batch, "test", self.test_patch_metrics)
-        self.test_metrics.update(scores, labels)
-        self.log_dict(self.test_metrics, on_epoch=True)
-        self._collect_by_cohort(scores, labels, batch[2])
+        logits, keep = self._evaluate(batch, "test", self.test_patch_metrics)
+        if keep is not None:
+            scores = self._tile_scores(logits[keep])
+            labels = batch[2]["label"][keep] > 0.5
+            self.test_metrics.update(scores, labels)
+            self.log_dict(self.test_metrics, on_epoch=True)
+            self._collect_by_cohort(scores, labels, _select(batch[2], keep))
         return logits
 
     def _logits(self, tiles: Tensor, grids: Tensor) -> Tensor:
@@ -113,21 +118,27 @@ class SegmentationMetaArch(MetaArch):
 
     def _evaluate(
         self, batch: Batch, phase: str, patch_metrics: MetricCollection
-    ) -> tuple[Tensor, Tensor, Tensor]:
-        """Per-patch logits, tile scores (probabilities) and tile labels; logs the patch side."""
+    ) -> tuple[Tensor, Tensor | None]:
+        """Per-patch logits of all tiles and the mask of the counted ones; logs the patch side."""
         tiles, grids, meta = batch
         logits = self._logits(tiles, grids)
+        keep = _kept(meta, logits)
+        if keep is None:
+            return logits, None
         self.log(
             f"{phase}/loss",
-            self.criterion(logits, grids.float()),
+            self.criterion(logits[keep], grids[keep].float()),
             on_epoch=True,
             prog_bar=True,
+            batch_size=int(keep.sum()),
         )
 
-        probabilities = torch.sigmoid(logits.float())
-        patch_metrics.update(probabilities.flatten(), grids.flatten() > 0.5)
+        probabilities = torch.sigmoid(logits[keep].float())
+        patch_metrics.update(probabilities.flatten(), grids[keep].flatten() > 0.5)
         self.log_dict(patch_metrics, on_epoch=True)
+        return logits, keep
 
-        flat = probabilities.flatten(1)
-        scores = flat.amax(dim=1) if self.tile_score == "max" else flat.mean(dim=1)
-        return logits, scores, meta["label"] > 0.5
+    def _tile_scores(self, logits: Tensor) -> Tensor:
+        """Tile probabilities from per-patch logits (B, g, g), by ``tile_score``."""
+        flat = torch.sigmoid(logits.float()).flatten(1)
+        return flat.amax(dim=1) if self.tile_score == "max" else flat.mean(dim=1)

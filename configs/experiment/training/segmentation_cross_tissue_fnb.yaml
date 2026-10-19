@@ -1,0 +1,45 @@
+# @package _global_
+
+# segmentation_cross_tissue.yaml with the negative FN Brno lymph nodes (AE1/AE3, another
+# lab and scanner; white-point corrected, preprocessing/white_balance.py) trained on
+# too: does tissue from a second site make the model hold up there? They form their
+# own sampler partition (healthy_external): most FN Brno tissue is brownish (~70% of
+# its tiles above brownish_threshold, against ~2% at MMCI), and in healthy_brownish
+# it would outnumber the MMCI hard negatives ~6:1. Validation during fit on the
+# matching FN Brno fold too (a fixed tenth of it, like IHC 2023); evaluated as every
+# segmentation scenario (data.eval of segmentation_common.yaml, FN Brno included).
+defaults:
+  - /experiment/training/segmentation_cross_tissue
+  - _self_
+
+scenario: cross-tissue segmentation FN Brno
+
+train_labels:
+  external_cohort: fnb_ae
+
+fnb_validation_subset:
+  _target_: lymph_nodes.data.datasets.meta_dataset.RandomSubset
+  fraction: 0.1
+  cohort: fnb_ae
+
+fold_run_uris: ["${ihc_run_uri}", "${tma_run_uri}", "${fnb_run_uri}"]
+
+data:
+  val:
+    uris:
+      - ${ihc_run_uri}/fold_${fold}
+      - ${tma_run_uri}/fold_${fold}
+      - ${fnb_run_uri}/fold_${fold}
+    tile_filters:
+      - ${filters.tissue}
+      - ${filters.no_patho_ignore}
+      - ${filters.no_cytokeratin_ignore}
+      - ${tma_ambiguous_band}
+      - ${ln_validation_subset}
+      - ${fnb_validation_subset}
+
+  # Still half cancer; the negatives split evenly between the four kinds.
+  train_sampler:
+    ratio:
+      healthy_external: 1
+      cancer: 4

@@ -29,3 +29,8 @@ callbacks:
   lesion_metrics:
     _target_: lymph_nodes.callbacks.LesionMetrics
     cohorts: [mmci_ihc_2023, mmci_ihc_test]
+  # Slide-level detection (lymph_nodes/callbacks/slide_metrics.py), final evaluations
+  # only: every lymph node slide with its status, the unannotated positive ones too.
+  slide_metrics:
+    _target_: lymph_nodes.callbacks.SlideMetrics
+    cohorts: [mmci_ihc_2023, mmci_ihc_test, fnb_ae]

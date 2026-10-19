@@ -10,6 +10,7 @@ from lymph_nodes.data.datasets.embedding import (
     CANCER,
     HEALTHY,
     HEALTHY_BROWNISH,
+    HEALTHY_EXTERNAL,
     HEALTHY_TMA,
 )
 
@@ -26,6 +27,7 @@ PARTITION_NAMES: dict[str, int] = {
     "healthy": HEALTHY,
     "healthy_brownish": HEALTHY_BROWNISH,
     "healthy_tma": HEALTHY_TMA,
+    "healthy_external": HEALTHY_EXTERNAL,
     "cancer": CANCER,
 }
 
@@ -33,7 +35,8 @@ PARTITION_NAMES: dict[str, int] = {
 class StratifiedEpochSampler(Sampler[int]):
     """Draws a fresh random subset per partition each epoch, in a caller-chosen ratio.
 
-    Partitions are healthy / healthy_brownish / healthy_tma / cancer (see TileLabels),
+    Partitions are healthy / healthy_brownish / healthy_tma / healthy_external / cancer
+    (see TileLabels),
     drawn fresh instead of a full pass over every tile. Built for severe class
     imbalance (e.g. ~20:1 healthy:cancer):
     grinding through every negative tile each epoch wastes compute on the easy majority
@@ -50,7 +53,7 @@ class StratifiedEpochSampler(Sampler[int]):
     which ``MetaTiledSlides`` subclasses) to be
     ``TileEmbeddingClassificationDataset``-like: each must expose
     ``partition_labels()`` returning one ``HEALTHY`` / ``HEALTHY_BROWNISH`` /
-    ``HEALTHY_TMA`` / ``CANCER`` code per tile, in the same order as that sub-dataset's own indexing — matching how
+    ``HEALTHY_TMA`` / ``HEALTHY_EXTERNAL`` / ``CANCER`` code per tile, in the same order as that sub-dataset's own indexing — matching how
     ``ConcatDataset`` concatenates them into the global flat tile index.
 
     ``ratio`` is keyed by partition name (not forced equal — tune it to your actual

@@ -58,6 +58,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         tile_filters: Sequence[FilterCondition] = (),
         slide_filters: Sequence[FilterCondition] = (),
         exclude_unannotated_positive_slides: bool = False,
+        ignore_unannotated_positive_slides: bool = False,
     ) -> None:
         self.target_grids = list(target_grids)
         self.grid = grid
@@ -71,6 +72,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             tile_filters=tile_filters,
             slide_filters=slide_filters,
             exclude_unannotated_positive_slides=exclude_unannotated_positive_slides,
+            ignore_unannotated_positive_slides=ignore_unannotated_positive_slides,
         )
         # Per position in .slides (= in .datasets): where and how to read its tiles.
         self._slide_paths = [str(path) for path in column_values(self.slides, "path")]
@@ -116,6 +118,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
                 "tile_x": tile_x,
                 "tile_y": tile_y,
                 "ambiguous": bool(index.ambiguous[position]),
+                "ignore": index.ignores[slide],
                 "label": float(index.target[position]),
             }
             samples.append((self._read_tile(slide, tile_x, tile_y), grids[i], meta))

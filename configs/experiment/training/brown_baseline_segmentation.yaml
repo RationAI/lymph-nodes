@@ -1,0 +1,15 @@
+# @package _global_
+
+# brown_baseline.yaml on the segmentation tiling (+data=segmentation/mmci_<model>),
+# which has the FN Brno lymph nodes too: their validation split joins the evaluation,
+# as in the segmentation scenarios (slide metrics only, no annotations).
+defaults:
+  - /experiment/training/brown_baseline
+  - _self_
+
+data:
+  eval:
+    uris:
+      - ${ihc_run_uri}/val
+      - ${ihc_test_run_uri}/val
+      - ${fnb_run_uri}/val

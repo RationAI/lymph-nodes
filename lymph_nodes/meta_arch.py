@@ -55,6 +55,26 @@ def _cohort_metrics(prefix: str, preds: Tensor, target: Tensor) -> dict[str, flo
     return values
 
 
+def _kept(meta: dict[str, Any], outputs: Tensor) -> Tensor | None:
+    """Mask of the samples that tile metrics count (not meta ``ignore``); None if none."""
+    ignore = meta.get("ignore")
+    if ignore is None:
+        return torch.ones(len(outputs), dtype=torch.bool, device=outputs.device)
+    keep = ~torch.as_tensor(ignore, dtype=torch.bool, device=outputs.device)
+    return keep if keep.any() else None
+
+
+def _select(meta: dict[str, Any], keep: Tensor) -> dict[str, Any]:
+    """``meta`` of the kept samples: the collated tensors and lists indexed by ``keep``."""
+    if keep.all():
+        return meta
+    positions = keep.nonzero().squeeze(1).tolist()
+    return {
+        key: value[keep.to(value.device)] if isinstance(value, torch.Tensor) else [value[i] for i in positions]
+        for key, value in meta.items()
+    }
+
+
 class MetaArch(LightningModule):
     """Binary (cancer / healthy) tile classifier on top of a precomputed embedding.
 
@@ -67,8 +87,13 @@ class MetaArch(LightningModule):
     ``<phase>/<cohort>/<metric>`` next to the overall ``<phase>/<metric>``: an
     evaluation set can mix cohorts that behave very differently. Cohorts with borderline
     tiles (TileLabels.ambiguous, flagged in the samples' meta) also get every metric
-    without them, as ``<phase>/<cohort>/unambiguous/<metric>``. The validation and test
-    steps return their logits for callbacks, e.g. lymph_nodes.callbacks.PredictionMasks.
+    without them, as ``<phase>/<cohort>/unambiguous/<metric>``. Samples flagged
+    ``ignore`` in their meta (the tiles of positive slides without annotation,
+    EmbeddingClassificationDataset's ``ignore_unannotated_positive_slides``) are left out
+    of the loss and every tile metric: their labels are unknown, they are there for the
+    slide-level ones (lymph_nodes.callbacks.SlideMetrics). The validation and test steps
+    return their logits, of all samples, for callbacks, e.g.
+    lymph_nodes.callbacks.PredictionMasks.
 
     Targets may be soft (TileLabels.soft_target): the loss takes them as they are, the
     metrics count a tile as cancer when its target is above 0.5. ``criterion`` maps
@@ -127,15 +152,17 @@ class MetaArch(LightningModule):
         inputs, targets, meta = batch
         outputs = self(inputs)
 
-        loss = self.criterion(outputs, targets.float())
-        self.log("validation/loss", loss, on_epoch=True, prog_bar=True)
+        keep = _kept(meta, outputs)
+        if keep is not None:
+            loss = self.criterion(outputs[keep], targets[keep].float())
+            self.log("validation/loss", loss, on_epoch=True, prog_bar=True, batch_size=int(keep.sum()))
 
-        labels = targets > 0.5
-        self.val_metrics.update(outputs, labels)
-        self.log_dict(self.val_metrics, on_epoch=True)
+            labels = targets[keep] > 0.5
+            self.val_metrics.update(outputs[keep], labels)
+            self.log_dict(self.val_metrics, on_epoch=True)
 
-        if self.trainer.state.fn == TrainerFn.VALIDATING:
-            self._collect_by_cohort(outputs, labels, meta)
+            if self.trainer.state.fn == TrainerFn.VALIDATING:
+                self._collect_by_cohort(outputs[keep], labels, _select(meta, keep))
         return outputs
 
     def on_validation_epoch_end(self) -> None:
@@ -146,11 +173,13 @@ class MetaArch(LightningModule):
         inputs, targets, meta = batch
         outputs = self(inputs)
 
-        labels = targets > 0.5
-        self.test_metrics.update(outputs, labels)
-        self.log_dict(self.test_metrics, on_epoch=True)
+        keep = _kept(meta, outputs)
+        if keep is not None:
+            labels = targets[keep] > 0.5
+            self.test_metrics.update(outputs[keep], labels)
+            self.log_dict(self.test_metrics, on_epoch=True)
 
-        self._collect_by_cohort(outputs, labels, meta)
+            self._collect_by_cohort(outputs[keep], labels, _select(meta, keep))
         return outputs
 
     def on_test_epoch_end(self) -> None:

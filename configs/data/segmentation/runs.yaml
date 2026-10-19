@@ -5,5 +5,6 @@
 ihc_run_uri: mlflow-artifacts:/4/c51535c30e2b41079a54f1e15a22b9f0/artifacts  # IHC 2023: fold_0..fold_4, val, test
 tma_run_uri: mlflow-artifacts:/4/cc1ccb765fa34c65a2336dc08600d162/artifacts  # TMAs: fold_0..fold_4, val
 ihc_test_run_uri: mlflow-artifacts:/4/beefe4db8a4d4d6a9fafcb86e8e145be/artifacts  # IHC test cohort: val
+fnb_run_uri: mlflow-artifacts:/4/868b61c28be840b5a2fb3fb99377a5b4/artifacts  # FN Brno AE: fold_0..fold_4 (negative), val, test
 
 tiling: segmentation

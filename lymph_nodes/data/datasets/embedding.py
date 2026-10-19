@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 # Partition ids used both for the per-tile target (0/1/2 collapsed to healthy/cancer in
 # TileLabels.targets) and for lymph_nodes.data.samplers.stratified_sampler's rebalancing.
 # Keep in sync with that module's PARTITION_NAMES.
-HEALTHY, HEALTHY_BROWNISH, CANCER, HEALTHY_TMA = 0, 1, 2, 3
+HEALTHY, HEALTHY_BROWNISH, CANCER, HEALTHY_TMA, HEALTHY_EXTERNAL = 0, 1, 2, 3, 4
 
 
 def _coverage(tiles: HFDataset, column: str) -> np.ndarray | None:
@@ -43,7 +43,11 @@ class TileLabels:
     "healthy TMA" if ``tma_column`` — a column only TMA tiles have, e.g.
     ``cytokeratin_coverage`` — is defined for it: negative TMA tissue, split out so the
     sampler can draw it in its own ratio next to the lymph node negatives. Everything
-    else is healthy.
+    else is healthy. Non-cancer tiles of the slides of ``external_cohort`` (their
+    ``cohort_id``) are "healthy external" instead, whatever their staining: tissue from
+    another site, split out so the sampler can draw it in its own ratio rather than let
+    it flood the partitions of the main cohort — e.g. FN Brno, where most of the
+    negative tissue is brownish (~70% of its tiles, against ~2% at MMCI).
 
     A column absent from the tiles (e.g. no cytokeratin masks for lymph nodes) or
     undefined for a slide (NaN) never makes a tile positive or brownish.
@@ -71,16 +75,21 @@ class TileLabels:
         soft_target: str | None = None,
         tma_column: str | None = None,
         ambiguous: Mapping[str, Sequence[float]] | None = None,
+        external_cohort: str | None = None,
     ) -> None:
         self.positive = dict(positive)
+        self.external_cohort = external_cohort
         self.brownish_column = brownish_column
         self.brownish_threshold = brownish_threshold
         self.soft_target = soft_target
         self.tma_column = tma_column
         self.ambiguous = {column: (float(low), float(high)) for column, (low, high) in (ambiguous or {}).items()}
 
-    def partition(self, tiles: HFDataset) -> np.ndarray:
-        """Per-tile partition id: HEALTHY, HEALTHY_BROWNISH, HEALTHY_TMA, or CANCER."""
+    def partition(self, tiles: HFDataset, slides: HFDataset | None = None) -> np.ndarray:
+        """Per-tile partition id: HEALTHY, HEALTHY_BROWNISH, HEALTHY_TMA, HEALTHY_EXTERNAL or CANCER.
+
+        ``slides`` (with ``id`` and ``cohort_id``) is needed for ``external_cohort``.
+        """
         cancer = np.zeros(len(tiles), dtype=bool)
         for column, threshold in self.positive.items():
             values = _coverage(tiles, column)
@@ -99,9 +108,17 @@ class TileLabels:
             if values is not None:
                 tma = ~np.isnan(values)
 
+        external = np.zeros(len(tiles), dtype=bool)
+        if self.external_cohort is not None:
+            if slides is None or "cohort_id" not in slides.column_names:
+                raise ValueError("external_cohort needs slides with a cohort_id column")
+            ids = column_values(slides, "id")[column_values(slides, "cohort_id") == self.external_cohort]
+            external = np.isin(column_values(tiles, "slide_id"), ids)
+
         labels = np.full(len(tiles), HEALTHY, dtype=np.int64)
         labels[brownish & ~cancer] = HEALTHY_BROWNISH
         labels[tma & ~cancer] = HEALTHY_TMA
+        labels[external & ~cancer] = HEALTHY_EXTERNAL
         labels[cancer] = CANCER
         return labels
 
@@ -148,9 +165,11 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
         ambiguous: np.ndarray,
         rows: np.ndarray,
         input_column: str = "embedding",
+        ignore: bool = False,
     ) -> None:
         super().__init__()
         self.input_column = input_column
+        self.ignore = ignore
         self.name = name
         self.cohort = cohort
         self.slide = slide
@@ -172,12 +191,13 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
             "tile_x": int(tile["tile_x"]),
             "tile_y": int(tile["tile_y"]),
             "ambiguous": bool(self.ambiguous[idx]),
+            "ignore": self.ignore,
         }
         value = np.atleast_1d(np.asarray(tile[self.input_column], dtype=np.float32))
         return np.nan_to_num(value), float(self.targets[idx]), meta
 
     def partition_labels(self) -> np.ndarray:
-        """Per-tile group id (HEALTHY, HEALTHY_BROWNISH, HEALTHY_TMA, or CANCER), for the sampler."""
+        """Per-tile group id (HEALTHY, HEALTHY_BROWNISH, HEALTHY_TMA, HEALTHY_EXTERNAL or CANCER), for the sampler."""
         return self._partitions
 
 
@@ -192,6 +212,7 @@ class _BatchIndex(NamedTuple):
     tile_y: np.ndarray
     names: list[str]
     cohorts: list[str]
+    ignores: list[bool]  # per slide: tile metrics skip it (ignore_unannotated_positive_slides)
 
 
 class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
@@ -201,6 +222,10 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
     that have no annotation mask at all: their metastases aren't outlined, so every
     tile would be labelled healthy. Needed wherever lymph node slides are evaluated
     by ``annotation_coverage``, since most positive slides have no annotation.
+    ``ignore_unannotated_positive_slides`` keeps those slides instead but flags their
+    samples (meta ``ignore``): tile-level metrics skip them, while slide-level ones
+    (lymph_nodes.callbacks.SlideMetrics) need every slide with its status. Excluding
+    wins if both are set.
 
     ``input_column`` is what a sample's input is read from: the embedding by default,
     or a scalar column as a one-element input (missing values as 0) — e.g.
@@ -216,8 +241,11 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         slide_filters: Sequence[FilterCondition] = (),
         exclude_unannotated_positive_slides: bool = False,
         input_column: str = "embedding",
+        ignore_unannotated_positive_slides: bool = False,
     ) -> None:
         self.input_column = input_column
+        self.ignore_unannotated_positive_slides = ignore_unannotated_positive_slides
+        self._unannotated_positive: set[str] = set()
         self._batch_index: _BatchIndex | None = None
         self._chunk_offsets: np.ndarray | None = None
         # Set before super().__init__, which builds the per-slide datasets.
@@ -230,7 +258,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         super().__init__(uris, tile_filters=tile_filters, slide_filters=slide_filters)
 
     def _select_slides(self, slides: HFDataset, tiles: HFDataset) -> HFDataset:
-        if not self.exclude_unannotated_positive_slides:
+        if not (self.exclude_unannotated_positive_slides or self.ignore_unannotated_positive_slides):
             return slides
         annotation = _coverage(tiles, "annotation_coverage")
         annotated = (
@@ -238,14 +266,18 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
             if annotation is not None
             else np.array([])
         )
-        keep = ~column_values(slides, "tumor").astype(bool) | np.isin(column_values(slides, "id"), annotated)
-        return slides.select(np.flatnonzero(keep)).flatten_indices()
+        ids = column_values(slides, "id")
+        keep = ~column_values(slides, "tumor").astype(bool) | np.isin(ids, annotated)
+        if self.exclude_unannotated_positive_slides:
+            return slides.select(np.flatnonzero(keep)).flatten_indices()
+        self._unannotated_positive = {str(i) for i in ids[~keep]}
+        return slides
 
     def generate_datasets(self) -> Iterable[TileEmbeddingClassificationDataset]:
         # Labels for the whole table at once: a column of the flat table reads just that
         # column, whereas reading one through a per-slide view (filter_tiles_by_slide)
         # gathers the slide's full rows, embeddings included.
-        partitions = self.labels.partition(self.tiles)
+        partitions = self.labels.partition(self.tiles, self.slides)
         targets = self.labels.targets(self.tiles, partitions)
         ambiguous = self.labels.ambiguous_mask(self.tiles)
         has_cohort = "cohort_id" in self.slides.column_names
@@ -263,6 +295,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                 ambiguous=ambiguous[rows],
                 rows=rows,
                 input_column=self.input_column,
+                ignore=str(slide["id"]) in self._unannotated_positive,
             )
 
     def __getitems__(self, indices: Sequence[int]) -> list[EmbeddingSample]:
@@ -288,6 +321,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                     "tile_x": tile_x,
                     "tile_y": tile_y,
                     "ambiguous": ambiguous,
+                    "ignore": index.ignores[slide],
                 },
             )
             for i, (target, slide, tile_x, tile_y, ambiguous) in enumerate(
@@ -343,5 +377,6 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                 tile_y=self.tiles.data.column("tile_y").to_numpy()[rows],
                 names=[slide.name for slide in slides],
                 cohorts=[slide.cohort for slide in slides],
+                ignores=[slide.ignore for slide in slides],
             )
         return self._batch_index
