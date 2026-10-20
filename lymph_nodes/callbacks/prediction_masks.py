@@ -43,8 +43,12 @@ class PredictionMasks(Callback):
     where no tile was evaluated), logged as ``prediction_masks/<cohort>/<slide_name>.tiff``.
 
     The mask has one pixel per tile: the stride x stride cell at the tile's grid
-    position, so its mpp is the tiling level's times the stride (xOpat scales it onto
-    the slide). Tiles overlap (stride < tile extent), and the cells of the grid cover
+    position, so its mpp is the tiling level's times the stride. It covers the slide
+    and no more: xOpat draws an overlay stretched to the slide's size, not placed by its
+    mpp, so the grid's overhang past the slide's edge (the last tiles reach up to a
+    tile beyond it) would shrink the drawn mask by as much — shifting it by up to
+    ~0.4% of the distance from the slide's corner, a few hundred um across a lymph node
+    slide. The mask is cropped to the slide, rounded to whole pixels. Tiles overlap (stride < tile extent), and the cells of the grid cover
     the slide exactly once. A cell starts at its tile's corner rather than being
     centered on the tile, which shifts the mask by (tile extent - stride) / 2 — 51 px of
     the tiling level for the 224/122 lymph node grid, under half a mask pixel. Scaling
@@ -192,6 +196,10 @@ def _prediction_mask(
             np.stack([tile_y, tile_x], axis=1).astype(np.int64),
         )
         mask = np.round(builder.finalize()["mask"][0] * 255).astype(np.uint8)
-        return mask, builder.span / builder.mask_extents
+        pixel = builder.span / builder.mask_extents
+        # The slide's extent in mask pixels (see PredictionMasks: no overhang).
+        extent = np.array([int(slide["extent_y"]), int(slide["extent_x"])])
+        rows, cols = np.maximum(np.round(extent / pixel), 1).astype(int)
+        return mask[:rows, :cols], pixel
     finally:
         builder.cleanup()

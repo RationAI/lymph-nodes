@@ -38,6 +38,25 @@ filters:
     column: tumor
     op: "=="
     value: false
+  # Slides with an on-slide TMA control: carcinoma tissue as a staining control, so on
+  # a negative slide real cancer that any good model flags. The split keeps them out of
+  # training; evaluation leaves them out too. Slides without the column (TMAs) stay.
+  no_tma_control:
+    _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    column: has_tma_control
+    op: "=="
+    value: true
+    negate: true
+  # SNB_IHC_CASE_66_SLIDE_6-0 has a control but was listed as 68 6-0 (a slide that
+  # doesn't exist) in configs/data/raw/mmci_ihc_2023.yaml; the slides tables of the
+  # tiling runs keep has_tma_control false for it until the patient dataset, split and
+  # tilings are re-run from the corrected list.
+  no_unflagged_tma_control:
+    _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    column: slide_name
+    op: in
+    value: [SNB_IHC_CASE_66_SLIDE_6-0]
+    negate: true
   # blur:
   #   _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
   #   column: blur_coverage
@@ -76,7 +95,8 @@ data:
   # metastases? Positive slides without an annotation mask are evaluated, but their
   # tiles are left out of the tile metrics (meta `ignore`) — their metastases aren't
   # outlined, so all their tiles would count as healthy; they count in the slide
-  # metrics (lymph_nodes.callbacks.SlideMetrics) and get prediction masks.
+  # metrics (lymph_nodes.callbacks.SlideMetrics) and get prediction masks. Slides with
+  # a TMA control are left out (filters.no_tma_control).
   # The TMA validation set is evaluated too: does the model still tell cytokeratin-
   # positive from cytokeratin-negative TMA tissue? Every TMA tile is kept, the ones
   # with coverage between 0 and the threshold included (labelled negative), to see the
@@ -93,6 +113,9 @@ data:
       - ${filters.tissue}
       - ${filters.no_patho_ignore}
       - ${filters.no_cytokeratin_ignore}
+    slide_filters:
+      - ${filters.no_tma_control}
+      - ${filters.no_unflagged_tma_control}
     ignore_unannotated_positive_slides: true
 
   test:
@@ -102,6 +125,9 @@ data:
     labels: ${ln_labels}
     tile_filters:
       - ${filters.tissue}
+    slide_filters:
+      - ${filters.no_tma_control}
+      - ${filters.no_unflagged_tma_control}
     ignore_unannotated_positive_slides: true
 
 mode_emojis:
