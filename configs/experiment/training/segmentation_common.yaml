@@ -52,9 +52,12 @@ data:
       - ${tma_run_uri}/val
       - ${fnb_run_uri}/val
     target_grids: [cytokeratin_grid, annotation_grid]
+    # Patch metrics against the refined labels too (patch/refined/, see ln_refined_labels).
+    refined_grids: [cytokeratin_grid, annotation_brown_grid]
   test:
     _target_: ${segmentation_dataset}
     target_grids: [annotation_grid]
+    refined_grids: [annotation_brown_grid]
 
   # Each sample passes the frozen foundation model (~300-400 tiles/s on a 2g MIG
   # slice), so an epoch is a fixed draw rather than the largest the pools allow.

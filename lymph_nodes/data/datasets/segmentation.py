@@ -36,7 +36,10 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
       ``cytokeratin_grid`` for TMAs, ``annotation_grid`` for lymph nodes), 0 where it
       has none of them (e.g. a lymph node slide without an annotation mask, i.e. a
       negative one),
-    - the usual meta, plus ``label``: the tile's TileLabels target, for tile metrics.
+    - the usual meta, plus ``label``: the tile's TileLabels target, for tile metrics;
+      with ``refined_grids`` (and ``refined_labels``, see EmbeddingClassificationDataset)
+      also ``refined_grid``, a second target grid for a second set of patch metrics
+      (SegmentationMetaArch), left out when the tiles have none of its columns.
 
     ``grid`` is the side of the target grids (OverlayGrid's ``grid`` in the tiling),
     so that a batch none of whose tiles has a grid still gets targets of that shape.
@@ -59,8 +62,11 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         slide_filters: Sequence[FilterCondition] = (),
         exclude_unannotated_positive_slides: bool = False,
         ignore_unannotated_positive_slides: bool = False,
+        refined_labels: TileLabels | None = None,
+        refined_grids: Sequence[str] = (),
     ) -> None:
         self.target_grids = list(target_grids)
+        self.refined_grids = list(refined_grids)
         self.grid = grid
         self.max_open_slides = max_open_slides
         self.cache_mib = cache_mib
@@ -73,7 +79,13 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             slide_filters=slide_filters,
             exclude_unannotated_positive_slides=exclude_unannotated_positive_slides,
             ignore_unannotated_positive_slides=ignore_unannotated_positive_slides,
+            refined_labels=refined_labels,
         )
+        if self.refined_grids and not any(
+            g in self.tiles.column_names for g in self.refined_grids
+        ):
+            print(f"refined_grids left out: none of {self.refined_grids} in the tiles")
+            self.refined_grids = []
         # Per position in .slides (= in .datasets): where and how to read its tiles.
         self._slide_paths = [str(path) for path in column_values(self.slides, "path")]
         self._slide_levels = column_values(self.slides, "level").astype(int)
@@ -107,6 +119,11 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         index = self._get_batch_index()
         batch = np.asarray(indices)
         grids = self._grids(index.rows[batch])
+        refined = (
+            self._grids(index.rows[batch], self.refined_grids)
+            if self.refined_grids
+            else None
+        )
         samples: list[SegmentationSample] = []
         for i, position in enumerate(batch.tolist()):
             slide = int(index.slide_of[position])
@@ -121,6 +138,10 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
                 "ignore": index.ignores[slide],
                 "label": float(index.target[position]),
             }
+            if refined is not None:
+                meta["refined_grid"] = refined[i]
+            if index.refined is not None:
+                meta["refined_label"] = float(index.refined[position])
             samples.append((self._read_tile(slide, tile_x, tile_y), grids[i], meta))
         return samples
 
@@ -155,10 +176,16 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         except OpenSlideVersionError:
             pass  # an older library: only max_open_slides bounds the memory
 
-    def _grids(self, rows: np.ndarray) -> np.ndarray:
-        """Target grids of ``rows`` of the underlying table: float32 (len(rows), grid, grid)."""
+    def _grids(
+        self, rows: np.ndarray, names: Sequence[str] | None = None
+    ) -> np.ndarray:
+        """Target grids of ``rows`` of the underlying table: float32 (len(rows), grid, grid).
+
+        The per-cell maximum over the ``names`` columns (``target_grids`` by default).
+        """
         out: np.ndarray | None = None
-        for name in self.target_grids:
+        names = self.target_grids if names is None else names
+        for name in names:
             if name not in self.tiles.column_names:
                 continue
             values, valid = self._take_grid(name, rows)
@@ -166,7 +193,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             out = grids if out is None else np.maximum(out, grids)
         if out is None:
             raise ValueError(
-                f"None of the target grids {self.target_grids} is a column of the tiles"
+                f"None of the target grids {list(names)} is a column of the tiles"
             )
         return out.reshape(len(rows), self.grid, self.grid)
 

@@ -87,7 +87,10 @@ class MetaArch(LightningModule):
     ``<phase>/<cohort>/<metric>`` next to the overall ``<phase>/<metric>``: an
     evaluation set can mix cohorts that behave very differently. Cohorts with borderline
     tiles (TileLabels.ambiguous, flagged in the samples' meta) also get every metric
-    without them, as ``<phase>/<cohort>/unambiguous/<metric>``. Samples flagged
+    without them, as ``<phase>/<cohort>/unambiguous/<metric>``; samples with a second,
+    refined target (meta ``refined_label``: EmbeddingClassificationDataset's
+    ``refined_labels``) get every metric against it too, as
+    ``<phase>/<cohort>/refined/<metric>``. Samples flagged
     ``ignore`` in their meta (the tiles of positive slides without annotation,
     EmbeddingClassificationDataset's ``ignore_unannotated_positive_slides``) are left out
     of the loss and every tile metric: their labels are unknown, they are there for the
@@ -132,8 +135,8 @@ class MetaArch(LightningModule):
         self.val_metrics = metrics.clone(prefix="validation/")
         self.test_metrics = metrics.clone(prefix="test/")
 
-        # cohort -> (logits, targets, ambiguous flags) of the running final evaluation
-        self._cohort_outputs: dict[str, tuple[list[Tensor], list[Tensor], list[Tensor]]] = {}
+        # cohort -> (logits, targets, ambiguous flags, refined targets) of the running final evaluation
+        self._cohort_outputs: dict[str, tuple[list[Tensor], list[Tensor], list[Tensor], list[Tensor]]] = {}
 
     def forward(self, x: Input) -> Outputs:
         features = self.backbone(x)
@@ -189,17 +192,21 @@ class MetaArch(LightningModule):
         cohorts: list[str] = meta["cohort"]
         for cohort in set(cohorts):
             mask = torch.tensor([c == cohort for c in cohorts], device=outputs.device)
-            logits, labels, ambiguous = self._cohort_outputs.setdefault(cohort, ([], [], []))
+            logits, labels, ambiguous, refined = self._cohort_outputs.setdefault(cohort, ([], [], [], []))
             logits.append(outputs[mask].detach().float().cpu())
             labels.append(targets[mask].detach().cpu())
             ambiguous.append(meta["ambiguous"][mask.cpu()].cpu())
+            if "refined_label" in meta:
+                refined.append(torch.as_tensor(meta["refined_label"])[mask.cpu()].cpu() > 0.5)
 
     def _log_by_cohort(self, phase: str) -> None:
-        for cohort, (logits, labels, ambiguous) in sorted(self._cohort_outputs.items()):
+        for cohort, (logits, labels, ambiguous, refined) in sorted(self._cohort_outputs.items()):
             preds, target, borderline = torch.cat(logits), torch.cat(labels).int(), torch.cat(ambiguous)
             values = _cohort_metrics(f"{phase}/{cohort}", preds, target)
             if borderline.any():
                 values |= _cohort_metrics(f"{phase}/{cohort}/unambiguous", preds[~borderline], target[~borderline])
+            if refined:
+                values |= _cohort_metrics(f"{phase}/{cohort}/refined", preds, torch.cat(refined).int())
             self.log_dict(values)
         self._cohort_outputs.clear()
 

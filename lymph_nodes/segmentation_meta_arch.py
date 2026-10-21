@@ -36,6 +36,8 @@ class SegmentationMetaArch(MetaArch):
     is there cancer in the tile?), or ``"mean"``, its predicted coverage. The validation
     and test steps return the per-patch logits (B, g, g), so the masks show patches.
     Samples flagged ``ignore`` are left out of the loss and the metrics, as in MetaArch.
+    Samples with a refined target grid (meta ``refined_grid``, TileSegmentationDataset's
+    ``refined_grids``) get the patch metrics against it too, ``<phase>/patch/refined/``.
 
     The frozen backbone is left out of checkpoints (it is reloaded from the hub).
     """
@@ -66,6 +68,12 @@ class SegmentationMetaArch(MetaArch):
         )
         self.val_patch_metrics = patch_metrics.clone(prefix="validation/patch/")
         self.test_patch_metrics = patch_metrics.clone(prefix="test/patch/")
+        self.val_refined_patch_metrics = patch_metrics.clone(
+            prefix="validation/patch/refined/"
+        )
+        self.test_refined_patch_metrics = patch_metrics.clone(
+            prefix="test/patch/refined/"
+        )
 
     def forward(self, x: Input) -> Outputs:
         return self.decode_head(self.backbone(x)).squeeze(1)
@@ -87,7 +95,9 @@ class SegmentationMetaArch(MetaArch):
         return loss
 
     def validation_step(self, batch: Batch, batch_idx: int) -> Outputs:
-        logits, keep = self._evaluate(batch, "validation", self.val_patch_metrics)
+        logits, keep = self._evaluate(
+            batch, "validation", self.val_patch_metrics, self.val_refined_patch_metrics
+        )
         if keep is not None:
             scores = self._tile_scores(logits[keep])
             labels = batch[2]["label"][keep] > 0.5
@@ -98,7 +108,9 @@ class SegmentationMetaArch(MetaArch):
         return logits
 
     def test_step(self, batch: Batch, batch_idx: int) -> Outputs:
-        logits, keep = self._evaluate(batch, "test", self.test_patch_metrics)
+        logits, keep = self._evaluate(
+            batch, "test", self.test_patch_metrics, self.test_refined_patch_metrics
+        )
         if keep is not None:
             scores = self._tile_scores(logits[keep])
             labels = batch[2]["label"][keep] > 0.5
@@ -117,7 +129,11 @@ class SegmentationMetaArch(MetaArch):
         return logits
 
     def _evaluate(
-        self, batch: Batch, phase: str, patch_metrics: MetricCollection
+        self,
+        batch: Batch,
+        phase: str,
+        patch_metrics: MetricCollection,
+        refined_patch_metrics: MetricCollection,
     ) -> tuple[Tensor, Tensor | None]:
         """Per-patch logits of all tiles and the mask of the counted ones; logs the patch side."""
         tiles, grids, meta = batch
@@ -136,6 +152,13 @@ class SegmentationMetaArch(MetaArch):
         probabilities = torch.sigmoid(logits[keep].float())
         patch_metrics.update(probabilities.flatten(), grids[keep].flatten() > 0.5)
         self.log_dict(patch_metrics, on_epoch=True)
+        if "refined_grid" in meta:
+            refined = meta["refined_grid"][keep.to(meta["refined_grid"].device)]
+            refined_patch_metrics.update(
+                probabilities.flatten(),
+                refined.to(probabilities.device).flatten() > 0.5,
+            )
+            self.log_dict(refined_patch_metrics, on_epoch=True)
         return logits, keep
 
     def _tile_scores(self, logits: Tensor) -> Tensor:

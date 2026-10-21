@@ -74,6 +74,23 @@ ln_labels:
   ambiguous:
     annotation_coverage: [0.0, 0.25]
 
+# Refined lymph node labels, reported next to the plain ones (<cohort>/refined/, see
+# MetaArch): the annotation narrowed to stained tissue — a tile is positive when it has
+# pixels inside an outline and within ~10 um of a brown pixel
+# (preprocessing/tiling_blocks/AnnotatedBrown), so lymphoid tissue the rough outlines
+# take in no longer counts. Only tilings with the column have them (the segmentation
+# ones); TMAs keep their cytokeratin labels.
+ln_refined_labels:
+  _target_: lymph_nodes.data.datasets.embedding.TileLabels
+  positive:
+    annotation_brown_coverage: 0.0
+
+eval_refined_labels:
+  _target_: lymph_nodes.data.datasets.embedding.TileLabels
+  positive:
+    annotation_brown_coverage: 0.0
+    cytokeratin_coverage: ${cytokeratin_positive_threshold}
+
 # data.eval labels: the lymph node ones plus cytokeratin for the TMAs. Each column
 # exists for one tissue only (NaN for the other), and NaN is never positive. TMA tiles
 # with cytokeratin coverage between 0.1 and the positive threshold are borderline, the
@@ -109,6 +126,7 @@ data:
       - ${ihc_test_run_uri}/val
       - ${tma_run_uri}/val
     labels: ${eval_labels}
+    refined_labels: ${eval_refined_labels}
     tile_filters:
       - ${filters.tissue}
       - ${filters.no_patho_ignore}
@@ -123,6 +141,7 @@ data:
     uris:
       - ${ihc_run_uri}/test
     labels: ${ln_labels}
+    refined_labels: ${ln_refined_labels}
     tile_filters:
       - ${filters.tissue}
     slide_filters:

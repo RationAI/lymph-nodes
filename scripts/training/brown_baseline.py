@@ -4,7 +4,8 @@
     python scripts/training/brown_baseline.py uni2 --folds 0 --gpu none --segmentation   # segmentation tiling
 
 The model in the data config doesn't matter (brownish_coverage is the same in every
-tiling run of a stride). See configs/experiment/training/brown_baseline.yaml.
+tiling run of a stride). See configs/experiment/training/brown_baseline.yaml (and
+brown_baseline_segmentation.yaml, which adds FN Brno to the segmentation tiling's).
 """
 
 import sys
@@ -16,7 +17,7 @@ segmentation = "--segmentation" in sys.argv
 if segmentation:
     sys.argv.remove("--segmentation")
 submit_scenario(
-    "brown_baseline",
+    "brown_baseline_segmentation" if segmentation else "brown_baseline",
     data="segmentation" if segmentation else "tiled",
     trained=False,
     foundation_model=False,

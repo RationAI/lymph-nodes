@@ -8,6 +8,26 @@ from ray.data import Dataset
 from preprocessing.tiling_blocks.tiling_block import TilingBlock
 
 
+def brown_pixels(
+    images: np.ndarray,
+    warmth: int = 50,
+    blue_tolerance: int = 10,
+    red_min: int = 50,
+    red_max: int = 175,
+) -> np.ndarray:
+    """Which pixels of ``images`` (..., 3) look brown, by BrownishCoverage's rule."""
+    # int16: R + G and B - tolerance must not wrap around as uint8 would.
+    images = np.asarray(images).astype(np.int16)
+    red, green, blue = images[..., 0], images[..., 1], images[..., 2]
+    return (
+        (red + green > blue + warmth)
+        & (red > green)
+        & (green >= blue - blue_tolerance)
+        & (red >= red_min)
+        & (red < red_max)
+    )
+
+
 class BrownishCoverage(TilingBlock):
     """Fraction of tile pixels that look brown (DAB-stained), by fixed RGB thresholds.
 
@@ -52,16 +72,8 @@ class BrownishCoverage(TilingBlock):
         red_min, red_max = self._red_min, self._red_max
 
         def _compute(batch: dict[str, Any]) -> dict[str, Any]:
-            # int16: R + G and B - tolerance must not wrap around as uint8 would.
-            images = np.stack(batch[image_col]).astype(np.int16)  # (B, H, W, 3)
-            red, green, blue = images[..., 0], images[..., 1], images[..., 2]
-            brown = (
-                (red + green > blue + warmth)
-                & (red > green)
-                & (green >= blue - blue_tolerance)
-                & (red >= red_min)
-                & (red < red_max)
-            )
+            images = np.stack(batch[image_col])  # (B, H, W, 3)
+            brown = brown_pixels(images, warmth, blue_tolerance, red_min, red_max)
             batch[name] = brown.mean(axis=(1, 2))
             return batch
 

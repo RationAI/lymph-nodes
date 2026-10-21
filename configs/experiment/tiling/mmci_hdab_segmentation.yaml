@@ -64,6 +64,20 @@ tiling_blocks:
     name: brownish_coverage
     image_col: tile
 
+  # Refined evaluation labels: the annotation narrowed to stained tissue, the pixels
+  # inside an outline within ~10 um of a brown one (annotation_brown_coverage and
+  # annotation_brown_grid). No nulls (NaN coverage, zero grid without a mask), so it can
+  # come before annotation_grid.
+  - _target_: preprocessing.tiling_blocks.AnnotatedBrown
+    name: annotation_brown
+    uri: ${annotation_mask_dir}
+    roi: ${rois.full}
+    image_col: tile
+    grid: ${grid}
+    radius_um: 10.0
+    annotation_column: annotation_coverage
+    min_label: 255
+
   # After BrownishCoverage: its numpy batches can't carry a grid column mixing values
   # and nulls (slides with and without an annotation mask) back into Arrow.
   - _target_: preprocessing.tiling_blocks.OverlayGrid

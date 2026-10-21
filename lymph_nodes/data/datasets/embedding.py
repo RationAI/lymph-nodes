@@ -166,10 +166,12 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
         rows: np.ndarray,
         input_column: str = "embedding",
         ignore: bool = False,
+        refined_targets: np.ndarray | None = None,
     ) -> None:
         super().__init__()
         self.input_column = input_column
         self.ignore = ignore
+        self.refined_targets = refined_targets
         self.name = name
         self.cohort = cohort
         self.slide = slide
@@ -193,6 +195,8 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
             "ambiguous": bool(self.ambiguous[idx]),
             "ignore": self.ignore,
         }
+        if self.refined_targets is not None:
+            meta["refined_label"] = float(self.refined_targets[idx])
         value = np.atleast_1d(np.asarray(tile[self.input_column], dtype=np.float32))
         return np.nan_to_num(value), float(self.targets[idx]), meta
 
@@ -213,6 +217,7 @@ class _BatchIndex(NamedTuple):
     names: list[str]
     cohorts: list[str]
     ignores: list[bool]  # per slide: tile metrics skip it (ignore_unannotated_positive_slides)
+    refined: np.ndarray | None  # refined_labels targets, if any
 
 
 class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
@@ -222,6 +227,11 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
     that have no annotation mask at all: their metastases aren't outlined, so every
     tile would be labelled healthy. Needed wherever lymph node slides are evaluated
     by ``annotation_coverage``, since most positive slides have no annotation.
+    ``refined_labels``, a second TileLabels (e.g. the annotation narrowed to stained
+    tissue, preprocessing.tiling_blocks.AnnotatedBrown), puts a second target in the
+    samples' meta (``refined_label``) for a second set of metrics (MetaArch); left out
+    when a column it names is missing from the tiles (e.g. a tiling run without it).
+
     ``ignore_unannotated_positive_slides`` keeps those slides instead but flags their
     samples (meta ``ignore``): tile-level metrics skip them, while slide-level ones
     (lymph_nodes.callbacks.SlideMetrics) need every slide with its status. Excluding
@@ -242,8 +252,10 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         exclude_unannotated_positive_slides: bool = False,
         input_column: str = "embedding",
         ignore_unannotated_positive_slides: bool = False,
+        refined_labels: TileLabels | None = None,
     ) -> None:
         self.input_column = input_column
+        self.refined_labels = refined_labels
         self.ignore_unannotated_positive_slides = ignore_unannotated_positive_slides
         self._unannotated_positive: set[str] = set()
         self._batch_index: _BatchIndex | None = None
@@ -280,6 +292,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         partitions = self.labels.partition(self.tiles, self.slides)
         targets = self.labels.targets(self.tiles, partitions)
         ambiguous = self.labels.ambiguous_mask(self.tiles)
+        refined = self._refined_targets()
         has_cohort = "cohort_id" in self.slides.column_names
         no_rows = np.array([], dtype=np.int64)
         for position, slide in enumerate(self.slides):
@@ -296,7 +309,19 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                 rows=rows,
                 input_column=self.input_column,
                 ignore=str(slide["id"]) in self._unannotated_positive,
+                refined_targets=refined[rows] if refined is not None else None,
             )
+
+    def _refined_targets(self) -> np.ndarray | None:
+        """Targets by ``refined_labels``, or None without them (or a column they name)."""
+        if self.refined_labels is None:
+            return None
+        missing = [c for c in self.refined_labels.positive if c not in self.tiles.column_names]
+        if missing:
+            print(f"refined_labels left out: no {', '.join(missing)} in the tiles")
+            return None
+        partitions = self.refined_labels.partition(self.tiles, self.slides)
+        return self.refined_labels.targets(self.tiles, partitions)
 
     def __getitems__(self, indices: Sequence[int]) -> list[EmbeddingSample]:
         """A whole batch with one read of the embedding column.
@@ -310,6 +335,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         batch = np.asarray(indices)
         values = self._embeddings(index.rows[batch])
         slides = index.slide_of[batch].tolist()
+        refined = index.refined[batch].tolist() if index.refined is not None else None
         return [
             (
                 values[i],
@@ -322,6 +348,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                     "tile_y": tile_y,
                     "ambiguous": ambiguous,
                     "ignore": index.ignores[slide],
+                    **({"refined_label": refined[i]} if refined is not None else {}),
                 },
             )
             for i, (target, slide, tile_x, tile_y, ambiguous) in enumerate(
@@ -378,5 +405,10 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                 names=[slide.name for slide in slides],
                 cohorts=[slide.cohort for slide in slides],
                 ignores=[slide.ignore for slide in slides],
+                refined=(
+                    np.concatenate([slide.refined_targets for slide in slides])
+                    if slides and slides[0].refined_targets is not None
+                    else None
+                ),
             )
         return self._batch_index
