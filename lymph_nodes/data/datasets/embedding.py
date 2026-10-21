@@ -63,6 +63,10 @@ class TileLabels:
     high`` are borderline, e.g. lymph node tiles only touching an annotation
     (``annotation_coverage: [0.0, 0.25]``). They keep their label and are evaluated as
     usual, but MetaArch also reports every metric without them (``<cohort>/unambiguous/``).
+    With ``ambiguous_on_positive_slides``, the negative tiles of positive slides (the
+    slides' ``tumor``) are ambiguous too: the pathologist may have left an ITC there
+    unannotated, so a model flagging it is not necessarily wrong — the unambiguous
+    metrics then take their negatives from negative slides only.
 
     Deliberately a plain class rather than a dataclass, like FilterCondition.
     """
@@ -76,8 +80,10 @@ class TileLabels:
         tma_column: str | None = None,
         ambiguous: Mapping[str, Sequence[float]] | None = None,
         external_cohort: str | None = None,
+        ambiguous_on_positive_slides: bool = False,
     ) -> None:
         self.positive = dict(positive)
+        self.ambiguous_on_positive_slides = ambiguous_on_positive_slides
         self.external_cohort = external_cohort
         self.brownish_column = brownish_column
         self.brownish_threshold = brownish_threshold
@@ -90,11 +96,7 @@ class TileLabels:
 
         ``slides`` (with ``id`` and ``cohort_id``) is needed for ``external_cohort``.
         """
-        cancer = np.zeros(len(tiles), dtype=bool)
-        for column, threshold in self.positive.items():
-            values = _coverage(tiles, column)
-            if values is not None:
-                cancer |= values > threshold
+        cancer = self._cancer(tiles)
 
         brownish = np.zeros(len(tiles), dtype=bool)
         if self.brownish_column is not None:
@@ -122,13 +124,35 @@ class TileLabels:
         labels[cancer] = CANCER
         return labels
 
-    def ambiguous_mask(self, tiles: HFDataset) -> np.ndarray:
-        """Per-tile flag: borderline by any ``ambiguous`` range (NaN never is)."""
+    def _cancer(self, tiles: HFDataset) -> np.ndarray:
+        """Per-tile flag: positive by any column of ``positive``."""
+        cancer = np.zeros(len(tiles), dtype=bool)
+        for column, threshold in self.positive.items():
+            values = _coverage(tiles, column)
+            if values is not None:
+                cancer |= values > threshold
+        return cancer
+
+    def ambiguous_mask(self, tiles: HFDataset, slides: HFDataset | None = None) -> np.ndarray:
+        """Per-tile flag: borderline by any ``ambiguous`` range (NaN never is).
+
+        With ``ambiguous_on_positive_slides``, also every negative tile of a positive
+        slide; ``slides`` (with ``id`` and ``tumor``) is needed for that.
+        """
         ambiguous = np.zeros(len(tiles), dtype=bool)
         for column, (low, high) in self.ambiguous.items():
             values = _coverage(tiles, column)
             if values is not None:
                 ambiguous |= (values > low) & (values <= high)
+        if self.ambiguous_on_positive_slides:
+            if slides is None or "tumor" not in slides.column_names:
+                raise ValueError("ambiguous_on_positive_slides needs slides with a tumor column")
+            # TMA slides have no status (None / NaN): never positive.
+            tumor = column_values(slides, "tumor")
+            positive = np.array([bool(t) and t == t for t in tumor], dtype=bool)
+            ids = column_values(slides, "id")[positive]
+            on_positive = np.isin(column_values(tiles, "slide_id"), ids)
+            ambiguous |= on_positive & ~self._cancer(tiles)
         return ambiguous
 
     def targets(self, tiles: HFDataset, partitions: np.ndarray) -> np.ndarray:
@@ -166,12 +190,12 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
         rows: np.ndarray,
         input_column: str = "embedding",
         ignore: bool = False,
-        refined_targets: np.ndarray | None = None,
+        outline_targets: np.ndarray | None = None,
     ) -> None:
         super().__init__()
         self.input_column = input_column
         self.ignore = ignore
-        self.refined_targets = refined_targets
+        self.outline_targets = outline_targets
         self.name = name
         self.cohort = cohort
         self.slide = slide
@@ -195,8 +219,8 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
             "ambiguous": bool(self.ambiguous[idx]),
             "ignore": self.ignore,
         }
-        if self.refined_targets is not None:
-            meta["refined_label"] = float(self.refined_targets[idx])
+        if self.outline_targets is not None:
+            meta["outline_label"] = float(self.outline_targets[idx])
         value = np.atleast_1d(np.asarray(tile[self.input_column], dtype=np.float32))
         return np.nan_to_num(value), float(self.targets[idx]), meta
 
@@ -217,7 +241,7 @@ class _BatchIndex(NamedTuple):
     names: list[str]
     cohorts: list[str]
     ignores: list[bool]  # per slide: tile metrics skip it (ignore_unannotated_positive_slides)
-    refined: np.ndarray | None  # refined_labels targets, if any
+    outline: np.ndarray | None  # outline_labels targets, if any
 
 
 class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
@@ -227,10 +251,10 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
     that have no annotation mask at all: their metastases aren't outlined, so every
     tile would be labelled healthy. Needed wherever lymph node slides are evaluated
     by ``annotation_coverage``, since most positive slides have no annotation.
-    ``refined_labels``, a second TileLabels (e.g. the annotation narrowed to stained
-    cells, preprocessing/refined_annotation_masks.py), puts a second target in the
-    samples' meta (``refined_label``) for a second set of metrics (MetaArch); left out
-    when a column it names is missing from the tiles (e.g. a tiling run without it).
+    ``outline_labels``, a second TileLabels (the pathologists' outlines, when ``labels``
+    are the refined ones of preprocessing/refined_annotation_masks.py), puts a second
+    target in the samples' meta (``outline_label``) for a second set of metrics
+    (MetaArch); left out when a column it names is missing from the tiles.
 
     ``ignore_unannotated_positive_slides`` keeps those slides instead but flags their
     samples (meta ``ignore``): tile-level metrics skip them, while slide-level ones
@@ -252,10 +276,10 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         exclude_unannotated_positive_slides: bool = False,
         input_column: str = "embedding",
         ignore_unannotated_positive_slides: bool = False,
-        refined_labels: TileLabels | None = None,
+        outline_labels: TileLabels | None = None,
     ) -> None:
         self.input_column = input_column
-        self.refined_labels = refined_labels
+        self.outline_labels = outline_labels
         self.ignore_unannotated_positive_slides = ignore_unannotated_positive_slides
         self._unannotated_positive: set[str] = set()
         self._batch_index: _BatchIndex | None = None
@@ -291,8 +315,8 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         # gathers the slide's full rows, embeddings included.
         partitions = self.labels.partition(self.tiles, self.slides)
         targets = self.labels.targets(self.tiles, partitions)
-        ambiguous = self.labels.ambiguous_mask(self.tiles)
-        refined = self._refined_targets()
+        ambiguous = self.labels.ambiguous_mask(self.tiles, self.slides)
+        outline = self._outline_targets()
         has_cohort = "cohort_id" in self.slides.column_names
         no_rows = np.array([], dtype=np.int64)
         for position, slide in enumerate(self.slides):
@@ -309,19 +333,19 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                 rows=rows,
                 input_column=self.input_column,
                 ignore=str(slide["id"]) in self._unannotated_positive,
-                refined_targets=refined[rows] if refined is not None else None,
+                outline_targets=outline[rows] if outline is not None else None,
             )
 
-    def _refined_targets(self) -> np.ndarray | None:
-        """Targets by ``refined_labels``, or None without them (or a column they name)."""
-        if self.refined_labels is None:
+    def _outline_targets(self) -> np.ndarray | None:
+        """Targets by ``outline_labels``, or None without them (or a column they name)."""
+        if self.outline_labels is None:
             return None
-        missing = [c for c in self.refined_labels.positive if c not in self.tiles.column_names]
+        missing = [c for c in self.outline_labels.positive if c not in self.tiles.column_names]
         if missing:
-            print(f"refined_labels left out: no {', '.join(missing)} in the tiles")
+            print(f"outline_labels left out: no {', '.join(missing)} in the tiles")
             return None
-        partitions = self.refined_labels.partition(self.tiles, self.slides)
-        return self.refined_labels.targets(self.tiles, partitions)
+        partitions = self.outline_labels.partition(self.tiles, self.slides)
+        return self.outline_labels.targets(self.tiles, partitions)
 
     def __getitems__(self, indices: Sequence[int]) -> list[EmbeddingSample]:
         """A whole batch with one read of the embedding column.
@@ -335,7 +359,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
         batch = np.asarray(indices)
         values = self._embeddings(index.rows[batch])
         slides = index.slide_of[batch].tolist()
-        refined = index.refined[batch].tolist() if index.refined is not None else None
+        outline = index.outline[batch].tolist() if index.outline is not None else None
         return [
             (
                 values[i],
@@ -348,7 +372,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                     "tile_y": tile_y,
                     "ambiguous": ambiguous,
                     "ignore": index.ignores[slide],
-                    **({"refined_label": refined[i]} if refined is not None else {}),
+                    **({"outline_label": outline[i]} if outline is not None else {}),
                 },
             )
             for i, (target, slide, tile_x, tile_y, ambiguous) in enumerate(
@@ -405,9 +429,9 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
                 names=[slide.name for slide in slides],
                 cohorts=[slide.cohort for slide in slides],
                 ignores=[slide.ignore for slide in slides],
-                refined=(
-                    np.concatenate([slide.refined_targets for slide in slides])
-                    if slides and slides[0].refined_targets is not None
+                outline=(
+                    np.concatenate([slide.outline_targets for slide in slides])
+                    if slides and slides[0].outline_targets is not None
                     else None
                 ),
             )

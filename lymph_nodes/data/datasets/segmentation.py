@@ -37,8 +37,8 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
       has none of them (e.g. a lymph node slide without an annotation mask, i.e. a
       negative one),
     - the usual meta, plus ``label``: the tile's TileLabels target, for tile metrics;
-      with ``refined_grids`` (and ``refined_labels``, see EmbeddingClassificationDataset)
-      also ``refined_grid``, a second target grid for a second set of patch metrics
+      with ``outline_grids`` (and ``outline_labels``, see EmbeddingClassificationDataset)
+      also ``outline_grid``, a second target grid for a second set of patch metrics
       (SegmentationMetaArch), left out when the tiles have none of its columns.
 
     ``grid`` is the side of the target grids (OverlayGrid's ``grid`` in the tiling),
@@ -62,11 +62,11 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         slide_filters: Sequence[FilterCondition] = (),
         exclude_unannotated_positive_slides: bool = False,
         ignore_unannotated_positive_slides: bool = False,
-        refined_labels: TileLabels | None = None,
-        refined_grids: Sequence[str] = (),
+        outline_labels: TileLabels | None = None,
+        outline_grids: Sequence[str] = (),
     ) -> None:
         self.target_grids = list(target_grids)
-        self.refined_grids = list(refined_grids)
+        self.outline_grids = list(outline_grids)
         self.grid = grid
         self.max_open_slides = max_open_slides
         self.cache_mib = cache_mib
@@ -79,13 +79,13 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             slide_filters=slide_filters,
             exclude_unannotated_positive_slides=exclude_unannotated_positive_slides,
             ignore_unannotated_positive_slides=ignore_unannotated_positive_slides,
-            refined_labels=refined_labels,
+            outline_labels=outline_labels,
         )
-        if self.refined_grids and not any(
-            g in self.tiles.column_names for g in self.refined_grids
+        if self.outline_grids and not any(
+            g in self.tiles.column_names for g in self.outline_grids
         ):
-            print(f"refined_grids left out: none of {self.refined_grids} in the tiles")
-            self.refined_grids = []
+            print(f"outline_grids left out: none of {self.outline_grids} in the tiles")
+            self.outline_grids = []
         # Per position in .slides (= in .datasets): where and how to read its tiles.
         self._slide_paths = [str(path) for path in column_values(self.slides, "path")]
         self._slide_levels = column_values(self.slides, "level").astype(int)
@@ -119,9 +119,9 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         index = self._get_batch_index()
         batch = np.asarray(indices)
         grids = self._grids(index.rows[batch])
-        refined = (
-            self._grids(index.rows[batch], self.refined_grids)
-            if self.refined_grids
+        outline = (
+            self._grids(index.rows[batch], self.outline_grids)
+            if self.outline_grids
             else None
         )
         samples: list[SegmentationSample] = []
@@ -138,10 +138,10 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
                 "ignore": index.ignores[slide],
                 "label": float(index.target[position]),
             }
-            if refined is not None:
-                meta["refined_grid"] = refined[i]
-            if index.refined is not None:
-                meta["refined_label"] = float(index.refined[position])
+            if outline is not None:
+                meta["outline_grid"] = outline[i]
+            if index.outline is not None:
+                meta["outline_label"] = float(index.outline[position])
             samples.append((self._read_tile(slide, tile_x, tile_y), grids[i], meta))
         return samples
 

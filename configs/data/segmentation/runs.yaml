@@ -3,10 +3,25 @@
 # Segmentation tiling runs (configs/experiment/tiling/*_segmentation.yaml): stride
 # 224, coverage grids, no embeddings — the same for every foundation model. IHC 2023
 # and IHC test with the refined labels (annotation_brown_*: the refined annotation
-# masks of run fe8e197d, preprocessing/refined_annotation_masks.py).
-ihc_run_uri: mlflow-artifacts:/4/ad68e3055c9a4cac86916c0d6180df6f/artifacts  # IHC 2023: fold_0..fold_4, val, test
+# masks of run 1cae2de7, preprocessing/refined_annotation_masks.py).
+ihc_run_uri: mlflow-artifacts:/4/055b629cf35c49e6857feb0563c73a51/artifacts  # IHC 2023: fold_0..fold_4, val, test
 tma_run_uri: mlflow-artifacts:/4/cc1ccb765fa34c65a2336dc08600d162/artifacts  # TMAs: fold_0..fold_4, val
-ihc_test_run_uri: mlflow-artifacts:/4/f62a1482da874d47945099d74cfea6a2/artifacts  # IHC test cohort: val
+ihc_test_run_uri: mlflow-artifacts:/4/4fe794426d7a491bac42c5e46b740b5e/artifacts  # IHC test cohort: val
 fnb_run_uri: mlflow-artifacts:/4/868b61c28be840b5a2fb3fb99377a5b4/artifacts  # FN Brno AE: fold_0..fold_4 (negative), val, test
 
 tiling: segmentation
+
+# These tilings carry the refined labels: the evaluation uses them, with the outline
+# labels reported next to them (configs/lymph_nodes.yaml, label_set), and sizes lesions
+# by their stained area (lymph_nodes/callbacks/lesion_metrics.py).
+label_set: refined
+data:
+  eval:
+    outline_labels: ${eval_label_sets.outline}
+  test:
+    outline_labels: ${ln_label_sets.outline}
+trainer:
+  callbacks:
+    lesion_metrics:
+      lesion_size_column: annotation_brown_coverage
+      cell_area_um2: 150.0

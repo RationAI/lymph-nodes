@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import torch
 import torch.nn.functional as F
 from lightning.pytorch.trainer.states import TrainerFn
+from torch import nn
 from torchmetrics import MetricCollection
 from torchmetrics.classification import BinaryAUROC, BinaryF1Score
 
@@ -12,7 +13,7 @@ from lymph_nodes.meta_arch import MetaArch, _kept, _select
 
 
 if TYPE_CHECKING:
-    from torch import Tensor, nn
+    from torch import Tensor
 
     from lymph_nodes.typedefs import Batch, Input, Outputs
 
@@ -36,8 +37,11 @@ class SegmentationMetaArch(MetaArch):
     is there cancer in the tile?), or ``"mean"``, its predicted coverage. The validation
     and test steps return the per-patch logits (B, g, g), so the masks show patches.
     Samples flagged ``ignore`` are left out of the loss and the metrics, as in MetaArch.
-    Samples with a refined target grid (meta ``refined_grid``, TileSegmentationDataset's
-    ``refined_grids``) get the patch metrics against it too, ``<phase>/patch/refined/``.
+    Samples with a second target grid, the pathologists' outlines when the targets are
+    the refined labels (meta ``outline_grid``, TileSegmentationDataset's
+    ``outline_grids``) get the patch metrics against it too, ``<phase>/patch/outline/``;
+    and the patches of tiles not flagged ambiguous (meta ``ambiguous``, TileLabels) get
+    them again as ``<phase>/patch/unambiguous/``.
 
     The frozen backbone is left out of checkpoints (it is reloaded from the hub).
     """
@@ -66,14 +70,8 @@ class SegmentationMetaArch(MetaArch):
         patch_metrics = MetricCollection(
             {"auroc": BinaryAUROC(thresholds=200), "f1": BinaryF1Score()}
         )
-        self.val_patch_metrics = patch_metrics.clone(prefix="validation/patch/")
-        self.test_patch_metrics = patch_metrics.clone(prefix="test/patch/")
-        self.val_refined_patch_metrics = patch_metrics.clone(
-            prefix="validation/patch/refined/"
-        )
-        self.test_refined_patch_metrics = patch_metrics.clone(
-            prefix="test/patch/refined/"
-        )
+        self.val_patch_metrics = _patch_metric_sets(patch_metrics, "validation")
+        self.test_patch_metrics = _patch_metric_sets(patch_metrics, "test")
 
     def forward(self, x: Input) -> Outputs:
         return self.decode_head(self.backbone(x)).squeeze(1)
@@ -95,9 +93,7 @@ class SegmentationMetaArch(MetaArch):
         return loss
 
     def validation_step(self, batch: Batch, batch_idx: int) -> Outputs:
-        logits, keep = self._evaluate(
-            batch, "validation", self.val_patch_metrics, self.val_refined_patch_metrics
-        )
+        logits, keep = self._evaluate(batch, "validation", self.val_patch_metrics)
         if keep is not None:
             scores = self._tile_scores(logits[keep])
             labels = batch[2]["label"][keep] > 0.5
@@ -108,9 +104,7 @@ class SegmentationMetaArch(MetaArch):
         return logits
 
     def test_step(self, batch: Batch, batch_idx: int) -> Outputs:
-        logits, keep = self._evaluate(
-            batch, "test", self.test_patch_metrics, self.test_refined_patch_metrics
-        )
+        logits, keep = self._evaluate(batch, "test", self.test_patch_metrics)
         if keep is not None:
             scores = self._tile_scores(logits[keep])
             labels = batch[2]["label"][keep] > 0.5
@@ -132,8 +126,7 @@ class SegmentationMetaArch(MetaArch):
         self,
         batch: Batch,
         phase: str,
-        patch_metrics: MetricCollection,
-        refined_patch_metrics: MetricCollection,
+        patch_metrics: nn.ModuleDict,
     ) -> tuple[Tensor, Tensor | None]:
         """Per-patch logits of all tiles and the mask of the counted ones; logs the patch side."""
         tiles, grids, meta = batch
@@ -150,18 +143,33 @@ class SegmentationMetaArch(MetaArch):
         )
 
         probabilities = torch.sigmoid(logits[keep].float())
-        patch_metrics.update(probabilities.flatten(), grids[keep].flatten() > 0.5)
-        self.log_dict(patch_metrics, on_epoch=True)
-        if "refined_grid" in meta:
-            refined = meta["refined_grid"][keep.to(meta["refined_grid"].device)]
-            refined_patch_metrics.update(
-                probabilities.flatten(),
-                refined.to(probabilities.device).flatten() > 0.5,
-            )
-            self.log_dict(refined_patch_metrics, on_epoch=True)
+        targets = grids[keep] > 0.5
+        sets = [("all", probabilities, targets)]
+        if "outline_grid" in meta:
+            outline = meta["outline_grid"][keep.to(meta["outline_grid"].device)]
+            sets.append(("outline", probabilities, outline.to(targets.device) > 0.5))
+        clear = ~torch.as_tensor(meta["ambiguous"], dtype=torch.bool)[keep.cpu()]
+        if clear.any():
+            clear = clear.to(targets.device)
+            sets.append(("unambiguous", probabilities[clear], targets[clear]))
+        for name, preds, target in sets:
+            metrics = cast("MetricCollection", patch_metrics[name])
+            metrics.update(preds.flatten(), target.flatten())
+            self.log_dict(metrics, on_epoch=True)
         return logits, keep
 
     def _tile_scores(self, logits: Tensor) -> Tensor:
         """Tile probabilities from per-patch logits (B, g, g), by ``tile_score``."""
         flat = torch.sigmoid(logits.float()).flatten(1)
         return flat.amax(dim=1) if self.tile_score == "max" else flat.mean(dim=1)
+
+
+def _patch_metric_sets(metrics: MetricCollection, phase: str) -> nn.ModuleDict:
+    """The patch metrics of a phase: against the targets, the outlines, and unambiguous."""
+    return nn.ModuleDict(
+        {
+            "all": metrics.clone(prefix=f"{phase}/patch/"),
+            "outline": metrics.clone(prefix=f"{phase}/patch/outline/"),
+            "unambiguous": metrics.clone(prefix=f"{phase}/patch/unambiguous/"),
+        }
+    )

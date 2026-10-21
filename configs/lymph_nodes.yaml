@@ -63,45 +63,59 @@ filters:
   #   op: "<"
   #   value: 0.3
 
-# Lymph node labels for evaluation: the pathologists' metastasis annotations. A tile
-# touching an annotation is positive, but one with at most a quarter of it annotated is
-# borderline (often a tiny focus in lymphoid tissue): still evaluated, and the metrics
-# are also reported without the borderline tiles (<cohort>/unambiguous/, see MetaArch).
-ln_labels:
-  _target_: lymph_nodes.data.datasets.embedding.TileLabels
-  positive:
-    annotation_coverage: 0.0
-  ambiguous:
-    annotation_coverage: [0.0, 0.25]
-
-# Refined lymph node labels, reported next to the plain ones (<cohort>/refined/, see
-# MetaArch): the annotations narrowed to stained cells, a stained region overlapping an
-# outline kept whole a little beyond it (preprocessing/refined_annotation_masks.py), so
-# lymphoid tissue the rough outlines take in no longer counts. Only tilings with the
-# column have them (the segmentation ones); TMAs keep their cytokeratin labels.
-ln_refined_labels:
-  _target_: lymph_nodes.data.datasets.embedding.TileLabels
-  positive:
-    annotation_brown_coverage: 0.0
-
-eval_refined_labels:
-  _target_: lymph_nodes.data.datasets.embedding.TileLabels
-  positive:
-    annotation_brown_coverage: 0.0
-    cytokeratin_coverage: ${cytokeratin_positive_threshold}
+# Lymph node labels for evaluation, in two sets; label_set picks the one the metrics
+# use (configs/data/segmentation/runs.yaml picks refined: the segmentation tilings carry
+# it, the classification ones only have the outlines).
+#   outline - the pathologists' annotations. A tile touching one is positive, but one
+#             with at most a quarter of it annotated is borderline (often a tiny focus
+#             in lymphoid tissue): still evaluated, and the metrics are also reported
+#             without the borderline tiles (<cohort>/unambiguous/, see MetaArch).
+#   refined - the annotations narrowed to stained cells, a stained region overlapping
+#             an outline kept whole a little beyond it
+#             (preprocessing/refined_annotation_masks.py), so the lymphoid tissue the
+#             rough outlines take in no longer counts. The negatives of positive slides
+#             are ambiguous instead: the pathologist may have left an ITC unannotated,
+#             so the unambiguous metrics take their negatives from negative slides only.
+# With refined labels the outline ones are reported too (<cohort>/outline/,
+# patch/outline/), via data.eval/test outline_labels.
+label_set: outline
+ln_label_sets:
+  outline:
+    _target_: lymph_nodes.data.datasets.embedding.TileLabels
+    positive:
+      annotation_coverage: 0.0
+    ambiguous:
+      annotation_coverage: [0.0, 0.25]
+  refined:
+    _target_: lymph_nodes.data.datasets.embedding.TileLabels
+    positive:
+      annotation_brown_coverage: 0.0
+    ambiguous_on_positive_slides: true
 
 # data.eval labels: the lymph node ones plus cytokeratin for the TMAs. Each column
 # exists for one tissue only (NaN for the other), and NaN is never positive. TMA tiles
 # with cytokeratin coverage between 0.1 and the positive threshold are borderline, the
 # band the TMA epithelium baseline drops in training.
-eval_labels:
-  _target_: lymph_nodes.data.datasets.embedding.TileLabels
-  positive:
-    annotation_coverage: 0.0
-    cytokeratin_coverage: ${cytokeratin_positive_threshold}
-  ambiguous:
-    annotation_coverage: ${ln_labels.ambiguous.annotation_coverage}
-    cytokeratin_coverage: [0.1, "${cytokeratin_positive_threshold}"]
+eval_label_sets:
+  outline:
+    _target_: lymph_nodes.data.datasets.embedding.TileLabels
+    positive:
+      annotation_coverage: 0.0
+      cytokeratin_coverage: ${cytokeratin_positive_threshold}
+    ambiguous:
+      annotation_coverage: ${ln_label_sets.outline.ambiguous.annotation_coverage}
+      cytokeratin_coverage: [0.1, "${cytokeratin_positive_threshold}"]
+  refined:
+    _target_: lymph_nodes.data.datasets.embedding.TileLabels
+    positive:
+      annotation_brown_coverage: 0.0
+      cytokeratin_coverage: ${cytokeratin_positive_threshold}
+    ambiguous:
+      cytokeratin_coverage: [0.1, "${cytokeratin_positive_threshold}"]
+    ambiguous_on_positive_slides: true
+
+ln_labels: ${ln_label_sets.${label_set}}
+eval_labels: ${eval_label_sets.${label_set}}
 
 data:
   batch_size: 2048
@@ -125,7 +139,6 @@ data:
       - ${ihc_test_run_uri}/val
       - ${tma_run_uri}/val
     labels: ${eval_labels}
-    refined_labels: ${eval_refined_labels}
     tile_filters:
       - ${filters.tissue}
       - ${filters.no_patho_ignore}
@@ -140,7 +153,6 @@ data:
     uris:
       - ${ihc_run_uri}/test
     labels: ${ln_labels}
-    refined_labels: ${ln_refined_labels}
     tile_filters:
       - ${filters.tissue}
     slide_filters:

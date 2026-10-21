@@ -32,9 +32,9 @@ class LesionMetrics(Callback):
     During ``validate`` and ``test`` (not the validation inside ``fit``), for the
     lymph node ``cohorts``:
 
-    - a *lesion* is an 8-connected group of positive tiles (the tile labels: annotation
-      coverage > 0) on one slide's tile grid; it is detected at a threshold when its
-      best tile reaches it,
+    - a *lesion* is an 8-connected group of positive tiles (the tile labels: the
+      refined labels, or the annotation outlines where a tiling has none) on one
+      slide's tile grid; it is detected at a threshold when its best tile reaches it,
     - false positives are the tiles flagged on *negative* slides (the slides' ``tumor``
       status); a *region* is an 8-connected group of them.
 
@@ -44,9 +44,14 @@ class LesionMetrics(Callback):
     number of CK-stained cells, estimated from the brown pixels of the lesion's tiles
     (``brown_column``, counted over each tile's stride x stride core so that overlapping
     tiles are not counted twice) divided by ``cell_pixels``, the brown pixels of one
-    stained cell at the tiling level (~300-500 at 0.5 um/px). Lesions of at least
-    ``min_cells`` cells are *clusters*, the target; smaller ones are reported apart
-    (``single/``) and not required. False-positive regions are split the same way.
+    stained cell at the tiling level (~300-500 at 0.5 um/px). With
+    ``lesion_size_column`` (the refined labels' coverage, ``annotation_brown_coverage``:
+    the stained cells within the annotations), a lesion's size is that area instead,
+    divided by ``cell_area_um2``, a stained cell's area in it (single cells measure
+    ~50-150 um², nucleus filled); false-positive regions, on slides without such masks,
+    keep the brown pixels. Lesions of at least ``min_cells`` cells are *clusters*, the
+    target; smaller ones are reported apart (``single/``) and not required.
+    False-positive regions are split the same way.
 
     Logged as ``<phase>/lesions/...`` (all cohorts pooled) and
     ``<phase>/lesions/<cohort>/...``:
@@ -82,6 +87,8 @@ class LesionMetrics(Callback):
         min_cells: float = 3,
         cell_pixels: float = 400,
         brown_column: str = "brownish_coverage",
+        lesion_size_column: str | None = None,
+        cell_area_um2: float = 150.0,
     ) -> None:
         self.cohorts = None if cohorts is None else set(cohorts)
         self.budgets = list(budgets)
@@ -89,6 +96,8 @@ class LesionMetrics(Callback):
         self.min_cells = min_cells
         self.cell_pixels = cell_pixels
         self.brown_column = brown_column
+        self.lesion_size_column = lesion_size_column
+        self.cell_area_um2 = cell_area_um2
         # Per batch: slide positions, tile_x, tile_y, tile scores, tile labels.
         self._tiles: list[tuple[np.ndarray, ...]] = []
 
@@ -168,7 +177,36 @@ class LesionMetrics(Callback):
             return
         stride_x = column_values(slides, "stride_x")[slide[keep]]
         stride_y = column_values(slides, "stride_y")[slide[keep]]
-        brown = self._brown(dataset, slide[keep], tile_x[keep], tile_y[keep])
+        brown = self._column(
+            dataset, self.brown_column, slide[keep], tile_x[keep], tile_y[keep]
+        )
+        cells = (
+            None if brown is None else brown * stride_x * stride_y / self.cell_pixels
+        )
+        stained = (
+            None
+            if self.lesion_size_column is None
+            else self._column(
+                dataset,
+                self.lesion_size_column,
+                slide[keep],
+                tile_x[keep],
+                tile_y[keep],
+            )
+        )
+        if stained is not None:
+            tile_um2 = (
+                stride_x
+                * stride_y
+                * column_values(slides, "mpp_x")[slide[keep]]
+                * column_values(slides, "mpp_y")[slide[keep]]
+            )
+            lesion_cells = stained * tile_um2 / self.cell_area_um2
+            cells = (
+                lesion_cells
+                if cells is None
+                else np.where(label[keep], lesion_cells, cells)
+            )
         values = lesion_metrics(
             slide=slide[keep],
             grid_x=tile_x[keep] // stride_x,
@@ -178,9 +216,7 @@ class LesionMetrics(Callback):
             slide_negative=~column_values(slides, "tumor").astype(bool),
             slide_cohort=cohorts,
             budgets=self.budgets,
-            cells=None
-            if brown is None
-            else brown * stride_x * stride_y / self.cell_pixels,
+            cells=cells,
             min_cells=self.min_cells,
             region_budgets=self.region_budgets,
         )
@@ -188,21 +224,20 @@ class LesionMetrics(Callback):
             {f"{phase}/lesions/{key}": value for key, value in values.items()}
         )
 
-    def _brown(
-        self,
+    @staticmethod
+    def _column(
         dataset: EmbeddingClassificationDataset,
+        name: str,
         slide: np.ndarray,
         tile_x: np.ndarray,
         tile_y: np.ndarray,
     ) -> np.ndarray | None:
-        """``brown_column`` of the given tiles, or None if the tiles have no such column."""
-        if self.brown_column not in dataset.tiles.column_names:
+        """Column ``name`` of the given tiles (NaN as 0), or None if the tiles lack it."""
+        if name not in dataset.tiles.column_names:
             return None
         index = dataset._get_batch_index()
-        brown = dataset.tiles.data.column(self.brown_column).to_numpy(
-            zero_copy_only=False
-        )
-        brown = np.nan_to_num(brown[index.rows].astype(float))
+        values = dataset.tiles.data.column(name).to_numpy(zero_copy_only=False)
+        values = np.nan_to_num(values[index.rows].astype(float))
 
         def key(s: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
             return (
@@ -214,7 +249,7 @@ class LesionMetrics(Callback):
         table = key(index.slide_of, index.tile_x, index.tile_y)
         order = np.argsort(table)
         found = order[np.searchsorted(table[order], key(slide, tile_x, tile_y))]
-        return brown[found]
+        return values[found]
 
 
 def lesion_metrics(

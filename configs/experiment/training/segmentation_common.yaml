@@ -8,7 +8,8 @@
 #   - data: the same tiles, labels, filters and sampler partitions, but from the
 #     segmentation tiling runs and as images with per-patch coverage targets
 #     (TileSegmentationDataset): cytokeratin for TMAs; lymph node tiles have none
-#     (all 0, as their training slides are negative); annotations in the evaluation
+#     (all 0, as their training slides are negative); in the evaluation the refined
+#     annotations (configs/lymph_nodes.yaml, label_set)
 defaults:
   - override /model: foundation_segmentation
 
@@ -51,13 +52,14 @@ data:
       - ${ihc_test_run_uri}/val
       - ${tma_run_uri}/val
       - ${fnb_run_uri}/val
-    target_grids: [cytokeratin_grid, annotation_grid]
-    # Patch metrics against the refined labels too (patch/refined/, see ln_refined_labels).
-    refined_grids: [cytokeratin_grid, annotation_brown_grid]
+    # Patch targets: the refined labels (configs/lymph_nodes.yaml, label_set), with the
+    # outlines' patch metrics next to them (patch/outline/).
+    target_grids: [cytokeratin_grid, annotation_brown_grid]
+    outline_grids: [cytokeratin_grid, annotation_grid]
   test:
     _target_: ${segmentation_dataset}
-    target_grids: [annotation_grid]
-    refined_grids: [annotation_brown_grid]
+    target_grids: [annotation_brown_grid]
+    outline_grids: [annotation_grid]
 
   # Each sample passes the frozen foundation model (~300-400 tiles/s on a 2g MIG
   # slice), so an epoch is a fixed draw rather than the largest the pools allow.
