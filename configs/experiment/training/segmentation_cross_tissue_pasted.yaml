@@ -1,0 +1,21 @@
+# @package _global_
+
+# segmentation_cross_tissue_augmented.yaml with synthetic isolated tumour cells
+# (lymph_nodes.data.augmentations.CellPasting): cytokeratin-positive cells cut from the
+# TMA cancer tiles, pasted into negative lymph node tiles with their patch targets, and
+# benign brown spots of other negative lymph node tiles pasted as negatives. The TMA
+# tumour sheets were the only positives; lymph node metastases are mostly single cells
+# among lymphocytes, which the models missed. No lymph node annotation is used.
+# Half the negative lymph node tiles are offered cells (p); those without tissue with
+# nuclei around (fat, glass) get none, so ~a third of them end up with some.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_augmented
+  - _self_
+
+scenario: cross-tissue segmentation pasted cells
+
+data:
+  train:
+    cell_pasting:
+      _target_: lymph_nodes.data.augmentations.CellPasting
+      p: 0.5

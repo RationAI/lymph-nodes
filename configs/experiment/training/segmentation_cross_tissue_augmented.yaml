@@ -1,0 +1,27 @@
+# @package _global_
+
+# segmentation_cross_tissue.yaml with the training tiles augmented
+# (lymph_nodes.data.augmentations.TileAugmentation): quarter turns and flips, stain
+# jitter, a diffuse DAB background (FN Brno's negative lymph node tissue reads ~0.03
+# DAB density throughout, MMCI's ~0.003, and the models flag it) and blur.
+#
+# Every epoch's checkpoint is kept (the decode head only, small): the best lymph node
+# results so far came from epoch 0 (segmentation_cross_tissue.yaml) while the patch
+# AUROC monitored for the checkpoint kept rising, so epochs are compared by validating
+# them on the lymph nodes.
+defaults:
+  - /experiment/training/segmentation_cross_tissue
+  - _self_
+
+scenario: cross-tissue segmentation augmented
+
+data:
+  train:
+    augmentation:
+      _target_: lymph_nodes.data.augmentations.TileAugmentation
+
+trainer:
+  max_epochs: 12
+  callbacks:
+    checkpoint:
+      save_top_k: -1

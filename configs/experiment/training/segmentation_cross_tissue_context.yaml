@@ -1,0 +1,19 @@
+# @package _global_
+
+# segmentation_cross_tissue_pasted.yaml with a decode head that sees each patch's
+# neighbours (lymph_nodes.modeling.ContextHead: two 3x3 convolutions over the patch
+# tokens, 5 x 5 patches) instead of the per-patch linear probe: a stained cell is told
+# from a dendritic cell, pigment or background stain by its shape and surroundings.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_pasted
+  - _self_
+
+scenario: cross-tissue segmentation context head
+
+model:
+  decode_head:
+    _target_: lymph_nodes.modeling.ContextHead
+    kernel_size: 3
+    hidden: 256
+    layers: 2
+    dropout: 0.1
