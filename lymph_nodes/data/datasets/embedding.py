@@ -337,12 +337,15 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
             )
 
     def _outline_targets(self) -> np.ndarray | None:
-        """Targets by ``outline_labels``, or None without them (or a column they name)."""
+        """Targets by ``outline_labels``; None without them, or if the tiles lack all their columns.
+
+        A column missing from these tiles but not all of them is fine, as for ``labels``
+        (e.g. no TMAs, so no cytokeratin coverage): it never makes a tile positive.
+        """
         if self.outline_labels is None:
             return None
-        missing = [c for c in self.outline_labels.positive if c not in self.tiles.column_names]
-        if missing:
-            print(f"outline_labels left out: no {', '.join(missing)} in the tiles")
+        if not any(c in self.tiles.column_names for c in self.outline_labels.positive):
+            print(f"outline_labels left out: none of {list(self.outline_labels.positive)} in the tiles")
             return None
         partitions = self.outline_labels.partition(self.tiles, self.slides)
         return self.outline_labels.targets(self.tiles, partitions)
