@@ -75,11 +75,10 @@ ln_labels:
     annotation_coverage: [0.0, 0.25]
 
 # Refined lymph node labels, reported next to the plain ones (<cohort>/refined/, see
-# MetaArch): the annotation narrowed to stained tissue — a tile is positive when it has
-# pixels inside an outline and within ~10 um of a brown pixel
-# (preprocessing/tiling_blocks/AnnotatedBrown), so lymphoid tissue the rough outlines
-# take in no longer counts. Only tilings with the column have them (the segmentation
-# ones); TMAs keep their cytokeratin labels.
+# MetaArch): the annotations narrowed to stained cells, a stained region overlapping an
+# outline kept whole a little beyond it (preprocessing/refined_annotation_masks.py), so
+# lymphoid tissue the rough outlines take in no longer counts. Only tilings with the
+# column have them (the segmentation ones); TMAs keep their cytokeratin labels.
 ln_refined_labels:
   _target_: lymph_nodes.data.datasets.embedding.TileLabels
   positive:

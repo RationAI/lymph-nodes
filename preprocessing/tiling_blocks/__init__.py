@@ -1,4 +1,3 @@
-from preprocessing.tiling_blocks.annotated_brown import AnnotatedBrown
 from preprocessing.tiling_blocks.brownish import BrownishCoverage
 from preprocessing.tiling_blocks.embedding import FoundationModelEmbedding
 from preprocessing.tiling_blocks.ray_operator import Operator
@@ -10,7 +9,6 @@ from preprocessing.tiling_blocks.white_balance import WhiteBalance
 
 
 __all__ = [
-    "AnnotatedBrown",
     "BrownishCoverage",
     "FoundationModelEmbedding",
     "Operator",

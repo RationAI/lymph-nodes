@@ -13,6 +13,9 @@ grid: 16  # tile_extent / patch size of the foundation models (14 px)
 tissue_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/tissue_masks
 annotation_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/annotation_masks
 blur_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/fadfd18d81e74cb6849a3e93f8bfdef3/artifacts/blur_per_pixel
+# The annotations narrowed to stained cells (preprocessing/refined_annotation_masks.py),
+# for the refined evaluation labels (configs/lymph_nodes.yaml, ln_refined_labels).
+refined_annotation_mask_dir: ???
 
 embedding_model: null
 memory_per_gpu_worker: null
@@ -64,20 +67,6 @@ tiling_blocks:
     name: brownish_coverage
     image_col: tile
 
-  # Refined evaluation labels: the annotation narrowed to stained tissue, the pixels
-  # inside an outline within ~10 um of a brown one (annotation_brown_coverage and
-  # annotation_brown_grid). No nulls (NaN coverage, zero grid without a mask), so it can
-  # come before annotation_grid.
-  - _target_: preprocessing.tiling_blocks.AnnotatedBrown
-    name: annotation_brown
-    uri: ${annotation_mask_dir}
-    roi: ${rois.full}
-    image_col: tile
-    grid: ${grid}
-    radius_um: 10.0
-    annotation_column: annotation_coverage
-    min_label: 255
-
   # After BrownishCoverage: its numpy batches can't carry a grid column mixing values
   # and nulls (slides with and without an annotation mask) back into Arrow.
   - _target_: preprocessing.tiling_blocks.OverlayGrid
@@ -86,6 +75,22 @@ tiling_blocks:
     roi: ${rois.full}
     grid: ${grid}
     min_label: 255
+    mandatory: false
+
+  # Refined labels: the masks hold each ~1 um pixel's covered fraction (* 255).
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: annotation_brown_coverage
+    uri: ${refined_annotation_mask_dir}
+    roi: ${rois.full}
+    min_label: 128
+    mandatory: false
+
+  - _target_: preprocessing.tiling_blocks.OverlayGrid
+    name: annotation_brown_grid
+    uri: ${refined_annotation_mask_dir}
+    roi: ${rois.full}
+    grid: ${grid}
+    min_label: 128
     mandatory: false
 
   - _target_: preprocessing.tiling_blocks.Operator

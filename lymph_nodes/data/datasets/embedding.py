@@ -228,7 +228,7 @@ class EmbeddingClassificationDataset(MetaDataset[EmbeddingSample]):
     tile would be labelled healthy. Needed wherever lymph node slides are evaluated
     by ``annotation_coverage``, since most positive slides have no annotation.
     ``refined_labels``, a second TileLabels (e.g. the annotation narrowed to stained
-    tissue, preprocessing.tiling_blocks.AnnotatedBrown), puts a second target in the
+    cells, preprocessing/refined_annotation_masks.py), puts a second target in the
     samples' meta (``refined_label``) for a second set of metrics (MetaArch); left out
     when a column it names is missing from the tiles (e.g. a tiling run without it).
 

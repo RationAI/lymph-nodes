@@ -1,0 +1,40 @@
+# @package _global_
+
+# Refined annotation masks (preprocessing/refined_annotation_masks.py): the
+# annotations narrowed to stained cells, a stained region overlapping an annotation
+# kept whole up to margin_um beyond it. One run for both annotated cohorts; the masks
+# keep the annotation masks' subfolders.
+dataset:
+  name: MMCI annotated lymph nodes
+
+annotation_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/annotation_masks
+slide_dirs:
+  - /mnt/data/MOU/lymph_nodes/dataset1-ihc-2023
+  - /mnt/data/MOU/lymph_nodes/annotated_ihc_test
+slide_suffix: mrxs
+
+mpp: 0.5  # staining read at the tiling level
+output_downsample: 2  # masks at ~1 um/px
+margin_um: 30.0
+chunk: 4096
+stain:
+  threshold: 0.03
+  low_threshold: 0.022
+  min_area_um2: 10.0
+  hole_area_um2: 200.0
+  grow_um: 2.0
+max_concurrent: 4
+artifact_path: refined_annotation_masks
+
+metadata:
+  run_name: "✏️ Refined annotation masks · ${dataset.name}"
+  description: >-
+    Annotation masks narrowed to stained cells (DAB by colour deconvolution, nuclei
+    filled), stained regions overlapping an annotation kept whole up to ${margin_um} um
+    beyond it.
+  hyperparams:
+    mpp: ${mpp}
+    margin_um: ${margin_um}
+    threshold: ${stain.threshold}
+    low_threshold: ${stain.low_threshold}
+    grow_um: ${stain.grow_um}
