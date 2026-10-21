@@ -2,10 +2,11 @@
 
 # Segmentation tiling runs (configs/experiment/tiling/*_segmentation.yaml): stride
 # 224, coverage grids, no embeddings — the same for every foundation model. IHC 2023
-# and IHC test with the refined labels (annotation_brown_*, AnnotatedBrown).
-ihc_run_uri: mlflow-artifacts:/4/b4b8244dbcfd48499d87f727f166d61e/artifacts  # IHC 2023: fold_0..fold_4, val, test
+# and IHC test with the refined labels (annotation_brown_*: the refined annotation
+# masks of run fe8e197d, preprocessing/refined_annotation_masks.py).
+ihc_run_uri: mlflow-artifacts:/4/ad68e3055c9a4cac86916c0d6180df6f/artifacts  # IHC 2023: fold_0..fold_4, val, test
 tma_run_uri: mlflow-artifacts:/4/cc1ccb765fa34c65a2336dc08600d162/artifacts  # TMAs: fold_0..fold_4, val
-ihc_test_run_uri: mlflow-artifacts:/4/c485895c3ce8425c9f6cfa642803e48b/artifacts  # IHC test cohort: val
+ihc_test_run_uri: mlflow-artifacts:/4/f62a1482da874d47945099d74cfea6a2/artifacts  # IHC test cohort: val
 fnb_run_uri: mlflow-artifacts:/4/868b61c28be840b5a2fb3fb99377a5b4/artifacts  # FN Brno AE: fold_0..fold_4 (negative), val, test
 
 tiling: segmentation

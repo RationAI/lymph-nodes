@@ -143,7 +143,10 @@ def process_slide(
 
     with OpenSlide(slide_path) as slide:
         level = slide.closest_level(mpp)
-        level_mpp = float(slide.slide_resolution(level)[0])
+        # Pixels need not be square (the IHC test scans: 0.19% taller than wide); the
+        # stain is measured in the mean, the masks tagged per axis.
+        mpp_x, mpp_y = (float(value) for value in slide.slide_resolution(level))
+        level_mpp = (mpp_x + mpp_y) / 2
         downsample = round(slide.level_downsamples[level])
         width, height = slide.level_dimensions[level]
         # Annotation px -> level px; the annotation masks cover the slide at a whole
@@ -210,11 +213,15 @@ def process_slide(
                     patch, x0 // output_downsample, y0 // output_downsample
                 )
 
-    out_mpp = level_mpp * output_downsample
     for name, image in images.items():
         path = output_path / name / subfolder / f"{Path(slide_path).stem}.tiff"
         path.parent.mkdir(parents=True, exist_ok=True)
-        write_big_tiff(image.cast("uchar"), path=path, mpp_x=out_mpp, mpp_y=out_mpp)
+        write_big_tiff(
+            image.cast("uchar"),
+            path=path,
+            mpp_x=mpp_x * output_downsample,
+            mpp_y=mpp_y * output_downsample,
+        )
 
 
 @with_cli_args(["+preprocessing=refined_annotation_masks"])
