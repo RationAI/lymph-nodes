@@ -172,9 +172,10 @@ class CellPasting:
       around it (mean DAB density above ``donor_dab``), or, with probability
       ``cluster_p``, one small group: a disk of ``cluster_radius_um`` around a stained
       point;
-    - each pasted at a random place on the tissue with nuclei around (cellular_mask),
-      blended in optical density (soft edge), with the donor's haematoxylin scaled to
-      the tile's;
+    - each pasted at a random place on the tissue with nuclei around (cellular_mask,
+      haematoxylin density above ``placement_density``: lower takes in sparser stroma
+      too), blended in optical density (soft edge), with the donor's haematoxylin scaled
+      to the tile's;
     - the target grid becomes each patch's covered fraction, as the cytokeratin grids.
 
     With probability ``negative_p``, the brownest spot of another negative lymph node
@@ -197,6 +198,7 @@ class CellPasting:
         cluster_radius_um: Sequence[float] = (10.0, 20.0),
         donor_dab: float = 0.05,
         donor_cohorts: Sequence[str] = ("mmci_tmas",),
+        placement_density: float = 0.01,
     ) -> None:
         self.p = p
         self.negative_p = negative_p
@@ -209,6 +211,7 @@ class CellPasting:
         )
         self.donor_dab = donor_dab
         self.donor_cohorts = [str(cohort) for cohort in donor_cohorts]
+        self.placement_density = placement_density
 
     def __call__(
         self,
@@ -222,7 +225,7 @@ class CellPasting:
     ) -> tuple[np.ndarray, np.ndarray]:
         tissue = tissue_mask(tile) if tissue is None else tissue & tissue_mask(tile)
         hed = rgb_to_hed(tile)
-        tissue &= cellular_mask(hed)
+        tissue &= cellular_mask(hed, self.placement_density)
         if brown is not None:
             cut = self._cut_brown(rgb_to_hed(brown), tissue_mask(brown), mpp, rng)
             if cut is not None:

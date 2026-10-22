@@ -1,0 +1,23 @@
+# @package _global_
+
+# segmentation_cross_tissue_context.yaml with the pasting aimed at isolated tumour cells.
+# The context head cut the false positives (~1.4 regions per negative slide at 0.5,
+# against ~15) but scores lone tumour cells low: on the MMCI annotated slides it finds
+# 36 % of the single cells (>= 8 um) at 0.5, 63 % at 0.1. The pasted cells were 10-16 um
+# across, in dense lymphoid tissue, in a third of the negative tiles; the real ITCs are
+# 8-13 um, also in sparse stroma. Here: smaller cells, more of them, more often, and
+# placed in sparser tissue; small groups less often.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_context
+  - _self_
+
+scenario: cross-tissue segmentation ITC pasting
+
+data:
+  train:
+    cell_pasting:
+      p: 0.8
+      max_cells: 6
+      cluster_p: 0.1
+      cell_radius_um: [4.0, 7.0]
+      placement_density: 0.005

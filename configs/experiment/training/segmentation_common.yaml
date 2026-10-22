@@ -75,7 +75,7 @@ trainer:
   callbacks:
     checkpoint:
       monitor: validation/patch/auroc
-      filename: "epoch{epoch:02d}-patch_auroc{validation/patch/auroc:.4f}"
+      filename: "epoch{epoch:02d}"  # no dot: see configs/trainer/default.yaml
     early_stopping:
       monitor: validation/patch/auroc
 

@@ -14,7 +14,11 @@ callbacks:
     save_top_k: 1
     # Explicit names instead of auto-inserted "name=value": the metric's "/" would make a
     # subdirectory, and the checkpoint is referenced by its MLflow URI for testing.
-    filename: "epoch{epoch:02d}-auroc{validation/auroc:.4f}"
+    # No dot in the name: the MLFlowLogger matches its uploaded checkpoints to the
+    # trainer's by Path(...).stem, which cuts "auroc0.9805" to "auroc0" — no match, so
+    # every epoch it re-uploaded the kept checkpoints and deleted them as stale, leaving
+    # only the newest (or, with one kept, none every other epoch).
+    filename: "epoch{epoch:02d}"
     auto_insert_metric_name: false
   early_stopping:
     _target_: lightning.pytorch.callbacks.EarlyStopping

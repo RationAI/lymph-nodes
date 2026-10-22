@@ -25,3 +25,7 @@ trainer:
   callbacks:
     checkpoint:
       save_top_k: -1
+    # No early stopping on it either: it stopped the first fits at epoch 5 while their
+    # lymph node results were still improving.
+    early_stopping:
+      patience: 12
