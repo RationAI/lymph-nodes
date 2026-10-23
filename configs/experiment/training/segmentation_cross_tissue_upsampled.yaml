@@ -14,9 +14,9 @@ scenario: cross-tissue segmentation upsampled
 
 # The tilings with 32 x 32 grids (configs/experiment/tiling/*_segmentation.yaml with
 # grid=32); FN Brno has no grids (all-zero targets), so its tiling serves as is.
-ihc_run_uri: mlflow-artifacts:/4/PENDING_IHC_2023/artifacts
-ihc_test_run_uri: mlflow-artifacts:/4/PENDING_IHC_TEST/artifacts
-tma_run_uri: mlflow-artifacts:/4/PENDING_TMAS/artifacts
+ihc_run_uri: mlflow-artifacts:/4/bdb7965d3f8f4ac5a2d5ebb3b8c09ff7/artifacts
+ihc_test_run_uri: mlflow-artifacts:/4/f7afe860e4df449aae6a2b3c098ab3a7/artifacts
+tma_run_uri: mlflow-artifacts:/4/59782132723741988817902d3f3863cc/artifacts
 
 model:
   decode_head:

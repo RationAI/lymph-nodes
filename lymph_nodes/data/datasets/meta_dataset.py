@@ -10,6 +10,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 from datasets import Dataset as HFDataset
 from datasets import Value, concatenate_datasets
+from datasets.table import ConcatenationTable
 from rationai.mlkit.data.datasets import MetaTiledSlides, load_dataset
 
 
@@ -126,8 +127,26 @@ def _normalize_lists(dataset: HFDataset) -> HFDataset:
     grids of preprocessing.tiling_blocks.OverlayGrid). Concatenating runs that differ
     would otherwise fall back to casting the column to string (_concatenate).
     """
-    table = dataset.data
-    changed = False
+    table = _normalized(dataset.data)
+    return dataset if table is dataset.data else HFDataset(table)
+
+
+def _normalized(table: Any) -> Any:
+    """_normalize_lists on a ``datasets`` table; the same table if nothing changes.
+
+    A split cached in several files (e.g. the 32 x 32 grids of a large cohort) loads as
+    a ConcatenationTable, which has no ``set_column``: its blocks, memory-mapped tables,
+    are normalized one by one instead, so the data stays memory-mapped (and cheap to
+    pickle to DataLoader workers).
+    """
+    if isinstance(table, ConcatenationTable):
+        blocks = [[_normalized(block) for block in row] for row in table.blocks]
+        unchanged = all(
+            new is old
+            for row, old_row in zip(blocks, table.blocks, strict=True)
+            for new, old in zip(row, old_row, strict=True)
+        )
+        return table if unchanged else ConcatenationTable.from_blocks(blocks)
     for index, name in enumerate(table.column_names):
         column = table.column(name)
         kind = column.type.storage_type if isinstance(column.type, pa.ExtensionType) else column.type
@@ -140,8 +159,7 @@ def _normalize_lists(dataset: HFDataset) -> HFDataset:
             column = column.cast(pa.large_list(kind.value_type))
         if column.type != table.column(name).type:
             table = table.set_column(index, name, column)
-            changed = True
-    return HFDataset(table) if changed else dataset
+    return table
 
 
 class MetaDataset[T](MetaTiledSlides[T]):
