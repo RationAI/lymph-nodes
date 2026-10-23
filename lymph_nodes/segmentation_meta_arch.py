@@ -23,7 +23,8 @@ class SegmentationMetaArch(MetaArch):
 
     ``backbone`` maps tiles to a (B, C, g, g) feature map — FrozenFoundationModel, its
     patch tokens — and ``decode_head`` that to one logit per patch, (B, 1, g, g): e.g.
-    a 1x1 convolution, a linear probe of every patch token. Trained per patch against
+    a 1x1 convolution, a linear probe of every patch token; a head with ``uses_image``
+    gets the tiles as well (UpsamplingHead). Trained per patch against
     the target grid (TileSegmentationDataset: each patch's coverage, a soft target)
     with ``criterion``: BCE when not given, e.g. DiceFocalLoss
     (configs/model/foundation_segmentation.yaml). A model whose patch grid differs from
@@ -74,7 +75,10 @@ class SegmentationMetaArch(MetaArch):
         self.test_patch_metrics = _patch_metric_sets(patch_metrics, "test")
 
     def forward(self, x: Input) -> Outputs:
-        return self.decode_head(self.backbone(x)).squeeze(1)
+        features = self.backbone(x)
+        if getattr(self.decode_head, "uses_image", False):  # e.g. UpsamplingHead
+            return self.decode_head(features, x).squeeze(1)
+        return self.decode_head(features).squeeze(1)
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         return torch.optim.AdamW(

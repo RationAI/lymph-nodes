@@ -1,0 +1,16 @@
+# @package _global_
+
+# segmentation_cross_tissue_upsampled.yaml with the tile's own pixels joining the
+# upsampling head at the fine grid (UpsamplingHead ``image_channels``): their optical
+# densities, for the outline of a stained cell that the 14 px patch tokens blur. Run
+# beside the token-only head: the pixels may as well teach it the brown colour rule's
+# false positives back.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_upsampled
+  - _self_
+
+scenario: cross-tissue segmentation upsampled with pixels
+
+model:
+  decode_head:
+    image_channels: 32

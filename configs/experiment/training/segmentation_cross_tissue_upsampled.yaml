@@ -1,0 +1,38 @@
+# @package _global_
+
+# segmentation_cross_tissue_itc.yaml at twice the output resolution: logits on a 32 x 32
+# grid per 224 px tile (7 px, ~3.4 um cells) instead of one per 14 px patch
+# (lymph_nodes.modeling.UpsamplingHead), trained against 32 x 32 target grids: the
+# segmentation tilings re-run with grid=32. A tumour cell of ~10 um straddles several
+# 14 px patches, each seeing only part of it; the finer cells let one be centred on it.
+# 8 epochs: the ITC run did best at epochs 5-8 and worse after.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_itc
+  - _self_
+
+scenario: cross-tissue segmentation upsampled
+
+# The tilings with 32 x 32 grids (configs/experiment/tiling/*_segmentation.yaml with
+# grid=32); FN Brno has no grids (all-zero targets), so its tiling serves as is.
+ihc_run_uri: mlflow-artifacts:/4/PENDING_IHC_2023/artifacts
+ihc_test_run_uri: mlflow-artifacts:/4/PENDING_IHC_TEST/artifacts
+tma_run_uri: mlflow-artifacts:/4/PENDING_TMAS/artifacts
+
+model:
+  decode_head:
+    _target_: lymph_nodes.modeling.UpsamplingHead
+    scale: 2
+    image_channels: 0
+
+data:
+  train:
+    grid: 32
+  val:
+    grid: 32
+  eval:
+    grid: 32
+  test:
+    grid: 32
+
+trainer:
+  max_epochs: 8
