@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 # Partition ids used both for the per-tile target (0/1/2 collapsed to healthy/cancer in
 # TileLabels.targets) and for lymph_nodes.data.samplers.stratified_sampler's rebalancing.
 # Keep in sync with that module's PARTITION_NAMES.
-HEALTHY, HEALTHY_BROWNISH, CANCER, HEALTHY_TMA, HEALTHY_EXTERNAL = 0, 1, 2, 3, 4
+HEALTHY, HEALTHY_BROWNISH, CANCER, HEALTHY_TMA, HEALTHY_EXTERNAL, HEALTHY_HARD = 0, 1, 2, 3, 4, 5
 
 
 def _coverage(tiles: HFDataset, column: str) -> np.ndarray | None:
@@ -48,6 +48,14 @@ class TileLabels:
     another site, split out so the sampler can draw it in its own ratio rather than let
     it flood the partitions of the main cohort — e.g. FN Brno, where most of the
     negative tissue is brownish (~70% of its tiles, against ~2% at MMCI).
+
+    ``hard_negatives`` names a table (a run's artifact directory, read like the tilings'
+    tables) of ``slide_name``, ``tile_x``, ``tile_y``: tiles a model flagged on negative
+    slides, mined from its predictions. Those not cancer are "healthy hard" instead of
+    healthy or brownish, so the sampler can draw them in their own ratio: real hard
+    negatives, e.g. dark, dusky nuclei, which the brownish rule mostly files among
+    tiles of plainly brown staining. Keyed by slide name and position, the table serves
+    every tiling of the same slides at the same stride.
 
     A column absent from the tiles (e.g. no cytokeratin masks for lymph nodes) or
     undefined for a slide (NaN) never makes a tile positive or brownish.
@@ -81,8 +89,10 @@ class TileLabels:
         ambiguous: Mapping[str, Sequence[float]] | None = None,
         external_cohort: str | None = None,
         ambiguous_on_positive_slides: bool = False,
+        hard_negatives: str | None = None,
     ) -> None:
         self.positive = dict(positive)
+        self.hard_negatives = hard_negatives
         self.ambiguous_on_positive_slides = ambiguous_on_positive_slides
         self.external_cohort = external_cohort
         self.brownish_column = brownish_column
@@ -92,9 +102,10 @@ class TileLabels:
         self.ambiguous = {column: (float(low), float(high)) for column, (low, high) in (ambiguous or {}).items()}
 
     def partition(self, tiles: HFDataset, slides: HFDataset | None = None) -> np.ndarray:
-        """Per-tile partition id: HEALTHY, HEALTHY_BROWNISH, HEALTHY_TMA, HEALTHY_EXTERNAL or CANCER.
+        """Per-tile partition id: HEALTHY, HEALTHY_BROWNISH, HEALTHY_HARD, HEALTHY_TMA, HEALTHY_EXTERNAL or CANCER.
 
-        ``slides`` (with ``id`` and ``cohort_id``) is needed for ``external_cohort``.
+        ``slides`` (with ``id`` and ``cohort_id``, and ``slide_name``) is needed for
+        ``external_cohort`` (and ``hard_negatives``).
         """
         cancer = self._cancer(tiles)
 
@@ -117,12 +128,40 @@ class TileLabels:
             ids = column_values(slides, "id")[column_values(slides, "cohort_id") == self.external_cohort]
             external = np.isin(column_values(tiles, "slide_id"), ids)
 
+        hard = np.zeros(len(tiles), dtype=bool)
+        if self.hard_negatives is not None:
+            if slides is None:
+                raise ValueError("hard_negatives needs the slides")
+            hard = self._hard(tiles, slides)
+
         labels = np.full(len(tiles), HEALTHY, dtype=np.int64)
         labels[brownish & ~cancer] = HEALTHY_BROWNISH
+        labels[hard & ~cancer] = HEALTHY_HARD
         labels[tma & ~cancer] = HEALTHY_TMA
         labels[external & ~cancer] = HEALTHY_EXTERNAL
         labels[cancer] = CANCER
         return labels
+
+    def _hard(self, tiles: HFDataset, slides: HFDataset) -> np.ndarray:
+        """Per-tile flag: listed in ``hard_negatives`` (by slide name and position)."""
+        import pandas as pd
+        from rationai.mlkit.data.datasets import load_dataset
+
+        mined = load_dataset(uris=[cast("str", self.hard_negatives)])["train"]
+        names = dict(zip(column_values(slides, "id"), column_values(slides, "slide_name"), strict=True))
+        own = pd.DataFrame({
+            "slide_name": [names.get(i) for i in column_values(tiles, "slide_id")],
+            "tile_x": column_values(tiles, "tile_x").astype(np.int64),
+            "tile_y": column_values(tiles, "tile_y").astype(np.int64),
+        })
+        listed = pd.DataFrame({
+            "slide_name": column_values(mined, "slide_name"),
+            "tile_x": column_values(mined, "tile_x").astype(np.int64),
+            "tile_y": column_values(mined, "tile_y").astype(np.int64),
+        }).drop_duplicates()
+        # A left merge keeps the tiles' order.
+        merged = own.merge(listed, how="left", on=["slide_name", "tile_x", "tile_y"], indicator=True)
+        return (merged["_merge"] == "both").to_numpy()
 
     def _cancer(self, tiles: HFDataset) -> np.ndarray:
         """Per-tile flag: positive by any column of ``positive``."""
@@ -225,7 +264,7 @@ class TileEmbeddingClassificationDataset(Dataset[EmbeddingSample]):
         return np.nan_to_num(value), float(self.targets[idx]), meta
 
     def partition_labels(self) -> np.ndarray:
-        """Per-tile group id (HEALTHY, HEALTHY_BROWNISH, HEALTHY_TMA, HEALTHY_EXTERNAL or CANCER), for the sampler."""
+        """Per-tile group id (HEALTHY, HEALTHY_BROWNISH, HEALTHY_HARD, HEALTHY_TMA, HEALTHY_EXTERNAL or CANCER), for the sampler."""
         return self._partitions
 
 

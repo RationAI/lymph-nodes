@@ -11,6 +11,7 @@ from lymph_nodes.data.datasets.embedding import (
     HEALTHY,
     HEALTHY_BROWNISH,
     HEALTHY_EXTERNAL,
+    HEALTHY_HARD,
     HEALTHY_TMA,
 )
 
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 PARTITION_NAMES: dict[str, int] = {
     "healthy": HEALTHY,
     "healthy_brownish": HEALTHY_BROWNISH,
+    "healthy_hard": HEALTHY_HARD,
     "healthy_tma": HEALTHY_TMA,
     "healthy_external": HEALTHY_EXTERNAL,
     "cancer": CANCER,
@@ -35,8 +37,8 @@ PARTITION_NAMES: dict[str, int] = {
 class StratifiedEpochSampler(Sampler[int]):
     """Draws a fresh random subset per partition each epoch, in a caller-chosen ratio.
 
-    Partitions are healthy / healthy_brownish / healthy_tma / healthy_external / cancer
-    (see TileLabels),
+    Partitions are healthy / healthy_brownish / healthy_hard / healthy_tma /
+    healthy_external / cancer (see TileLabels),
     drawn fresh instead of a full pass over every tile. Built for severe class
     imbalance (e.g. ~20:1 healthy:cancer):
     grinding through every negative tile each epoch wastes compute on the easy majority

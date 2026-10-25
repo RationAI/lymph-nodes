@@ -145,6 +145,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         donor_cohort = np.isin(np.asarray(index.cohorts), cell_pasting.donor_cohorts)[
             index.slide_of
         ]
+        # Not the mined hard negatives: they stay as they are, the confusers on their own.
         negative = np.isin(partitions, [HEALTHY, HEALTHY_BROWNISH, HEALTHY_EXTERNAL])
         self._donors = np.flatnonzero(donor_cohort & (partitions == CANCER))
         self._recipients = ~donor_cohort & negative

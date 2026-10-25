@@ -1,0 +1,22 @@
+# @package _global_
+
+# segmentation_cross_tissue_upsampled.yaml with the pasting of
+# segmentation_cross_tissue_pasted.yaml (CellPasting's defaults, p 0.5) instead of the
+# ITC pasting: larger cells (5-8 um radius), up to 3 per tile, small groups three times
+# as often, placed in denser tissue. Of the earlier fits, the pasted-cells one (B) found
+# the most small groups of tumour cells (SNB_IHC_CASE_105_SLIDE_1-1), the ITC one (D) the
+# fewest false positives, the upsampled one (U) the most single cells.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_upsampled
+  - _self_
+
+scenario: cross-tissue segmentation upsampled clusters
+
+data:
+  train:
+    cell_pasting:
+      p: 0.5
+      max_cells: 3
+      cluster_p: 0.3
+      cell_radius_um: [5.0, 8.0]
+      placement_density: 0.01
