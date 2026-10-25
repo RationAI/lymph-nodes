@@ -1,0 +1,28 @@
+# @package _global_
+
+# segmentation_cross_tissue_upsampled_clusters.yaml (U+B) with mined hard negatives in a
+# partition of their own (TileLabels.hard_negatives, healthy_hard): the tiles U+B epoch 7
+# flagged (p >= 0.3) on the negative slides of the training folds (IHC 2023 folds 1-4,
+# mode=test runs; never the val or test slides), less those whose flagged spot is a
+# vivid DAB-positive cell or a dark brown clump, as a "negative" slide may hold an ITC
+# the pathologist missed. 816 tiles: dusky grey-purple and dark blue nuclei, pigment and
+# the like, about a third of the false positives on the negative val slides, which the
+# brownish rule mostly files among tiles of plain brown staining. MLflow run b0281b49
+# holds the table, the flagged tiles before the guard and the parameters. Mined for fold
+# 0: other folds need their own.
+#
+# Weight 0.15 of the epoch's 200k draws: ~4,900 a epoch, each tile ~6 times, flipped and
+# stain-jittered; no cells are pasted into them.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_upsampled_clusters
+  - _self_
+
+scenario: cross-tissue segmentation hard negatives
+
+train_labels:
+  hard_negatives: mlflow-artifacts:/4/b0281b499f8549469604cd7b374a1994/artifacts/hard_negatives
+
+data:
+  train_sampler:
+    ratio:
+      healthy_hard: 0.15
