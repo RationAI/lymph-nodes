@@ -1,0 +1,28 @@
+# @package _global_
+
+# Lymph node masks (preprocessing/node_masks.py): the node, its capsule and subcapsular
+# sinus, without the fat and fibrous tissue around it. One run per lymph node cohort
+# (+data=raw/<cohort>); FN Brno's raw config turns white_balance on.
+mpp: 8.0
+max_concurrent: 10
+edge_um: 24.0  # width of the edge drawn for viewer overlays
+rule:
+  tissue: 0.004  # H + DAB density of tissue, for the Otsu threshold
+  min_density: 0.008  # the threshold's floor (slides with little node)
+  low: 0.55  # paler connected tissue: medulla, sinuses
+  dab: 0.05  # DAB-dense regions touching the node (metastases at its edge)
+  dark: 90  # ink and debris: every channel below
+  smooth_um: 24.0
+  closing_um: 40.0
+  min_area_mm2: 0.5
+  margin_um: 200.0  # capsule and subcapsular sinus
+artifact_path: node_masks
+edge_artifact_path: node_mask_edges
+
+metadata:
+  run_name: "🫘 Node masks · ${dataset.name}"
+  description: Lymph node masks (the node with a ${rule.margin_um} um margin) for ${dataset.name}
+  hyperparams:
+    mpp: ${mpp}
+    low: ${rule.low}
+    margin_um: ${rule.margin_um}

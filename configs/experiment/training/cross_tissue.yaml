@@ -10,8 +10,9 @@
 scenario: cross-tissue
 
 cytokeratin_positive_threshold: 0.5  # TMA tiles above this are cancer; the rest are dropped
-# brownish_coverage above this: healthy_brownish. 0.002 of a 224x224 tile is ~100 brown
-# pixels, about a third of a DAB-stained cell at 0.5 um/px: 121-169k tiles per training split.
+# brownish_coverage above this: healthy_brownish. 0.002 of a 224x224 tile is ~100 pixels at
+# 0.5 um/px, less than one stained cell (DabCoverage: ~0.002-0.007 each), so any stained
+# cell makes a tile brownish. With the earlier RGB rule: 121-169k tiles per training split.
 brownish_threshold: 0.002
 
 train_labels:
@@ -36,6 +37,7 @@ train_filters:
 # makes "no positive lymph node tissue" hold regardless (TMA slides are never `tumor`).
 train_slide_filters:
   - ${filters.negative_slides}
+  - ${filters.no_unflagged_little_tissue}
 
 data:
   train:

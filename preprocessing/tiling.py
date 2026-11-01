@@ -89,6 +89,8 @@ def tiling(row: dict[str, Any]) -> list[dict[str, Any]]:
         "level": row["level"],
         # The slide's white point, if the slides table has one (preprocessing.white_balance).
         **{column: row[column] for column in WHITE_POINT_COLUMNS if column in row},
+        # The TMA cores of this split (preprocessing/tma_split.py), for CoreSelection.
+        **({"cores": row["cores"]} if "cores" in row else {}),
     }
     return [
         {"tile_x": int(x), "tile_y": int(y), **common}

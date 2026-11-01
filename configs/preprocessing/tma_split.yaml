@@ -1,0 +1,29 @@
+# @package _global_
+
+# TMA cores split between folds and validation (preprocessing/tma_split.py).
+# Run with +data=raw/mmci_tmas.
+seed: 42
+slides_uri: mlflow-artifacts:/4/98745cb3d1114123a254af7e6e53b328/artifacts/slides.csv  # the TMA slides table
+cores_uri: ???  # cores.csv of a preprocessing/tma_masks.py run
+core_groups_uri: null  # optional: core_id,group (replicate cores of one patient: the TMA map)
+min_tissue_mm2: 0.2
+max_ignored: 0.5  # cores an ignore mask covers more of are left out (ignored_<name>)
+positive_min: 0.05  # a core is positive when its positive share is at least this
+# Slides whose cores stay together: two sections named after one block.
+slide_groups:
+  - [FIN-HR2-19-ERA, FIN-HR2-19-PGRA]
+splits:
+  train:
+    fraction: 0.8
+    n_folds: 5
+  val:
+    fraction: 0.2
+
+metadata:
+  run_name: "✂️ Core split · ${dataset.name}"
+  description: TMA cores split between folds and validation for ${dataset.name}
+  hyperparams:
+    seed: ${seed}
+    cores_uri: ${cores_uri}
+    min_tissue_mm2: ${min_tissue_mm2}
+    max_ignored: ${max_ignored}

@@ -16,6 +16,7 @@ splits:
     exclude_slides_where:
       - has_tma_control
       - has_confounding_structures
+      - little_tissue
   val:
     fraction: 0.15
     exclude_slides_where:

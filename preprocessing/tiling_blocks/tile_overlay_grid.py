@@ -41,7 +41,7 @@ class OverlayGrid(OverlayCoverage):
 
     Ray Data stores the column as its tensor extension (see TileSegmentationDataset).
     A non-mandatory grid can mix values and nulls within a batch, which a later block
-    with numpy batches (e.g. BrownishCoverage) fails to convert back to Arrow: place
+    with numpy batches (e.g. DabCoverage) fails to convert back to Arrow: place
     such grids after those blocks.
     """
 

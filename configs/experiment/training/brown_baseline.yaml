@@ -1,8 +1,8 @@
 # @package _global_
 
 # Baseline: on these cytokeratin (H-DAB) slides, how well does the amount of brown
-# staining alone find metastases? A tile's brownish_coverage (fraction of brown pixels,
-# preprocessing/tiling_blocks/brownish.py) is its score, evaluated exactly like the
+# staining alone find metastases? A tile's brownish_coverage (its share in DAB-stained
+# cells, preprocessing.tiling_blocks.DabCoverage) is its score, evaluated exactly like the
 # models (mode=validate, no checkpoint): the same tiles, labels and filters, per-cohort
 # and unambiguous metrics, and prediction masks. The thresholded metrics count a tile
 # with brownish_coverage above brownish_threshold (the brownish hard-negative

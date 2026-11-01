@@ -9,6 +9,7 @@ PATIENT_COLUMNS = [
     "n_negative_slides",
     "n_tma_control_slides",
     "n_confounding_slides",
+    "n_little_tissue_slides",
 ]
 
 
@@ -27,6 +28,7 @@ def build_patients_df(slides_df: pd.DataFrame) -> pd.DataFrame:
             n_negative_slides=("tumor", lambda x: (~x).sum()),
             n_tma_control_slides=("has_tma_control", "sum"),
             n_confounding_slides=("has_confounding_structures", "sum"),
+            n_little_tissue_slides=("little_tissue", "sum"),
         )
         .reset_index()
     )

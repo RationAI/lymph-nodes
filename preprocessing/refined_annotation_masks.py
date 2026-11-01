@@ -3,7 +3,8 @@
 The annotations are rough: drawn generously around a focus, they take in the lymphoid
 tissue around and between the stained cells, and now and then cut through a stained
 region at a tight edge. The refined mask of a slide keeps the stained cells
-(``stained_cells``: cytokeratin-positive by colour deconvolution, their nuclei filled)
+(preprocessing.staining.stained_cells: cytokeratin-positive by colour deconvolution,
+their nuclei filled)
 whose connected region overlaps the annotation, whole — beyond the outline too, up to
 ``margin_um`` from it — and nothing else. Tiled like any other mask
 (configs/experiment/tiling/mmci_hdab_segmentation.yaml: ``annotation_brown_*``), it
@@ -34,64 +35,7 @@ from ratiopath.masks import write_big_tiff
 from ratiopath.openslide import OpenSlide
 from scipy import ndimage
 
-
-# Ruifrok & Johnston's haematoxylin / eosin / DAB stain vectors, as in
-# skimage.color.rgb2hed; the DAB row of the inverse projects optical density onto DAB.
-_RGB_FROM_HED = np.array([[0.65, 0.70, 0.29], [0.07, 0.99, 0.11], [0.27, 0.57, 0.78]])
-_DAB_FROM_RGB = np.linalg.inv(_RGB_FROM_HED)[:, 2].astype(np.float32)
-
-
-def dab_density(rgb: np.ndarray) -> np.ndarray:
-    """DAB density of each pixel of ``rgb`` (..., 3, uint8): skimage's rgb2hed DAB channel.
-
-    Unlike preprocessing.tiling_blocks.BrownishCoverage's RGB rule, it counts faint DAB
-    and the near-black rims of strongly stained cells, and no haematoxylin.
-    """
-    optical = np.log(np.maximum(rgb.astype(np.float32) / 255, 1e-6)) / np.log(1e-6)
-    return np.maximum(optical @ _DAB_FROM_RGB, 0)
-
-
-def stained_cells(
-    rgb: np.ndarray,
-    mpp: float,
-    threshold: float = 0.03,
-    low_threshold: float = 0.022,
-    min_area_um2: float = 10.0,
-    hole_area_um2: float = 200.0,
-    grow_um: float = 2.0,
-) -> np.ndarray:
-    """The cytokeratin-stained cells of ``rgb`` (H, W, 3) at ``mpp``, as a boolean mask.
-
-    Pixels with DAB density above ``threshold``, extended by hysteresis to the
-    connected pixels above ``low_threshold`` (a cell's faint rim and cytoplasm; the
-    haematoxylin of dense lymphoid tissue reads ~0.01-0.02, so lower floods it),
-    without specks under ``min_area_um2``; holes up to ``hole_area_um2`` filled —
-    cytokeratin stains membrane and cytoplasm, so a cell's nucleus is an unstained hole
-    in it, while a gland's lumen is larger and stays open — then grown by ``grow_um``
-    (a disk). Holes touching the border of ``rgb`` are left as they are: their extent
-    is unknown.
-    """
-    density = dab_density(rgb)
-    labels, _ = ndimage.label(density > low_threshold)
-    seeds = np.unique(labels[density > threshold])
-    stained = ndimage.binary_opening(np.isin(labels, seeds[seeds > 0]))
-    labels, _ = ndimage.label(stained)
-    sizes = np.bincount(labels.ravel())
-    keep = sizes >= min_area_um2 / mpp**2
-    keep[0] = False
-    stained = keep[labels]
-
-    holes, _ = ndimage.label(~stained)
-    sizes = np.bincount(holes.ravel())
-    small = sizes <= hole_area_um2 / mpp**2
-    border = np.unique(np.concatenate([holes[0], holes[-1], holes[:, 0], holes[:, -1]]))
-    small[border] = False
-    small[0] = False
-    stained |= small[holes]
-
-    if grow_um > 0 and stained.any():
-        stained = ndimage.distance_transform_edt(~stained) <= grow_um / mpp
-    return stained
+from preprocessing.staining import stained_cells
 
 
 def regions_overlapping(

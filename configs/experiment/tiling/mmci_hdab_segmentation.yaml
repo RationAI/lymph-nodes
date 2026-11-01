@@ -13,9 +13,13 @@ grid: 16  # tile_extent / patch size of the foundation models (14 px)
 tissue_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/tissue_masks
 annotation_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/annotation_masks
 blur_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/fadfd18d81e74cb6849a3e93f8bfdef3/artifacts/blur_per_pixel
-# The annotations narrowed to stained cells (preprocessing/refined_annotation_masks.py),
-# for the refined evaluation labels (configs/lymph_nodes.yaml, ln_refined_labels).
-refined_annotation_mask_dir: ???
+# The annotations narrowed to stained cells (preprocessing/refined_annotation_masks.py,
+# scripts/preprocessing/refined_annotation_masks.py), for the refined evaluation labels
+# (configs/lymph_nodes.yaml, ln_refined_labels): MLflow run 1cae2de7.
+refined_annotation_mask_dir: mlflow-artifacts:/4/1cae2de78c354aee8d3d35b4644e197a/artifacts/refined_annotation_masks
+# Lymph node masks (preprocessing/node_masks.py, one run per cohort: set it with
+# node_mask_dir=<run's node_masks URI>). null: node_coverage / node_grid are null.
+node_mask_dir: null
 
 embedding_model: null
 memory_per_gpu_worker: null
@@ -60,14 +64,26 @@ tiling_blocks:
     min_label: 255
     mandatory: false
 
+  # The share of the tile inside the lymph node (null without node masks); used only
+  # where a config asks for it, e.g. filters.in_node (configs/lymph_nodes.yaml).
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: node_coverage
+    uri: ${node_mask_dir}
+    roi: ${rois.full}
+    min_label: 128
+    mandatory: false
+
   - _target_: preprocessing.tiling_blocks.ReadTiles
     name: tile
 
-  - _target_: preprocessing.tiling_blocks.BrownishCoverage
+  # brownish_coverage: the share of the tile in DAB-stained cells by colour
+  # deconvolution (preprocessing/staining.py), the cells of the refined labels; the
+  # name is the one the training configs read.
+  - _target_: preprocessing.tiling_blocks.DabCoverage
     name: brownish_coverage
     image_col: tile
 
-  # After BrownishCoverage: its numpy batches can't carry a grid column mixing values
+  # After DabCoverage: its numpy batches can't carry a grid column mixing values
   # and nulls (slides with and without an annotation mask) back into Arrow.
   - _target_: preprocessing.tiling_blocks.OverlayGrid
     name: annotation_grid
@@ -88,6 +104,14 @@ tiling_blocks:
   - _target_: preprocessing.tiling_blocks.OverlayGrid
     name: annotation_brown_grid
     uri: ${refined_annotation_mask_dir}
+    roi: ${rois.full}
+    grid: ${grid}
+    min_label: 128
+    mandatory: false
+
+  - _target_: preprocessing.tiling_blocks.OverlayGrid
+    name: node_grid
+    uri: ${node_mask_dir}
     roi: ${rois.full}
     grid: ${grid}
     min_label: 128

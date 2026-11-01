@@ -6,6 +6,11 @@ tissue_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a3034
 patho_ignore_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/ignore_masks
 cytokeratin_ignore_mask_dir: mlflow-artifacts:/4/131fe1a4c09e47ee9b391891897bb82a/artifacts/custom_ignore_annotations
 cytokeratin_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/8ad173ea482d4db999bee7686d9dc2d5/artifacts/cytokeratin_masks
+# TMA cores (preprocessing/tma_masks.py run): its tma_cores masks and cores.csv, set by
+# experiment=tiling/mmci_tma_cores_segmentation for a core split
+# (preprocessing/tma_split.py); null keeps every tile, as for whole-slide splits.
+tma_cores_dir: null
+tma_cores_table: null
 # Each key becomes a column in the output Parquet.
 # Processors run in config order.
 tiling_blocks:
@@ -24,6 +29,11 @@ tiling_blocks:
   - _target_: preprocessing.tiling_blocks.Operator
     operator: repartition
     target_num_rows_per_block: 512
+
+  # With a core split: only the tiles of this split's cores, each named (core_id).
+  - _target_: preprocessing.tiling_blocks.CoreSelection
+    uri: ${tma_cores_dir}
+    cores_uri: ${tma_cores_table}
 
   - _target_: preprocessing.tiling_blocks.OverlayCoverage
     name: patho_ignore_coverage

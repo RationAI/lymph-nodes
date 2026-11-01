@@ -8,6 +8,9 @@ dataset:
     _target_: preprocessing.data_source.GlobDataSource
     src_dir: /mnt/data/MOU/lymph_nodes/dataset1-ihc-2023
     glob_pattern: "*.mrxs"
+    # A byte-identical copy of SNB_IHC_CASE_3_SLIDE_6-0 under another name (same size,
+    # same pixels); slide 3 of case 3 is SNB_IHC_CASE_3_SLIDE_3-1.
+    exclude_pattern: SNB_IHC_CASE_3_SLIDE_3-0.mrxs
   name_parser:
     _target_: preprocessing.data_exploration.name_parsers.mmci_snb_filename
   tma_control_slides:
@@ -44,3 +47,9 @@ dataset:
   confounding_structure_slides:
     - SNB_IHC_CASE_80_SLIDE_1-0
     - SNB_IHC_CASE_80_SLIDE_2-0
+  # Negative slides with only a minority of (lymph node) tissue: a few scraps or sparse
+  # fat and fibrous fragments, nothing to learn from (slide audit, 2026-10-28).
+  little_tissue_slides:
+    - SNB_IHC_CASE_14_SLIDE_3-0
+    - SNB_IHC_CASE_14_SLIDE_5-0
+    - SNB_IHC_CASE_69_SLIDE_3-0

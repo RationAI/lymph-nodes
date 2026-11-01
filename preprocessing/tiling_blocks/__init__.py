@@ -1,4 +1,5 @@
-from preprocessing.tiling_blocks.brownish import BrownishCoverage
+from preprocessing.tiling_blocks.cores import CoreSelection
+from preprocessing.tiling_blocks.dab import DabCoverage
 from preprocessing.tiling_blocks.embedding import FoundationModelEmbedding
 from preprocessing.tiling_blocks.ray_operator import Operator
 from preprocessing.tiling_blocks.read_tiles import ReadTiles
@@ -9,7 +10,8 @@ from preprocessing.tiling_blocks.white_balance import WhiteBalance
 
 
 __all__ = [
-    "BrownishCoverage",
+    "CoreSelection",
+    "DabCoverage",
     "FoundationModelEmbedding",
     "Operator",
     "OverlayCoverage",

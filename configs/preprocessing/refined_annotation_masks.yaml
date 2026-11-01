@@ -22,7 +22,7 @@ stain:
   low_threshold: 0.022
   min_area_um2: 10.0
   hole_area_um2: 200.0
-  grow_um: 2.0
+  grow_um: 0.0  # 2.0 until run 1cae2de7: the outline reached into neighbouring cells
 max_concurrent: 4
 artifact_path: refined_annotation_masks
 

@@ -1,0 +1,45 @@
+# @package _global_
+
+# TMA cores and their cytokeratin ground truth (preprocessing/tma_masks.py,
+# preprocessing/tma.py): the cytokeratin masks of MLflow run 8ad173ea, corrected.
+# Run with +data=raw/mmci_tmas.
+mpp: 0.5  # the ground truth at the tiling level
+coarse_mpp: 15.0  # the cores are found at this resolution
+chunk: 2048  # pixels per read
+pad: 96  # margin per read for the cell rule and the edge band
+max_concurrent: 4
+cores_rule:
+  min_core_mm2: 0.15
+  max_core_mm2: 7.0
+  reach: 1.35  # core radii from a centre that its tissue may reach
+  min_nuclei: 0.018  # 90th percentile of haematoxylin of a core
+  min_texture: 0.04  # median local variation of optical density
+# The masks corrected: the cytokeratin masks of MLflow run 8ad173ea (experiment 68).
+reference_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/8ad173ea482d4db999bee7686d9dc2d5/artifacts/cytokeratin_masks
+# Masks whose coverage of each core cores.csv records (ignored_<name>), so the split can
+# leave out cores they exclude; the TMA tilings use the same ones.
+ignore_dirs:
+  patho: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/ignore_masks
+  custom: mlflow-artifacts:/4/131fe1a4c09e47ee9b391891897bb82a/artifacts/custom_ignore_annotations
+rule:
+  support_um: 2.0  # a reference positive needs a stained cell this near
+  threshold: 0.03  # stained cells: DAB seeds (the refined labels' rule)
+  low_threshold: 0.022  # and the DAB they grow into
+  min_area_um2: 10.0
+  hole_area_um2: 200.0
+  min_purity: 0.45  # DAB share of the stain densities (grey reads 0.42)
+  dark: 80  # black (ink, debris): every channel below, and colourless
+  dark_chroma: 20
+  edge_um: 15.0  # the core's edge band: ignore
+artifact_path: tma_cytokeratin_masks
+cores_artifact_path: tma_cores
+
+metadata:
+  run_name: "🔬 TMA cores & cytokeratin masks · ${dataset.name}"
+  description: TMA cores and their cytokeratin ground truth (positive / ignore / negative) for ${dataset.name}
+  hyperparams:
+    mpp: ${mpp}
+    coarse_mpp: ${coarse_mpp}
+    support_um: ${rule.support_um}
+    min_purity: ${rule.min_purity}
+    edge_um: ${rule.edge_um}

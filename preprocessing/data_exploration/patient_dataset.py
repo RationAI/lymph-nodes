@@ -41,6 +41,7 @@ def _process_slide(
     tma_control_slides: frozenset[str],
     damaged_slides: frozenset[str],
     confounding_structure_slides: frozenset[str],
+    little_tissue_slides: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
     slide_name = Path(path).stem
     parsed = name_parser(Path(path).name)
@@ -69,6 +70,7 @@ def _process_slide(
         "has_tma_control": slide_name in tma_control_slides,
         "damaged": damaged,
         "has_confounding_structures": slide_name in confounding_structure_slides,
+        "little_tissue": slide_name in little_tissue_slides,
     }
 
 
@@ -80,6 +82,7 @@ def build_slides_df(
     damaged_slides: frozenset[str],
     confounding_structure_slides: frozenset[str],
     max_workers: int,
+    little_tissue_slides: frozenset[str] = frozenset(),
 ) -> pd.DataFrame:
     process = partial(
         _process_slide,
@@ -88,6 +91,7 @@ def build_slides_df(
         tma_control_slides=tma_control_slides,
         damaged_slides=damaged_slides,
         confounding_structure_slides=confounding_structure_slides,
+        little_tissue_slides=little_tissue_slides,
     )
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -114,6 +118,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         tma_control_slides=frozenset(config.dataset.get("tma_control_slides") or []),
         damaged_slides=frozenset(config.dataset.get("damaged_slides") or []),
         confounding_structure_slides=frozenset(config.dataset.get("confounding_structure_slides") or []),
+        little_tissue_slides=frozenset(config.dataset.get("little_tissue_slides") or []),
         max_workers=config.max_workers,
     )
     patients_df = build_patients_df(slides_df)
@@ -130,6 +135,7 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
         "n_slides_tma_control": int(slides_df["has_tma_control"].sum()),
         "n_slides_damaged": int(slides_df["damaged"].sum()),
         "n_slides_confounding": int(slides_df["has_confounding_structures"].sum()),
+        "n_slides_little_tissue": int(slides_df["little_tissue"].sum()),
         "base_mpp_x_min": float(readable["base_mpp_x"].min()),
         "base_mpp_x_max": float(readable["base_mpp_x"].max()),
         "base_mpp_x_mean": float(readable["base_mpp_x"].mean()),

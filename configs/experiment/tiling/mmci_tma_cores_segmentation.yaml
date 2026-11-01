@@ -1,0 +1,15 @@
+# @package _global_
+
+# The TMAs tiled for segmentation by core split (preprocessing/tma_split.py), with the
+# corrected cytokeratin ground truth: mmci_tmas_segmentation.yaml, its CoreSelection
+# given the cores of a preprocessing/tma_masks.py run, and that run's masks as the
+# cytokeratin masks (255 positive, counted by min_label 255; 128 ignore, counted as
+# negative for now). Use with data=tiling/mmci_tma_cores.
+defaults:
+  - /experiment/tiling/mmci_tmas_segmentation
+  - _self_
+
+tma_masks_run_uri: ???  # the preprocessing/tma_masks.py run's artifacts
+tma_cores_dir: ${tma_masks_run_uri}/tma_cores
+tma_cores_table: ${tma_masks_run_uri}/cores.csv
+cytokeratin_mask_dir: ${tma_masks_run_uri}/tma_cytokeratin_masks

@@ -13,7 +13,7 @@ class WhiteBalance(TilingBlock):
     """Corrects the pixels of ``image_col`` by the slide's white point.
 
     Underexposed scans (e.g. FN Brno) are scaled so that their glass becomes white
-    (preprocessing.white_balance), before colour-based blocks such as BrownishCoverage
+    (preprocessing.white_balance), before colour-based blocks such as DabCoverage
     see them. The white point comes with each tile from the slides table (``white_r``,
     ``white_g``, ``white_b``); tiles without one are left unchanged. Place it right after
     ReadTiles.

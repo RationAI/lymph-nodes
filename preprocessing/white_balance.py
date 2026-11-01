@@ -2,7 +2,7 @@
 
 Some scanners are poorly calibrated: the FN Brno scans (Zeiss Axio Scan.Z1) show the
 empty glass at RGB ~185-205 instead of ~255, so all their tissue looks dark and much of
-it falls into the colour range of DAB (preprocessing/tiling_blocks/brownish.py) and
+it falls into the colour range of DAB (preprocessing/staining.py) and
 below the background threshold of the tissue detector. The slide's own glass is a
 reference of the scanner's white: scaling each channel so that it becomes 255
 (``apply_white_point``) brings such scans close to well calibrated ones and leaves
