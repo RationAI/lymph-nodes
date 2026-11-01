@@ -8,6 +8,11 @@ defaults:
 
 seed: 42
 mode: ???
+# Before fitting, measure the largest batch this GPU takes and train with gradient
+# accumulation if data.batch_size does not fit (lymph_nodes/gpu_plan.py).
+gpu_plan:
+  enabled: false
+  headroom: 0.1  # of the GPU's memory left free
 checkpoint: null
 fold: ???
 scenario: ???
@@ -56,6 +61,35 @@ filters:
     column: slide_name
     op: in
     value: [SNB_IHC_CASE_66_SLIDE_6-0]
+    negate: true
+  # The slides flagged little_tissue (configs/data/raw/mmci_ihc_2023.yaml) after the
+  # tilings were made: kept out of training by name until the patient dataset, split and
+  # tilings are re-run, which leave them out of the training folds (configs/data/split).
+  no_unflagged_little_tissue:
+    _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    column: slide_name
+    op: in
+    value: [SNB_IHC_CASE_14_SLIDE_3-0, SNB_IHC_CASE_14_SLIDE_5-0, SNB_IHC_CASE_69_SLIDE_3-0]
+    negate: true
+  # SNB_IHC_CASE_3_SLIDE_3-0 is a copy of SNB_IHC_CASE_3_SLIDE_6-0 (val), now excluded
+  # in configs/data/raw/mmci_ihc_2023.yaml; the tilings keep it until they are re-run.
+  no_duplicate_slides:
+    _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    column: slide_name
+    op: in
+    value: [SNB_IHC_CASE_3_SLIDE_3-0]
+    negate: true
+  # Inside the lymph node (node_coverage; preprocessing/node_masks.py): drops a tile only
+  # if its slide has a node mask and the tile lies wholly outside it, so TMAs and slides
+  # without node masks keep every tile. Not used by default. In data.eval / data.test
+  # tile_filters it evaluates inside the node only (predictions around it ignored); in
+  # the training tile filters it trains without the tissue around the node. Needs a
+  # tiling with node_coverage (configs/experiment/tiling, node_mask_dir).
+  in_node:
+    _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    column: node_coverage
+    op: "=="
+    value: 0
     negate: true
   # blur:
   #   _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
@@ -146,6 +180,7 @@ data:
     slide_filters:
       - ${filters.no_tma_control}
       - ${filters.no_unflagged_tma_control}
+      - ${filters.no_duplicate_slides}
     ignore_unannotated_positive_slides: true
 
   test:
@@ -158,6 +193,7 @@ data:
     slide_filters:
       - ${filters.no_tma_control}
       - ${filters.no_unflagged_tma_control}
+      - ${filters.no_duplicate_slides}
     ignore_unannotated_positive_slides: true
 
 mode_emojis:
