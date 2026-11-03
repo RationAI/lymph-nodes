@@ -1,8 +1,8 @@
 """Training-time tile augmentations for TileSegmentationDataset.
 
 TileAugmentation varies what the lymph node evaluation varies and the training tiles
-don't: orientation, stain intensity, the diffuse DAB background of some labs' slides
-and focus. CellPasting adds what the training has no example of: tumour cells alone in
+don't: orientation, stain intensity, faint staining, the diffuse DAB background of some
+labs' slides and focus. CellPasting adds what the training has no example of: tumour cells alone in
 lymphoid tissue (isolated tumour cells), cut from the TMA tumour tiles.
 
 Both work on optical densities split into haematoxylin, eosin and DAB by Ruifrok &
@@ -30,6 +30,8 @@ _HED_FROM_RGB = np.linalg.inv(_RGB_FROM_HED).astype(np.float32)
 # rgb2hed's optical density scale: log(rgb) / log(1e-6).
 _OD_SCALE = np.float32(-np.log(1e-6))
 H, E, DAB = 0, 1, 2
+# DAB density of stained cells (preprocessing/staining.py's low threshold).
+_STAINED = 0.022
 
 
 def rgb_to_hed(rgb: np.ndarray) -> np.ndarray:
@@ -76,6 +78,18 @@ class TileAugmentation:
     - stain jitter (Tellez et al., 2018): each stain's density scaled by a random
       factor within 1 ± ``stain_scale`` (H, E, DAB) and, on tissue, shifted within
       ± ``stain_shift``;
+    - with probability ``dab_fade_p``, faint staining: the DAB faded so that the
+      median DAB density of the stained pixels (of the positive patches, if the tile
+      has any) falls within ``dab_fade_to``. The missed isolated tumour cells are the
+      faint ones (median DAB ~0.031 of the faintest third of the annotated groups,
+      against ~0.08 of the TMA breast tumour cells); the stained-cell rule starts at
+      ~0.022, so the faded cells stay stained. Each pixel's optical density is scaled
+      by ``1 - (1 - f) * s``, ``s`` its DAB share of the H and DAB densities, ``f`` at
+      least ``min_fade``: a stained pixel turns a paler brown of its own hue and a
+      nucleus stays. (Scaling the DAB density alone, along the fixed DAB vector, turns
+      strong brown olive or yellow: these scanners' brown is off that vector.) Negative
+      tiles fade alike (their pigment and brown background), so that faint staining
+      tells nothing;
     - with probability ``dab_background_p``, a diffuse DAB background over the tissue:
       smooth and faintly granular, up to ``dab_background`` density. FN Brno's negative
       lymph node tissue reads ~0.03 throughout (median of its tiles), MMCI's ~0.003,
@@ -85,8 +99,9 @@ class TileAugmentation:
 
     Called with the tile (H, W, 3) uint8, its target grid (g, g), a numpy Generator
     and, optionally, the tiling's tissue (H, W) bool, narrowed to tissue_mask's (the
-    tissue masks take in near-blank fat and glass at their edges); returns the tile and
-    grid, contiguous.
+    tissue masks take in near-blank fat and glass at their edges), and an ignore grid
+    (g, g), turned with the target grid; returns the tile, grid and ignore grid (None
+    without one), contiguous.
     """
 
     def __init__(
@@ -98,6 +113,9 @@ class TileAugmentation:
         dab_background_p: float = 0.3,
         blur_p: float = 0.2,
         blur_sigma: Sequence[float] = (0.5, 1.5),
+        dab_fade_p: float = 0.0,
+        dab_fade_to: Sequence[float] = (0.03, 0.05),
+        min_fade: float = 0.25,
     ) -> None:
         self.flip = flip
         self.stain_scale = np.asarray(list(stain_scale), dtype=np.float32)
@@ -106,6 +124,9 @@ class TileAugmentation:
         self.dab_background_p = dab_background_p
         self.blur_p = blur_p
         self.blur_sigma = (float(blur_sigma[0]), float(blur_sigma[1]))
+        self.dab_fade_p = dab_fade_p
+        self.dab_fade_to = (float(dab_fade_to[0]), float(dab_fade_to[1]))
+        self.min_fade = min_fade
 
     def __call__(
         self,
@@ -113,14 +134,17 @@ class TileAugmentation:
         grid: np.ndarray,
         rng: np.random.Generator,
         tissue: np.ndarray | None = None,
-    ) -> tuple[np.ndarray, np.ndarray]:
+        ignore: np.ndarray | None = None,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
         tissue = tissue_mask(tile) if tissue is None else tissue & tissue_mask(tile)
         if self.flip:
             turns = int(rng.integers(4))
             tile, grid = np.rot90(tile, turns), np.rot90(grid, turns)
             tissue = np.rot90(tissue, turns)
+            ignore = None if ignore is None else np.rot90(ignore, turns)
             if rng.random() < 0.5:
                 tile, grid, tissue = tile[:, ::-1], grid[:, ::-1], tissue[:, ::-1]
+                ignore = None if ignore is None else ignore[:, ::-1]
 
         hed = rgb_to_hed(tile)
         # Feathered: no blocks of the tissue grid or pinholes of the pixel rule.
@@ -128,6 +152,8 @@ class TileAugmentation:
         scale = rng.uniform(1 - self.stain_scale, 1 + self.stain_scale)
         shift = rng.uniform(-self.stain_shift, self.stain_shift)
         hed = hed * scale + shift * weight[..., np.newaxis]
+        if rng.random() < self.dab_fade_p:
+            hed = rgb_to_hed(self._fade(hed_to_rgb(hed), grid, tissue, rng))
         if rng.random() < self.dab_background_p:
             hed[..., DAB] += self._background(tile.shape[:2], rng) * weight
         tile = hed_to_rgb(hed)
@@ -139,7 +165,51 @@ class TileAugmentation:
                 .round()
                 .astype(np.uint8)
             )
-        return np.ascontiguousarray(tile), np.ascontiguousarray(grid)
+        return (
+            np.ascontiguousarray(tile),
+            np.ascontiguousarray(grid),
+            None if ignore is None else np.ascontiguousarray(ignore),
+        )
+
+    def _fade(
+        self,
+        tile: np.ndarray,
+        grid: np.ndarray,
+        tissue: np.ndarray,
+        rng: np.random.Generator,
+        min_pixels: int = 50,
+        steps: int = 3,
+    ) -> np.ndarray:
+        """The tile with its stained pixels faded to ``dab_fade_to`` (unchanged if fainter)."""
+        hed = rgb_to_hed(tile)
+        dab = hed[..., DAB]
+        stained = tissue & (dab > _STAINED)
+        g = grid.shape[0]
+        scale = dab.shape[0] // g
+        positive = np.repeat(np.repeat(grid > 0.5, scale, axis=0), scale, axis=1)
+        if (stained & positive).sum() >= min_pixels:
+            stained &= positive
+        if stained.sum() < min_pixels:
+            return tile
+        target = rng.uniform(*self.dab_fade_to)
+        level = float(np.median(dab[stained]))
+        if level <= target:
+            return tile
+        od = -np.log(np.maximum(tile.astype(np.float32), 1.0) / 255)
+        densities = np.clip(hed, 0, None)
+        share = densities[..., DAB] / np.maximum(
+            densities[..., H] + densities[..., DAB], 1e-6
+        )
+        # Mixed pixels fade less than the factor: a few corrections of it.
+        factor, faded = max(target / level, self.min_fade), tile
+        for _ in range(steps):
+            scaled = od * (1 - (1 - factor) * share)[..., np.newaxis]
+            faded = np.clip(255 * np.exp(-scaled), 0, 255).round().astype(np.uint8)
+            reached = float(np.median(rgb_to_hed(faded)[..., DAB][stained]))
+            if reached <= target * 1.05 or factor <= self.min_fade:
+                break
+            factor = max(factor * target / reached, self.min_fade)
+        return faded
 
     def _background(
         self, shape: tuple[int, ...], rng: np.random.Generator

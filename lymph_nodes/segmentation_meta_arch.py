@@ -38,6 +38,10 @@ class SegmentationMetaArch(MetaArch):
     is there cancer in the tile?), or ``"mean"``, its predicted coverage. The validation
     and test steps return the per-patch logits (B, g, g), so the masks show patches.
     Samples flagged ``ignore`` are left out of the loss and the metrics, as in MetaArch.
+    Patches whose label is unknown (meta ``ignore_grid``, TileSegmentationDataset's
+    ``ignore_grids``) are weighted by the share known, 1 - ignore, in the loss (which
+    must take ``weights``, as DiceFocalLoss) and left out of the patch metrics when
+    mostly unknown.
     Samples with a second target grid, the pathologists' outlines when the targets are
     the refined labels (meta ``outline_grid``, TileSegmentationDataset's
     ``outline_grids``) get the patch metrics against it too, ``<phase>/patch/outline/``;
@@ -91,10 +95,17 @@ class SegmentationMetaArch(MetaArch):
             del state[key]
 
     def training_step(self, batch: Batch, batch_idx: int) -> Tensor:
-        tiles, grids, _meta = batch
-        loss = self.criterion(self._logits(tiles, grids), grids.float())
+        tiles, grids, meta = batch
+        loss = self._loss(self._logits(tiles, grids), grids, meta.get("ignore_grid"))
         self.log("train/loss", loss, on_step=True, prog_bar=True)
         return loss
+
+    def _loss(self, logits: Tensor, grids: Tensor, ignore: Tensor | None) -> Tensor:
+        """The criterion, the patches weighted by the share of them with a known label."""
+        if ignore is None:
+            return self.criterion(logits, grids.float())
+        weights = 1 - ignore.to(grids.device).float()
+        return self.criterion(logits, grids.float(), weights=weights)
 
     def validation_step(self, batch: Batch, batch_idx: int) -> Outputs:
         logits, keep = self._evaluate(batch, "validation", self.val_patch_metrics)
@@ -138,9 +149,12 @@ class SegmentationMetaArch(MetaArch):
         keep = _kept(meta, logits)
         if keep is None:
             return logits, None
+        ignore = meta.get("ignore_grid")
+        if ignore is not None:
+            ignore = ignore.to(grids.device)[keep.to(grids.device)]
         self.log(
             f"{phase}/loss",
-            self.criterion(logits[keep], grids[keep].float()),
+            self._loss(logits[keep], grids[keep], ignore),
             on_epoch=True,
             prog_bar=True,
             batch_size=int(keep.sum()),
@@ -156,9 +170,16 @@ class SegmentationMetaArch(MetaArch):
         if clear.any():
             clear = clear.to(targets.device)
             sets.append(("unambiguous", probabilities[clear], targets[clear]))
+        # Patches mostly of unknown label count in no patch metric.
+        known = None if ignore is None else ignore < 0.5
         for name, preds, target in sets:
             metrics = cast("MetricCollection", patch_metrics[name])
-            metrics.update(preds.flatten(), target.flatten())
+            if known is None:
+                metrics.update(preds.flatten(), target.flatten())
+            else:
+                mask = known[clear] if name == "unambiguous" else known
+                if mask.any():
+                    metrics.update(preds[mask], target[mask])
             self.log_dict(metrics, on_epoch=True)
         return logits, keep
 

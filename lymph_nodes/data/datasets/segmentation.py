@@ -46,7 +46,11 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
     - the usual meta, plus ``label``: the tile's TileLabels target, for tile metrics;
       with ``outline_grids`` (and ``outline_labels``, see EmbeddingClassificationDataset)
       also ``outline_grid``, a second target grid for a second set of patch metrics
-      (SegmentationMetaArch), left out when the tiles have none of its columns.
+      (SegmentationMetaArch), left out when the tiles have none of its columns; with
+      ``ignore_grids`` also ``ignore_grid``, float32 (grid, grid), the share of each
+      patch whose label is unknown (e.g. ``label_ignore_grid``: the ignore label of the
+      TMA ground truth, preprocessing/tma_masks.py), which SegmentationMetaArch leaves
+      out of the loss and the patch metrics; 0 for tiles without one.
 
     ``grid`` is the side of the target grids (OverlayGrid's ``grid`` in the tiling),
     so that a batch none of whose tiles has a grid still gets targets of that shape.
@@ -78,6 +82,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         ignore_unannotated_positive_slides: bool = False,
         outline_labels: TileLabels | None = None,
         outline_grids: Sequence[str] = (),
+        ignore_grids: Sequence[str] = (),
         augmentation: TileAugmentation | None = None,
         cell_pasting: CellPasting | None = None,
     ) -> None:
@@ -86,6 +91,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         self._generator: np.random.Generator | None = None
         self.target_grids = list(target_grids)
         self.outline_grids = list(outline_grids)
+        self.ignore_grids = list(ignore_grids)
         self.grid = grid
         self.max_open_slides = max_open_slides
         self.cache_mib = cache_mib
@@ -105,6 +111,11 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         ):
             print(f"outline_grids left out: none of {self.outline_grids} in the tiles")
             self.outline_grids = []
+        if self.ignore_grids and not any(
+            g in self.tiles.column_names for g in self.ignore_grids
+        ):
+            print(f"ignore_grids left out: none of {self.ignore_grids} in the tiles")
+            self.ignore_grids = []
         # Per position in .slides (= in .datasets): where and how to read its tiles.
         self._slide_paths = [str(path) for path in column_values(self.slides, "path")]
         self._slide_levels = column_values(self.slides, "level").astype(int)
@@ -190,6 +201,11 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             if self.outline_grids
             else None
         )
+        ignores = (
+            self._grids(index.rows[batch], self.ignore_grids)
+            if self.ignore_grids
+            else None
+        )
         # The tiling's tissue (per patch), where the augmentations need it.
         tissue = (
             self._take_grid("tissue_grid", index.rows[batch])
@@ -216,6 +232,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             if index.outline is not None:
                 meta["outline_label"] = float(index.outline[position])
             tile, grid = self._read_tile(slide, tile_x, tile_y), grids[i]
+            ignore = None if ignores is None else ignores[i]
             pixels = None
             if tissue is not None and tissue[1][i]:
                 cells = tissue[0][i].reshape(self.grid, self.grid) >= 128
@@ -226,7 +243,11 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
                 if grid.max() > 0:  # cells pasted
                     meta["label"] = 1.0
             if self.augmentation is not None:
-                tile, grid = self.augmentation(tile, grid, self._rng(), pixels)
+                tile, grid, ignore = self.augmentation(
+                    tile, grid, self._rng(), pixels, ignore
+                )
+            if ignore is not None:
+                meta["ignore_grid"] = ignore
             samples.append((tile, grid, meta))
         return samples
 

@@ -9,9 +9,10 @@ core_groups_uri: null  # optional: core_id,group (replicate cores of one patient
 min_tissue_mm2: 0.2
 max_ignored: 0.5  # cores an ignore mask covers more of are left out (ignored_<name>)
 positive_min: 0.05  # a core is positive when its positive share is at least this
-# Slides whose cores stay together: two sections named after one block.
-slide_groups:
-  - [FIN-HR2-19-ERA, FIN-HR2-19-PGRA]
+# Slides whose cores stay together, e.g. two sections of one block. None: the cores of
+# FIN-HR2-19-ERA and FIN-HR2-19-PGRA are taken to be from different patients (kept
+# together, all 20 breast cores went to one split).
+slide_groups: []
 splits:
   train:
     fraction: 0.8

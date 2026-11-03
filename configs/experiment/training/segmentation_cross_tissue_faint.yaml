@@ -1,0 +1,22 @@
+# @package _global_
+
+# segmentation_cross_tissue_hard_negatives.yaml (H) without the cell pasting and with
+# faint staining (TileAugmentation's dab_fade_p): a third of the training tiles get
+# their DAB faded to the level of the faint isolated tumour cells the models miss
+# (median DAB 0.03-0.05 of the stained pixels; the faintest third of the annotated
+# groups reads ~0.031, the TMA breast tumour cells ~0.08). Meant for the core-split TMA
+# tiling (mmci_tma_cores_segmentation, its ignore label left out of the loss): set
+# tma_run_uri (and the lymph node tilings) to the new tilings' runs.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_hard_negatives
+  - _self_
+
+scenario: cross-tissue segmentation faint
+
+data:
+  train:
+    cell_pasting: null
+    augmentation:
+      dab_fade_p: 0.3
+      dab_fade_to: [0.03, 0.05]
+      min_fade: 0.25

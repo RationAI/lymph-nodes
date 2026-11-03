@@ -35,7 +35,10 @@ class DiceFocalLoss(nn.Module):
       plentiful negative ones.
 
     ``focal_weight`` and ``dice_weight`` scale the two terms; a weight of 0 drops its
-    term. Computed in float32 whatever the training precision.
+    term. ``weights``, if given (the shape of the targets, in [0, 1]), weights each
+    patch in both terms, e.g. 0 for a patch whose label is unknown (SegmentationMetaArch:
+    1 - its ignore grid); the focal term is then their weighted mean. Computed in
+    float32 whatever the training precision.
     """
 
     def __init__(
@@ -53,23 +56,27 @@ class DiceFocalLoss(nn.Module):
         self.alpha = alpha
         self.smooth = smooth
 
-    def forward(self, logits: Tensor, targets: Tensor) -> Tensor:
+    def forward(
+        self, logits: Tensor, targets: Tensor, weights: Tensor | None = None
+    ) -> Tensor:
         logits, targets = logits.float(), targets.float()
+        weights = torch.ones_like(targets) if weights is None else weights.float()
         loss = logits.new_zeros(())
         if self.focal_weight:
-            loss = loss + self.focal_weight * self._focal(logits, targets)
+            loss = loss + self.focal_weight * self._focal(logits, targets, weights)
         if self.dice_weight:
-            loss = loss + self.dice_weight * self._dice(logits, targets)
+            loss = loss + self.dice_weight * self._dice(logits, targets, weights)
         return loss
 
-    def _focal(self, logits: Tensor, targets: Tensor) -> Tensor:
+    def _focal(self, logits: Tensor, targets: Tensor, weights: Tensor) -> Tensor:
         bce = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
         loss = (targets - torch.sigmoid(logits)).abs().pow(self.gamma) * bce
         if self.alpha is not None:
             loss = loss * (self.alpha * targets + (1 - self.alpha) * (1 - targets))
-        return loss.mean()
+        return (loss * weights).sum() / weights.sum().clamp_min(1e-6)
 
-    def _dice(self, logits: Tensor, targets: Tensor) -> Tensor:
-        probabilities = torch.sigmoid(logits)
+    def _dice(self, logits: Tensor, targets: Tensor, weights: Tensor) -> Tensor:
+        probabilities = torch.sigmoid(logits) * weights
+        targets = targets * weights
         overlap = 2 * (probabilities * targets).sum() + self.smooth
         return 1 - overlap / (probabilities.sum() + targets.sum() + self.smooth)

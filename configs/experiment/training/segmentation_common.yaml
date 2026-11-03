@@ -37,12 +37,16 @@ data:
   batch_size: 256
   num_workers: 8
 
+  # The TMA ground truth's ignore label (the core tilings, mmci_tma_cores_segmentation)
+  # is left out of the loss and the patch metrics; tilings without it leave it out.
   train:
     _target_: ${segmentation_dataset}
     target_grids: [cytokeratin_grid]
+    ignore_grids: [label_ignore_grid]
   val:
     _target_: ${segmentation_dataset}
     target_grids: [cytokeratin_grid]
+    ignore_grids: [label_ignore_grid]
   # data.eval of configs/lymph_nodes.yaml plus the FN Brno validation split: slide
   # status only (no annotations), so it counts in the slide metrics only.
   eval:
@@ -56,6 +60,7 @@ data:
     # outlines' patch metrics next to them (patch/outline/).
     target_grids: [cytokeratin_grid, annotation_brown_grid]
     outline_grids: [cytokeratin_grid, annotation_grid]
+    ignore_grids: [label_ignore_grid]
   test:
     _target_: ${segmentation_dataset}
     target_grids: [annotation_brown_grid]
