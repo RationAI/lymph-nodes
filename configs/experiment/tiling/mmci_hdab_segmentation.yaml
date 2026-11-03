@@ -22,11 +22,11 @@ annotation_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a
 blur_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/fadfd18d81e74cb6849a3e93f8bfdef3/artifacts/blur_per_pixel
 # The annotations narrowed to stained cells (preprocessing/refined_annotation_masks.py,
 # scripts/preprocessing/refined_annotation_masks.py), for the refined evaluation labels
-# (configs/lymph_nodes.yaml, ln_refined_labels): MLflow run 1cae2de7.
-refined_annotation_mask_dir: mlflow-artifacts:/4/1cae2de78c354aee8d3d35b4644e197a/artifacts/refined_annotation_masks
-# Lymph node masks (preprocessing/node_masks.py, one run per cohort: set it with
-# node_mask_dir=<run's node_masks URI>). null: node_coverage / node_grid are null.
-node_mask_dir: null
+# (configs/lymph_nodes.yaml, ln_refined_labels): MLflow run 28e00226 (2026-11-03, no
+# margin around the stained cells; 1cae2de7 before, grown by 2 um).
+refined_annotation_mask_dir: mlflow-artifacts:/4/28e00226ea774c4da853a48abfb6cfcc/artifacts/refined_annotation_masks
+# Lymph node masks: node_mask_dir, per cohort in its data config (configs/data/tiling),
+# null by default (configs/preprocessing/tiling.yaml): node_coverage / node_grid null.
 
 embedding_model: null
 memory_per_gpu_worker: null

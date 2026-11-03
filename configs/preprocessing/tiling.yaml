@@ -6,6 +6,9 @@ stride: ???
 # The stride of the evaluation splits (val, test) of the data configs that use it: the
 # same as the others' unless an experiment sets it (mmci_hdab_segmentation.yaml).
 eval_stride: ${stride}
+# Lymph node masks (preprocessing/node_masks.py, one run per cohort): set by the
+# cohort's data config (configs/data/tiling); null: node_coverage / node_grid are null.
+node_mask_dir: null
 rows_per_shard: 250_000
 
 rois:

@@ -3,6 +3,8 @@
 dataset_name: IHC test
 
 slides_run_uri: mlflow-artifacts:/4/21d3ed5b52c146dd9af29283fd7be5b6/artifacts
+# Lymph node masks: preprocessing/node_masks.py run 5b8f935e (2026-11-03).
+node_mask_dir: mlflow-artifacts:/4/5b8f935eed1f477a91314455fa6d88a2/artifacts/node_masks
 
 datasets:
   - name: val

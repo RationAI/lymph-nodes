@@ -8,9 +8,14 @@ dataset:
     _target_: preprocessing.data_source.GlobDataSource
     src_dir: /mnt/data/MOU/lymph_nodes/dataset1-ihc-2023
     glob_pattern: "*.mrxs"
-    # A byte-identical copy of SNB_IHC_CASE_3_SLIDE_6-0 under another name (same size,
-    # same pixels); slide 3 of case 3 is SNB_IHC_CASE_3_SLIDE_3-1.
-    exclude_pattern: SNB_IHC_CASE_3_SLIDE_3-0.mrxs
+    exclude_pattern:
+      # A byte-identical copy of SNB_IHC_CASE_3_SLIDE_6-0 under another name (same
+      # size, same pixels); slide 3 of case 3 is SNB_IHC_CASE_3_SLIDE_3-1.
+      - SNB_IHC_CASE_3_SLIDE_3-0.mrxs
+      # OpenSlide cannot open these (2026-11-03): a broken Slidedat.ini, and a macro
+      # image that is not a JPEG. Neither is in a split.
+      - SNB_IHC_CASE_81_SLIDE_1-0.mrxs
+      - SNB_IHC_CASE_82_SLIDE_1-0.mrxs
   name_parser:
     _target_: preprocessing.data_exploration.name_parsers.mmci_snb_filename
   tma_control_slides:

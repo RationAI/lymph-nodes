@@ -8,9 +8,8 @@
 
 stride: ${tile_extent}
 tissue_mask_dir: ???  # FN Brno tissue mask run (preprocessing.tissue_masks, white_balance)
-# Lymph node masks (preprocessing/node_masks.py, one run per cohort: set it with
-# node_mask_dir=<run's node_masks URI>). null: node_coverage / node_grid are null.
-node_mask_dir: null
+# Lymph node masks: node_mask_dir, per cohort in its data config (configs/data/tiling),
+# null by default (configs/preprocessing/tiling.yaml): node_coverage / node_grid null.
 grid: 16  # tile_extent / patch size of the foundation models (14 px)
 
 embedding_model: null

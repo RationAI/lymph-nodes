@@ -4,7 +4,8 @@
 # lists the slides with cores in it and which (``cores``). Use with
 # experiment=tiling/mmci_tma_cores_segmentation, which keeps those cores' tiles.
 dataset_name: TMA cores
-slides_run_uri: ???  # the core split run's artifacts (preprocessing/tma_split.py)
+# The core split run's artifacts (preprocessing/tma_split.py): run b535b4fe (2026-11-03).
+slides_run_uri: mlflow-artifacts:/4/b535b4fe0e1d4531962530f46188edc1/artifacts
 datasets:
   - name: fold_0
     slides:
