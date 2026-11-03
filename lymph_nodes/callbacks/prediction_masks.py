@@ -58,8 +58,12 @@ class PredictionMasks(Callback):
 
     Per-patch outputs (B, g, g), as from SegmentationMetaArch, give a mask with one
     pixel per patch instead (tile extent / g px of the level: 14 for the foundation
-    models' patches), assembled by MaskBuilder from the full tiles — meant for tilings
-    without overlap (stride = tile extent, configs/experiment/tiling/*_segmentation.yaml).
+    models' patches), assembled by MaskBuilder: from the full tiles without overlap
+    (stride = tile extent), and from each tile's centre, (tile extent - stride) / 2
+    clipped off each side, when the overlap is a whole number of patches on each side
+    (stride 112 of 224 px: the central 8 x 8 of 16 x 16 patches), so that every patch
+    comes from the tile in which it has the most context (eval_stride of
+    configs/experiment/tiling/mmci_hdab_segmentation.yaml). Other overlaps are averaged.
 
     Needs the steps to return their logits and the samples' meta to carry ``slide``
     (position in the dataset's ``slides``), ``tile_x`` and ``tile_y``.
@@ -176,13 +180,15 @@ def _prediction_mask(
     """
     stride = (int(slide["stride_y"]), int(slide["stride_x"]))
     output_extent: int | tuple[int, ...]
+    clipping: tuple[int, int] = (0, 0)
     if probability.ndim == 1:
         # One mask pixel per tile: a "tile" of stride x stride source pixels.
         tile_extent, output_extent, values = stride, 1, probability[:, np.newaxis]
     else:
-        # One mask pixel per patch of the full tile.
+        # One mask pixel per patch of the full tile; of its centre if tiles overlap.
         tile_extent = (int(slide["tile_extent_y"]), int(slide["tile_extent_x"]))
         output_extent, values = probability.shape[1:], probability[:, np.newaxis]
+        clipping = _centre_clipping(tile_extent, stride, probability.shape[1:])
 
     builder = MaskBuilder(
         source_extents=(int(slide["extent_y"]), int(slide["extent_x"])),
@@ -194,6 +200,7 @@ def _prediction_mask(
         builder.update_batch(
             values.astype(np.float32),
             np.stack([tile_y, tile_x], axis=1).astype(np.int64),
+            edge_clipping=clipping,
         )
         mask = np.round(builder.finalize()["mask"][0] * 255).astype(np.uint8)
         pixel = builder.span / builder.mask_extents
@@ -203,3 +210,19 @@ def _prediction_mask(
         return mask[:rows, :cols], pixel
     finally:
         builder.cleanup()
+
+
+def _centre_clipping(
+    tile_extent: tuple[int, int], stride: tuple[int, int], patches: tuple[int, ...]
+) -> tuple[int, int]:
+    """Patches to clip off each side of a tile to keep its centre, (y, x).
+
+    Half the overlap, (tile extent - stride) / 2, in patches; 0 where that is not a
+    whole number of patches (MaskBuilder then averages the overlapping tiles).
+    """
+    clipping = []
+    for extent, step, n in zip(tile_extent, stride, patches, strict=True):
+        overlap = (extent - step) * n  # in patches, times the tile extent
+        whole = overlap > 0 and overlap % (2 * extent) == 0
+        clipping.append(overlap // (2 * extent) if whole else 0)
+    return clipping[0], clipping[1]

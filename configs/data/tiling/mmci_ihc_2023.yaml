@@ -26,10 +26,12 @@ datasets:
       _target_: preprocessing.data_source.MLFlowDataSource
       uri: ${slides_run_uri}/train_fold_4/slides.csv
   - name: val
+    stride: ${eval_stride}
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
       uri: ${slides_run_uri}/val/slides.csv
   - name: test
+    stride: ${eval_stride}
     slides:
       _target_: preprocessing.data_source.MLFlowDataSource
       uri: ${slides_run_uri}/test/slides.csv

@@ -11,6 +11,10 @@ defaults:
 
 # The preprocessing/tma_masks.py run's artifacts (run 0bdf3752, 2026-11-01).
 tma_masks_run_uri: mlflow-artifacts:/4/0bdf3752a4144d4b96679a90911df94a/artifacts
+# Every split at half the tile (eval_stride follows): the training gets each tumour
+# cell centred in some tile (the augmentation turns and flips, but cannot shift the
+# precomputed grids), at 4x the tiles of the 342 cores.
+stride: 112
 tma_cores_dir: ${tma_masks_run_uri}/tma_cores
 tma_cores_table: ${tma_masks_run_uri}/cores.csv
 cytokeratin_mask_dir: ${tma_masks_run_uri}/tma_cytokeratin_masks

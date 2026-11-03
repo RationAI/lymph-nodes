@@ -3,6 +3,9 @@
 mpp: 0.5
 tile_extent: 224
 stride: ???
+# The stride of the evaluation splits (val, test) of the data configs that use it: the
+# same as the others' unless an experiment sets it (mmci_hdab_segmentation.yaml).
+eval_stride: ${stride}
 rows_per_shard: 250_000
 
 rois:

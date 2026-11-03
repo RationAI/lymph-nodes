@@ -200,14 +200,16 @@ def main(config: DictConfig, logger: MLFlowLogger) -> None:
     project_root = Path(config.project_root)
 
     for i, dataset in enumerate(config.datasets):
-        print(f"Tiling dataset: {dataset.name} ({i + 1}/{len(config.datasets)})")
+        # A dataset (split) may set its own stride, e.g. the evaluation splits' eval_stride.
+        stride = dataset.get("stride", config.stride)
+        print(f"Tiling dataset: {dataset.name} ({i + 1}/{len(config.datasets)}), stride {stride}")
         slides_df = hydra.utils.instantiate(dataset.slides).to_pandas()
         slides_df = drop_slides_without_mandatory_masks(slides_df, tiling_blocks, dataset.name)
         tile_dataset(
             slides_df=slides_df,
             tiling_blocks=tiling_blocks,
             tile_extent=config.tile_extent,
-            stride=config.stride,
+            stride=stride,
             mpp=config.mpp,
             rows_per_shard=config.rows_per_shard,
             dataset_name=dataset.name,
