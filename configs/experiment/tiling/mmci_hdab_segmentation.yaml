@@ -3,11 +3,18 @@
 # Lymph node (H-DAB) tiling for segmentation (lymph_nodes/ segmentation scenarios):
 # the scalar coverages of mmci_hdab.yaml (filters, labels, sampler partitions), plus
 # per-patch coverage grids (OverlayGrid, 16 x 16 = the 14 px patch tokens of the
-# foundation models at 224 px). No overlap — dense outputs don't need it — and no
+# foundation models at 224 px). No overlap in the folds — dense outputs don't need it
+# for training — and half-tile overlap in the evaluation splits (eval_stride); no
 # embeddings: training reads the tiles and runs the frozen foundation model itself.
 # CPU only.
 
 stride: ${tile_extent}
+# The evaluation splits (val, test: data configs with stride ${eval_stride}) at half the
+# tile: every point in the central half of one tile, whose patches the prediction masks
+# keep (PredictionMasks). 112 px = 8 patches of 14 px (16 of 7 at grid 32), so the
+# overlapping tiles' patches coincide. The folds, for training and the validation
+# during fit, stay at a full tile.
+eval_stride: 112
 grid: 16  # tile_extent / patch size of the foundation models (14 px)
 
 tissue_mask_dir: mlflow-artifacts://mlflow.rationai-mlflow:5000/68/10bfc155a303465882aada4928487822/artifacts/tissue_masks
