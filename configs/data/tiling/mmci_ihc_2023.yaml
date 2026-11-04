@@ -3,6 +3,8 @@
 dataset_name: IHC 2023
 
 slides_run_uri: mlflow-artifacts:/4/095b1692d06a492aafc71c89e9dbd198/artifacts
+# Lymph node masks: preprocessing/node_masks.py run a4fc20c3 (2026-11-03).
+node_mask_dir: mlflow-artifacts:/4/a4fc20c310144badb4ab0d8d4263e908/artifacts/node_masks
 
 datasets:
   - name: fold_0

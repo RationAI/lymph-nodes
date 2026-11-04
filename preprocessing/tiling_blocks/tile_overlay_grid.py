@@ -16,8 +16,15 @@ def grid_coverage(inside: np.ndarray, valid: np.ndarray, grid: int) -> np.ndarra
     ``inside`` flags the pixels counted, ``valid`` the pixels within the ROI; a cell's
     coverage is its counted fraction of valid pixels (0 if it has none). H and W need
     not be multiples of ``grid`` — e.g. a mask at a slightly different mpp than the
-    slide level — the cell edges are then rounded.
+    slide level — the cell edges are then rounded. A mask coarser than the grid (fewer
+    than ``grid`` pixels across the tile, e.g. the ~8 um node masks: 14 px per 224 px
+    tile at 0.5 um) is first repeated to at least ``grid`` pixels (nearest pixel), so
+    each cell takes the coverage of the mask pixels under it.
     """
+    repeats = [-(-grid // n) if 0 < n < grid else 1 for n in inside.shape[:2]]
+    if repeats != [1, 1]:
+        inside = np.repeat(np.repeat(inside, repeats[0], axis=0), repeats[1], axis=1)
+        valid = np.repeat(np.repeat(valid, repeats[0], axis=0), repeats[1], axis=1)
     rows = np.linspace(0, inside.shape[0], grid + 1).round().astype(int)[:-1]
     cols = np.linspace(0, inside.shape[1], grid + 1).round().astype(int)[:-1]
 
