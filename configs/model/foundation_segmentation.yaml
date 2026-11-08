@@ -7,17 +7,23 @@ _target_: lymph_nodes.segmentation_meta_arch.SegmentationMetaArch
 backbone:
   _target_: lymph_nodes.modeling.FrozenFoundationModel
   name: ${embedding_model}
-  n_layers: 4
+  n_layers: 4  # the last n blocks' patch tokens
+  layers: null  # or the blocks themselves, 0-based, e.g. [7, 15, 23, 31] (Virchow2: 32)
 
 decode_head:
   _target_: torch.nn.Conv2d
-  in_channels: ${multiply:${model.backbone.n_layers},${patch_token_dim}}
+  in_channels: ${token_channels:${model.backbone.n_layers},${model.backbone.layers},${patch_token_dim}}
   out_channels: 1
   kernel_size: 1
 
 lr: 1.0e-4
 weight_decay: 0.05
+lr_schedule: constant  # or cosine: warmup_steps of linear warm-up, then down to min_lr_ratio x lr
+warmup_steps: 0
+min_lr_ratio: 0.0
+ema_decay: null  # e.g. 0.999: a moving average of the head's weights evaluates
 tile_score: max  # a tile scores its most confident patch
+tile_region: centre  # where tiles overlap, only their centre patches score (else: full)
 
 # Weighted focal + soft Dice per patch (lymph_nodes.modeling.DiceFocalLoss). The
 # segmentation runs before it (up to 2026-10-14) trained with plain BCE, which

@@ -1,0 +1,35 @@
+# @package _global_
+
+# The expected best: every change of the November experiments at once, on the
+# re-tiling of 2026-11-04 (segmentation_cross_tissue_retiled.yaml, H's recipe):
+# - faint staining (segmentation_cross_tissue_faint.yaml): a third of the tiles' DAB
+#   faded to the faint isolated tumour cells' level;
+# - Virchow2's blocks 8, 16, 24 and 32 (segmentation_cross_tissue_faint_layers.yaml);
+# - a cosine learning rate and a moving average of the head's weights
+#   (segmentation_cross_tissue_faint_cosine.yaml);
+# - H's cell pasting back (CellPasting's defaults, p 0.5: up to 3 cells, small groups
+#   30% of the time), now within the lymph node only (within_node, the tilings'
+#   node_grid): the training's only examples of tumour cells among lymphocytes — the
+#   TMA positives are sheets of epithelium. Pasted before the augmentation, so the
+#   fade also gives faint pasted cells, the missed ITCs' look.
+# The separate scenarios tell each change's share afterwards.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_faint_cosine
+  - _self_
+
+scenario: cross-tissue segmentation combined
+
+model:
+  backbone:
+    layers: [7, 15, 23, 31]
+
+data:
+  train:
+    cell_pasting:
+      _target_: lymph_nodes.data.augmentations.CellPasting
+      p: 0.5
+      max_cells: 3
+      cluster_p: 0.3
+      cell_radius_um: [5.0, 8.0]
+      placement_density: 0.01
+      within_node: true

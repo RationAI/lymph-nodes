@@ -1,12 +1,14 @@
 # @package _global_
 
-# Segmentation tiling runs (configs/experiment/tiling/*_segmentation.yaml): stride
-# 224, coverage grids, no embeddings — the same for every foundation model. IHC 2023
-# and IHC test with the refined labels (annotation_brown_*: the refined annotation
-# masks of run 1cae2de7, preprocessing/refined_annotation_masks.py).
-ihc_run_uri: mlflow-artifacts:/4/055b629cf35c49e6857feb0563c73a51/artifacts  # IHC 2023: fold_0..fold_4, val, test
-tma_run_uri: mlflow-artifacts:/4/cc1ccb765fa34c65a2336dc08600d162/artifacts  # TMAs: fold_0..fold_4, val
-ihc_test_run_uri: mlflow-artifacts:/4/4fe794426d7a491bac42c5e46b740b5e/artifacts  # IHC test cohort: val
+# Segmentation tiling runs (configs/experiment/tiling/*_segmentation.yaml), 16 x 16
+# grids (the 14 px patch tokens; the upsampled scenarios set grid-32 runs), coverage
+# grids, no embeddings — the same for every foundation model. The re-tiling of
+# 2026-11-04: lymph node folds at stride 224, their val and test splits at 112, refined
+# labels without margin (run 28e00226), node coverage; the TMAs by core split with the
+# corrected ground truth, every split at 112. Before: 055b629c, cc1ccb76, 4fe79442.
+ihc_run_uri: mlflow-artifacts:/4/56d3f373b4dd4424a28c46e665b3deaa/artifacts  # IHC 2023: fold_0..fold_4, val, test
+tma_run_uri: mlflow-artifacts:/4/01c46ad7e5f3446a847aefd3d3cf32d5/artifacts  # TMA cores: fold_0..fold_4, val
+ihc_test_run_uri: mlflow-artifacts:/4/2d481d2590474129a76aa9ad777dc4f4/artifacts  # IHC test cohort: val
 fnb_run_uri: mlflow-artifacts:/4/868b61c28be840b5a2fb3fb99377a5b4/artifacts  # FN Brno AE: fold_0..fold_4 (negative), val, test
 
 tiling: segmentation

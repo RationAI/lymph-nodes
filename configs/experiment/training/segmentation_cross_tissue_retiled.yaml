@@ -1,0 +1,25 @@
+# @package _global_
+
+# segmentation_cross_tissue_hard_negatives.yaml (H) on the re-tiling of 2026-11-04 (the
+# tiling runs of segmentation_cross_tissue_upsampled.yaml), without the cell pasting:
+# the control of the experiments built on it (segmentation_cross_tissue_faint*.yaml).
+# What changed against H, besides the pasting: the TMA cores' corrected ground truth
+# with its ignore label left out of the loss; the core split; the refined labels
+# without margin; the evaluation splits at stride 112, scored by the tiles' centres
+# (model.tile_region); and the brownish rule.
+#
+# brownish_threshold: brownish_coverage is now the deconvolution DAB detector's, whose
+# values run higher than the old colour rule's: at 0.002 it would file 11.6% of the
+# training folds' lymph node tiles as brownish (3.6x the old rule's 3.2%); 0.03 keeps
+# the old share, the brownest 3.2% (folds 1-4, tissue > 0.2).
+defaults:
+  - /experiment/training/segmentation_cross_tissue_hard_negatives
+  - _self_
+
+scenario: cross-tissue segmentation retiled
+
+brownish_threshold: 0.03
+
+data:
+  train:
+    cell_pasting: null

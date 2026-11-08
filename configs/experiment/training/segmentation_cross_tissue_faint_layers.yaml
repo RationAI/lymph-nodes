@@ -1,0 +1,15 @@
+# @package _global_
+
+# segmentation_cross_tissue_faint.yaml reading Virchow2's blocks 8, 16, 24 and 32
+# (0-based 7, 15, 23, 31) instead of its last four: earlier blocks keep more of the stain
+# intensity that the last ones, pretrained with colour augmentation, learn to ignore —
+# the faint-against-unstained cue. Virchow2 only (UNI2 has 24 blocks, GigaPath 40).
+defaults:
+  - /experiment/training/segmentation_cross_tissue_faint
+  - _self_
+
+scenario: cross-tissue segmentation faint layers
+
+model:
+  backbone:
+    layers: [7, 15, 23, 31]

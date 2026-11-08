@@ -9,6 +9,7 @@ from lightning import Callback
 from lightning.pytorch.trainer.states import TrainerFn
 
 from lymph_nodes.data.datasets.meta_dataset import column_values
+from lymph_nodes.segmentation_meta_arch import tile_scores
 
 
 if TYPE_CHECKING:
@@ -72,7 +73,9 @@ class LesionMetrics(Callback):
       and ``fp_small_regions_per_negative_slide``.
 
     A tile's score is its probability; for per-patch outputs (SegmentationMetaArch) its
-    patches' maximum, or mean with ``tile_score="mean"``, as in the tile metrics. Tile
+    patches' maximum, or mean with ``tile_score="mean"``, over the tile's centre where
+    tiles overlap (``tile_region``; segmentation_meta_arch.tile_scores), as in the tile
+    metrics. Tile
     labels come from the samples' meta ``label`` (TileSegmentationDataset) or else the
     batch targets (EmbeddingClassificationDataset). Positive tiles on positive slides
     outside lesions don't occur; other tiles of positive slides are not counted as
@@ -138,10 +141,13 @@ class LesionMetrics(Callback):
     ) -> None:
         _, targets, meta = batch
         probabilities = torch.sigmoid(outputs.detach().float())
-        if probabilities.ndim > 1:  # per patch: (B, g, g)
-            flat = probabilities.flatten(1)
-            mean = getattr(pl_module, "tile_score", "max") == "mean"
-            probabilities = flat.mean(dim=1) if mean else flat.amax(dim=1)
+        if probabilities.ndim > 1:  # per patch: (B, g, g), as the tile metrics
+            probabilities = tile_scores(
+                probabilities,
+                batch[2],
+                getattr(pl_module, "tile_score", "max"),
+                getattr(pl_module, "tile_region", "full"),
+            )
         labels = meta.get("label", targets)
         self._tiles.append(
             (

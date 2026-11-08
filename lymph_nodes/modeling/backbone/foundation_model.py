@@ -7,6 +7,8 @@ from torch import nn
 
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from torch import Tensor
 
 
@@ -19,7 +21,10 @@ class FrozenFoundationModel(nn.Module):
     patch tokens of its last ``n_layers`` blocks concatenated along the channels:
     (B, n_layers * D, H / patch, W / patch) — 16 x 16 at 224 px for 14 px patches,
     14 x 14 for 16 px. Several blocks rather than only the last one: dense tasks gain
-    from the intermediate layers (the DINOv2 "multi-scale" probe).
+    from the intermediate layers (the DINOv2 "multi-scale" probe). ``layers``, if given,
+    names the blocks instead (0-based, e.g. [7, 15, 23, 31] for Virchow2's 32): blocks
+    spread through the network keep more of what the last ones abstract away — the
+    stain intensity, which pretraining with colour augmentation teaches them to ignore.
 
     Never trained: no gradients, always in eval mode, and left out of checkpoints
     (see SegmentationMetaArch) — the weights come from the hub every time.
@@ -28,15 +33,20 @@ class FrozenFoundationModel(nn.Module):
     mean: Tensor
     std: Tensor
 
-    def __init__(self, name: str, n_layers: int = 4) -> None:
+    def __init__(
+        self, name: str, n_layers: int = 4, layers: Sequence[int] | None = None
+    ) -> None:
         super().__init__()
         from timm.data import resolve_model_data_config  # type: ignore[attr-defined]
 
         from preprocessing.models import FOUNDATION_MODELS
 
         self.model = FOUNDATION_MODELS[name]().eval().requires_grad_(False)
-        self.n_layers = n_layers
-        self.out_channels = n_layers * cast("int", self.model.embed_dim)
+        self.layers: int | list[int] = (
+            n_layers if layers is None else [int(i) for i in layers]
+        )
+        count = n_layers if layers is None else len(self.layers)  # type: ignore[arg-type]
+        self.out_channels = count * cast("int", self.model.embed_dim)
 
         config = resolve_model_data_config(self.model)
         self.register_buffer(
@@ -61,7 +71,7 @@ class FrozenFoundationModel(nn.Module):
         # forward_intermediates is timm ViT API, not declared on nn.Module.
         layers = self.model.forward_intermediates(  # type: ignore[operator]
             images,
-            indices=self.n_layers,
+            indices=self.layers,
             norm=True,
             output_fmt="NCHW",
             intermediates_only=True,

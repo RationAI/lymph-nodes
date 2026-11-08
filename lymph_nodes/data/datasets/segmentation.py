@@ -50,7 +50,11 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
       ``ignore_grids`` also ``ignore_grid``, float32 (grid, grid), the share of each
       patch whose label is unknown (e.g. ``label_ignore_grid``: the ignore label of the
       TMA ground truth, preprocessing/tma_masks.py), which SegmentationMetaArch leaves
-      out of the loss and the patch metrics; 0 for tiles without one.
+      out of the loss and the patch metrics; 0 for tiles without one;
+    - and ``centre_clip``: the grid cells to cut off each side of the tile to keep its
+      centre, where the slide's tiles overlap by a whole number of cells on each side
+      (stride 112 of 224 px: 8 of 32), else 0 — for the tile scores
+      (segmentation_meta_arch.tile_scores).
 
     ``grid`` is the side of the target grids (OverlayGrid's ``grid`` in the tiling),
     so that a batch none of whose tiles has a grid still gets targets of that shape.
@@ -126,6 +130,15 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             ],
             axis=1,
         ).astype(int)
+        # Grid cells to cut off each side of a tile for its centre (meta centre_clip).
+        overlap = (
+            self._tile_extents[:, 0]
+            - column_values(self.slides, "stride_x").astype(int)
+        ) * self.grid
+        whole = (overlap > 0) & (overlap % (2 * self._tile_extents[:, 0]) == 0)
+        self._centre_clip = np.where(
+            whole, overlap // (2 * self._tile_extents[:, 0]), 0
+        ).astype(int)
         # The slides' white points, if the slides table has them: tiles of underexposed
         # scans are corrected as in the tiling (preprocessing.white_balance).
         self._white_points = (
@@ -163,6 +176,16 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         self._brown_donors = np.flatnonzero(
             ~donor_cohort & (partitions == HEALTHY_BROWNISH)
         )
+        # Within the lymph node: recipients with node coverage, placement on node_grid.
+        columns = self.tiles.column_names
+        self._paste_in_node = cell_pasting.within_node and "node_grid" in columns
+        if cell_pasting.within_node and "node_coverage" in columns:
+            node = self.tiles.data.column("node_coverage").to_numpy(
+                zero_copy_only=False
+            )
+            self._recipients &= np.nan_to_num(node[index.rows].astype(float)) > 0
+        elif cell_pasting.within_node:
+            print("cell pasting on all tissue: the tiles have no node_coverage")
         print(
             f"cell pasting: {len(self._donors)} donor tiles, "
             f"{int(self._recipients.sum())} recipients, "
@@ -206,6 +229,12 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             if self.ignore_grids
             else None
         )
+        # The tiling's lymph node (per patch), where cells are pasted within it.
+        node = (
+            self._take_grid("node_grid", index.rows[batch])
+            if self.cell_pasting is not None and self._paste_in_node
+            else None
+        )
         # The tiling's tissue (per patch), where the augmentations need it.
         tissue = (
             self._take_grid("tissue_grid", index.rows[batch])
@@ -226,6 +255,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
                 "ambiguous": bool(index.ambiguous[position]),
                 "ignore": index.ignores[slide],
                 "label": float(index.target[position]),
+                "centre_clip": int(self._centre_clip[slide]),
             }
             if outline is not None:
                 meta["outline_grid"] = outline[i]
@@ -235,11 +265,17 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             ignore = None if ignores is None else ignores[i]
             pixels = None
             if tissue is not None and tissue[1][i]:
-                cells = tissue[0][i].reshape(self.grid, self.grid) >= 128
-                scale = tile.shape[0] // self.grid
-                pixels = np.repeat(np.repeat(cells, scale, axis=0), scale, axis=1)
+                pixels = self._cell_pixels(tissue[0][i], tile.shape[0])
             if self.cell_pasting is not None and self._recipients[position]:
-                tile, grid = self._paste(tile, grid, slide, pixels)
+                where = pixels
+                if node is not None:  # within the node only (none if no node grid)
+                    inside = (
+                        self._cell_pixels(node[0][i], tile.shape[0])
+                        if node[1][i]
+                        else np.zeros(tile.shape[:2], dtype=bool)
+                    )
+                    where = inside if where is None else where & inside
+                tile, grid = self._paste(tile, grid, slide, where)
                 if grid.max() > 0:  # cells pasted
                     meta["label"] = 1.0
             if self.augmentation is not None:
@@ -250,6 +286,12 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
                 meta["ignore_grid"] = ignore
             samples.append((tile, grid, meta))
         return samples
+
+    def _cell_pixels(self, cells: np.ndarray, size: int) -> np.ndarray:
+        """A grid column's cells (>= half covered) as a (size, size) pixel mask."""
+        covered = cells.reshape(self.grid, self.grid) >= 128
+        scale = size // self.grid
+        return np.repeat(np.repeat(covered, scale, axis=0), scale, axis=1)
 
     def _paste(
         self,

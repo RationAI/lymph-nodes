@@ -252,6 +252,10 @@ class CellPasting:
     tile (``brown``: benign brown — pigment, background stain, dendritic cells) is
     pasted the same way and stays negative, so that the pasting itself tells nothing.
 
+    ``within_node``: both are pasted only within the lymph node (TileSegmentationDataset:
+    the tiling's node_grid narrows the placement, and tiles without node coverage get
+    none) — isolated tumour cells sit in the node, not in the fat or capsule around it.
+
     Called (after a donor tile is read) with the tile (H, W, 3) uint8, its target grid
     (g, g), the slide's resolution, a numpy Generator and, optionally, the tiling's
     tissue (H, W) bool, narrowed to tissue_mask's as in TileAugmentation; returns the
@@ -269,6 +273,7 @@ class CellPasting:
         donor_dab: float = 0.05,
         donor_cohorts: Sequence[str] = ("mmci_tmas",),
         placement_density: float = 0.01,
+        within_node: bool = True,
     ) -> None:
         self.p = p
         self.negative_p = negative_p
@@ -282,6 +287,7 @@ class CellPasting:
         self.donor_dab = donor_dab
         self.donor_cohorts = [str(cohort) for cohort in donor_cohorts]
         self.placement_density = placement_density
+        self.within_node = within_node
 
     def __call__(
         self,

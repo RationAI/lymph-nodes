@@ -12,11 +12,16 @@ defaults:
 
 scenario: cross-tissue segmentation upsampled
 
-# The tilings with 32 x 32 grids (configs/experiment/tiling/*_segmentation.yaml with
-# grid=32); FN Brno has no grids (all-zero targets), so its tiling serves as is.
-ihc_run_uri: mlflow-artifacts:/4/bdb7965d3f8f4ac5a2d5ebb3b8c09ff7/artifacts
-ihc_test_run_uri: mlflow-artifacts:/4/f7afe860e4df449aae6a2b3c098ab3a7/artifacts
-tma_run_uri: mlflow-artifacts:/4/59782132723741988817902d3f3863cc/artifacts
+# The tilings with 32 x 32 grids (scripts/preprocessing/segmentation_tiling.py): the
+# re-tiling of 2026-11-04 — refined labels without margin, node coverage, the
+# deconvolution DAB coverage; lymph node folds at stride 224, their val and test splits
+# at 112; the TMAs by core split with the corrected ground truth, every split at 112.
+# FN Brno has no grids (all-zero targets), so its tiling serves as is. U, U+B and H
+# were fitted on the earlier tilings (bdb7965d, f7afe860, 59782132; their MLflow
+# configs), so evaluations on these are not comparable with theirs.
+ihc_run_uri: mlflow-artifacts:/4/6e5cfb22dc81414a9c8042ff9f494f00/artifacts
+ihc_test_run_uri: mlflow-artifacts:/4/c57beae2f0ba4b34ae676734756f3634/artifacts
+tma_run_uri: mlflow-artifacts:/4/552e866b7e9d4b65b3b42b1d65a3a4f4/artifacts
 
 model:
   decode_head:

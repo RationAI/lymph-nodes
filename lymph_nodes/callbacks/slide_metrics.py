@@ -9,6 +9,7 @@ from lightning.pytorch.trainer.states import TrainerFn
 from torchmetrics.functional.classification import binary_auroc
 
 from lymph_nodes.data.datasets.meta_dataset import column_values
+from lymph_nodes.segmentation_meta_arch import tile_scores
 
 
 if TYPE_CHECKING:
@@ -31,7 +32,8 @@ class SlideMetrics(Callback):
     - a slide's score is its highest tile probability (``max``), and the mean of its
       ``top_k`` highest (``top<k>``), less sensitive to a single artefact tile; a tile's
       probability is, for per-patch outputs (SegmentationMetaArch), its patches'
-      maximum, or mean with ``tile_score="mean"``, as in the tile metrics,
+      maximum, or mean with ``tile_score="mean"``, over the tile's centre where tiles
+      overlap (``tile_region``; segmentation_meta_arch.tile_scores), as in the tile metrics,
     - every evaluated slide counts, the ``ignore``-flagged ones included (unannotated
       positive slides, EmbeddingClassificationDataset's
       ``ignore_unannotated_positive_slides``); a slide without evaluated tiles doesn't.
@@ -93,10 +95,13 @@ class SlideMetrics(Callback):
         self, pl_module: LightningModule, outputs: Outputs, batch: Batch
     ) -> None:
         probabilities = torch.sigmoid(outputs.detach().float())
-        if probabilities.ndim > 1:  # per patch: (B, g, g)
-            flat = probabilities.flatten(1)
-            mean = getattr(pl_module, "tile_score", "max") == "mean"
-            probabilities = flat.mean(dim=1) if mean else flat.amax(dim=1)
+        if probabilities.ndim > 1:  # per patch: (B, g, g), as the tile metrics
+            probabilities = tile_scores(
+                probabilities,
+                batch[2],
+                getattr(pl_module, "tile_score", "max"),
+                getattr(pl_module, "tile_region", "full"),
+            )
         self._tiles.append(
             (batch[2]["slide"].cpu().numpy(), probabilities.cpu().numpy())
         )

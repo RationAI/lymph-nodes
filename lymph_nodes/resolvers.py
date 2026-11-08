@@ -4,7 +4,7 @@
 entrypoint calls it at module import time, not inside ``main()``.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from random import randint
 
 from omegaconf import OmegaConf
@@ -35,7 +35,13 @@ def multiply(a: float, b: float) -> float:
     return a * b
 
 
+def token_channels(n_layers: int, layers: Sequence[int] | None, dim: int) -> int:
+    """Channels of FrozenFoundationModel's output: its blocks (``layers`` if given) x ``dim``."""
+    return (len(layers) if layers else int(n_layers)) * int(dim)
+
+
 def register_resolvers() -> None:
     OmegaConf.register_new_resolver("random_seed", lambda: randint(0, 2**31), use_cache=True)
     OmegaConf.register_new_resolver("other_fold_uris", other_fold_uris)
     OmegaConf.register_new_resolver("multiply", multiply)
+    OmegaConf.register_new_resolver("token_channels", token_channels)

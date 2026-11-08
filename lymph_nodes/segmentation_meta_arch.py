@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import torch
 import torch.nn.functional as F
 from lightning.pytorch.trainer.states import TrainerFn
 from torch import nn
+from torch.optim.lr_scheduler import LambdaLR
+from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 from torchmetrics import MetricCollection
 from torchmetrics.classification import BinaryAUROC, BinaryF1Score
 
@@ -13,9 +16,39 @@ from lymph_nodes.meta_arch import MetaArch, _kept, _select
 
 
 if TYPE_CHECKING:
+    from lightning.pytorch.utilities.types import OptimizerLRScheduler
     from torch import Tensor
 
     from lymph_nodes.typedefs import Batch, Input, Outputs
+
+
+def tile_scores(
+    probabilities: Tensor,
+    meta: dict[str, Any] | None = None,
+    mode: Literal["max", "mean"] = "max",
+    region: Literal["full", "centre"] = "centre",
+) -> Tensor:
+    """Tile scores (B,) from per-patch probabilities (B, g, g).
+
+    ``mode``: the most confident patch (``max``) or the predicted coverage (``mean``).
+    ``region``: all patches (``full``), or, where tiles overlap, each tile's centre
+    (``centre``): meta ``centre_clip`` (TileSegmentationDataset), the patches cut off
+    each side — then every point of the slide is scored by the one tile in which it
+    has the most context, not by up to four, from their edges too. The same for the
+    tile, slide and lesion metrics (SegmentationMetaArch, SlideMetrics, LesionMetrics).
+    """
+    flat = probabilities.flatten(1)
+    clip = meta.get("centre_clip") if meta is not None and region == "centre" else None
+    if clip is None or not bool(torch.as_tensor(clip).any()):
+        return flat.amax(dim=1) if mode == "max" else flat.mean(dim=1)
+    g = probabilities.shape[-1]
+    cut = torch.as_tensor(clip, device=flat.device).view(-1, 1)
+    index = torch.arange(g, device=flat.device)
+    inside = (index >= cut) & (index < g - cut)  # (B, g)
+    centre = (inside[:, :, None] & inside[:, None, :]).flatten(1)
+    if mode == "max":
+        return torch.where(centre, flat, -torch.inf).amax(dim=1)
+    return (flat * centre).sum(dim=1) / centre.sum(dim=1)
 
 
 class SegmentationMetaArch(MetaArch):
@@ -46,7 +79,14 @@ class SegmentationMetaArch(MetaArch):
     the refined labels (meta ``outline_grid``, TileSegmentationDataset's
     ``outline_grids``) get the patch metrics against it too, ``<phase>/patch/outline/``;
     and the patches of tiles not flagged ambiguous (meta ``ambiguous``, TileLabels) get
-    them again as ``<phase>/patch/unambiguous/``.
+    them again as ``<phase>/patch/unambiguous/``. ``tile_region``: whether overlapping
+    tiles are scored by their centre (see tile_scores).
+
+    Training: AdamW at ``lr``, constant or (``lr_schedule="cosine"``) after
+    ``warmup_steps`` of linear warm-up down a cosine to ``min_lr_ratio`` x ``lr`` at the
+    last step (max_epochs). With ``ema_decay``, an exponential moving average of the
+    head's weights (``ema_head``) is kept after every step and evaluates (validation,
+    test, checkpoints' use): it smooths the epoch-to-epoch swings of the head itself.
 
     The frozen backbone is left out of checkpoints (it is reloaded from the hub).
     """
@@ -59,6 +99,11 @@ class SegmentationMetaArch(MetaArch):
         weight_decay: float = 0.05,
         tile_score: Literal["max", "mean"] = "max",
         criterion: nn.Module | None = None,
+        tile_region: Literal["full", "centre"] = "centre",
+        lr_schedule: Literal["constant", "cosine"] = "constant",
+        warmup_steps: int = 0,
+        min_lr_ratio: float = 0.0,
+        ema_decay: float | None = None,
     ) -> None:
         super().__init__(
             backbone,
@@ -68,6 +113,15 @@ class SegmentationMetaArch(MetaArch):
             criterion=criterion,
         )
         self.tile_score = tile_score
+        self.tile_region = tile_region
+        self.lr_schedule = lr_schedule
+        self.warmup_steps = warmup_steps
+        self.min_lr_ratio = min_lr_ratio
+        self.ema_head = (
+            AveragedModel(decode_head, multi_avg_fn=get_ema_multi_avg_fn(ema_decay))
+            if ema_decay
+            else None
+        )
         # Checkpoints hold the head only (on_save_checkpoint).
         self.strict_loading = False
 
@@ -80,19 +134,55 @@ class SegmentationMetaArch(MetaArch):
 
     def forward(self, x: Input) -> Outputs:
         features = self.backbone(x)
-        if getattr(self.decode_head, "uses_image", False):  # e.g. UpsamplingHead
-            return self.decode_head(features, x).squeeze(1)
-        return self.decode_head(features).squeeze(1)
+        # Training steps the head; its weight average, if kept, evaluates.
+        head = (
+            self.ema_head.module
+            if self.ema_head is not None and not self.training
+            else self.decode_head
+        )
+        if getattr(head, "uses_image", False):  # e.g. UpsamplingHead
+            return head(features, x).squeeze(1)
+        return head(features).squeeze(1)
 
-    def configure_optimizers(self) -> torch.optim.Optimizer:
-        return torch.optim.AdamW(
+    def configure_optimizers(self) -> OptimizerLRScheduler:  # type: ignore[override]
+        optimizer = torch.optim.AdamW(
             self.decode_head.parameters(), lr=self.lr, weight_decay=self.weight_decay
         )
+        if self.lr_schedule == "constant":
+            return optimizer
+        total = max(int(self.trainer.estimated_stepping_batches), 1)
+        warmup, floor = self.warmup_steps, self.min_lr_ratio
+
+        def factor(step: int) -> float:
+            if step < warmup:
+                return (step + 1) / warmup
+            progress = min((step - warmup) / max(total - warmup, 1), 1.0)
+            return floor + (1 - floor) * 0.5 * (1 + math.cos(math.pi * progress))
+
+        scheduler = LambdaLR(optimizer, factor)
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {"scheduler": scheduler, "interval": "step"},
+        }
+
+    def on_train_batch_end(self, outputs: Any, batch: Any, batch_idx: int) -> None:
+        if self.ema_head is not None:
+            self.ema_head.update_parameters(self.decode_head)
 
     def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
         state = checkpoint["state_dict"]
         for key in [key for key in state if key.startswith("backbone.")]:
             del state[key]
+
+    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        # A checkpoint without a weight average (trained without one) evaluates with
+        # its head's own weights.
+        state = checkpoint["state_dict"]
+        if self.ema_head is None or any(k.startswith("ema_head.") for k in state):
+            return
+        for key in [k for k in state if k.startswith("decode_head.")]:
+            state["ema_head.module." + key.removeprefix("decode_head.")] = state[key]
+        state["ema_head.n_averaged"] = torch.tensor(1, dtype=torch.long)
 
     def training_step(self, batch: Batch, batch_idx: int) -> Tensor:
         tiles, grids, meta = batch
@@ -110,7 +200,7 @@ class SegmentationMetaArch(MetaArch):
     def validation_step(self, batch: Batch, batch_idx: int) -> Outputs:
         logits, keep = self._evaluate(batch, "validation", self.val_patch_metrics)
         if keep is not None:
-            scores = self._tile_scores(logits[keep])
+            scores = self._tile_scores(logits[keep], _select(batch[2], keep))
             labels = batch[2]["label"][keep] > 0.5
             self.val_metrics.update(scores, labels)
             self.log_dict(self.val_metrics, on_epoch=True)
@@ -121,7 +211,7 @@ class SegmentationMetaArch(MetaArch):
     def test_step(self, batch: Batch, batch_idx: int) -> Outputs:
         logits, keep = self._evaluate(batch, "test", self.test_patch_metrics)
         if keep is not None:
-            scores = self._tile_scores(logits[keep])
+            scores = self._tile_scores(logits[keep], _select(batch[2], keep))
             labels = batch[2]["label"][keep] > 0.5
             self.test_metrics.update(scores, labels)
             self.log_dict(self.test_metrics, on_epoch=True)
@@ -183,10 +273,11 @@ class SegmentationMetaArch(MetaArch):
             self.log_dict(metrics, on_epoch=True)
         return logits, keep
 
-    def _tile_scores(self, logits: Tensor) -> Tensor:
-        """Tile probabilities from per-patch logits (B, g, g), by ``tile_score``."""
-        flat = torch.sigmoid(logits.float()).flatten(1)
-        return flat.amax(dim=1) if self.tile_score == "max" else flat.mean(dim=1)
+    def _tile_scores(self, logits: Tensor, meta: dict[str, Any]) -> Tensor:
+        """Tile probabilities from per-patch logits (B, g, g) (see tile_scores)."""
+        return tile_scores(
+            torch.sigmoid(logits.float()), meta, self.tile_score, self.tile_region
+        )
 
 
 def _patch_metric_sets(metrics: MetricCollection, phase: str) -> nn.ModuleDict:
