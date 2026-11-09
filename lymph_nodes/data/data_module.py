@@ -58,11 +58,12 @@ class DataModule(LightningDataModule):
         )
 
     def val_dataloader(self) -> Iterable[Batch]:
+        # Not persistent: during fit the validation runs once an epoch, and workers kept
+        # alive beside the training's hold their memory (~0.6 GiB each) all along.
         return DataLoader(
             self.val,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            persistent_workers=self.num_workers > 0,
         )
 
     def test_dataloader(self) -> Iterable[Batch]:
