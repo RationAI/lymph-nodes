@@ -186,14 +186,15 @@ class SegmentationMetaArch(MetaArch):
             state["ema_head.module." + key.removeprefix("decode_head.")] = state[key]
         state["ema_head.n_averaged"] = torch.tensor(1, dtype=torch.long)
 
-    def training_step(self, batch: Batch, batch_idx: int) -> Tensor:
+    def training_step(self, batch: Batch, batch_idx: int) -> dict[str, Tensor]:  # type: ignore[override]
         tiles, grids, meta = batch
         logits = self._logits(tiles, grids)
         ignore = meta.get("ignore_grid")
         loss = self._loss(logits, grids, ignore)
         self.log("train/loss", loss, on_step=True, prog_bar=True)
         self._log_terms("train", logits.detach(), grids, ignore, on_step=True)
-        return loss
+        # The logits too, for callbacks on the step's predictions (HardNegativeMining).
+        return {"loss": loss, "logits": logits.detach()}
 
     def _log_terms(
         self,

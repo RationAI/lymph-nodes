@@ -7,6 +7,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
 
+from lymph_nodes.data.augmentations import DAB, rgb_to_hed
 from lymph_nodes.data.datasets.embedding import (
     CANCER,
     HEALTHY,
@@ -54,7 +55,12 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
     - and ``centre_clip``: the grid cells to cut off each side of the tile to keep its
       centre, where the slide's tiles overlap by a whole number of cells on each side
       (stride 112 of 224 px: 8 of 32), else 0 — for the tile scores
-      (segmentation_meta_arch.tile_scores).
+      (segmentation_meta_arch.tile_scores);
+    - ``index``: the sample's position in the dataset, and with ``vivid_dab`` ``vivid``:
+      whether the tile, as read (before pasting and augmentation), holds a vivid
+      DAB-stained spot — at least ``vivid_pixels`` pixels of DAB density above
+      ``vivid_dab`` — for HardNegativeBank, which never banks such a tile (a negative
+      slide's missed isolated tumour cell).
 
     ``grid`` is the side of the target grids (OverlayGrid's ``grid`` in the tiling),
     so that a batch none of whose tiles has a grid still gets targets of that shape.
@@ -87,6 +93,8 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         outline_labels: TileLabels | None = None,
         outline_grids: Sequence[str] = (),
         ignore_grids: Sequence[str] = (),
+        vivid_dab: float | None = None,
+        vivid_pixels: int = 100,
         augmentation: TileAugmentation | None = None,
         cell_pasting: CellPasting | None = None,
     ) -> None:
@@ -96,6 +104,8 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         self.target_grids = list(target_grids)
         self.outline_grids = list(outline_grids)
         self.ignore_grids = list(ignore_grids)
+        self.vivid_dab = vivid_dab
+        self.vivid_pixels = vivid_pixels
         self.grid = grid
         self.max_open_slides = max_open_slides
         self.cache_mib = cache_mib
@@ -256,6 +266,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
                 "ignore": index.ignores[slide],
                 "label": float(index.target[position]),
                 "centre_clip": int(self._centre_clip[slide]),
+                "index": int(position),
             }
             if outline is not None:
                 meta["outline_grid"] = outline[i]
@@ -263,6 +274,9 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
                 meta["outline_label"] = float(index.outline[position])
             tile, grid = self._read_tile(slide, tile_x, tile_y), grids[i]
             ignore = None if ignores is None else ignores[i]
+            if self.vivid_dab is not None:
+                dab = rgb_to_hed(tile)[..., DAB]
+                meta["vivid"] = bool((dab > self.vivid_dab).sum() >= self.vivid_pixels)
             pixels = None
             if tissue is not None and tissue[1][i]:
                 pixels = self._cell_pixels(tissue[0][i], tile.shape[0])

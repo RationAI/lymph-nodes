@@ -1,0 +1,20 @@
+# @package _global_
+
+# segmentation_cross_tissue_combined_focal.yaml with the asymmetric loss in place of
+# the focal term (DiceFocalLoss's asl_weight; Ridnik et al., 2021, their defaults):
+# negatives below 0.05 cost nothing, the negative part focused harder (gamma 4) than
+# the positive (0), and a negative scored very high — perhaps an isolated tumour cell
+# missed on a "negative" slide — pulled down less, not more.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_combined_focal
+  - _self_
+
+scenario: cross-tissue segmentation combined asl
+
+model:
+  criterion:
+    focal_weight: 0.0
+    asl_weight: 1.0
+    asl_gamma_pos: 0.0
+    asl_gamma_neg: 4.0
+    asl_clip: 0.05

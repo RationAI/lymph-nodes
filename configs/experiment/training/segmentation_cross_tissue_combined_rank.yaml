@@ -1,0 +1,17 @@
+# @package _global_
+
+# segmentation_cross_tissue_combined_focal.yaml with the ranking term (DiceFocalLoss's
+# rank_weight): every positive tile of the batch above its 32 highest-scoring negative
+# tiles by a margin of 1 logit — sensitivity at a few false positives, what the
+# evaluation reads, trained directly (a partial AUC).
+defaults:
+  - /experiment/training/segmentation_cross_tissue_combined_focal
+  - _self_
+
+scenario: cross-tissue segmentation combined rank
+
+model:
+  criterion:
+    rank_weight: 1.0
+    rank_margin: 1.0
+    rank_negatives: 32

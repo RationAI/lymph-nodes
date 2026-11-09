@@ -35,3 +35,10 @@ criterion:
   gamma: 2.0
   tile_weight: 0.0  # the tile term: each tile's top-k logits against its label
   tile_topk: 8
+  asl_weight: 0.0  # the asymmetric loss, an alternative to the focal term
+  asl_gamma_pos: 0.0
+  asl_gamma_neg: 4.0
+  asl_clip: 0.05  # negatives below this probability cost nothing
+  rank_weight: 0.0  # tiles ranked: positives above the batch's hardest negatives
+  rank_margin: 1.0  # in logits
+  rank_negatives: 32

@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from torch.utils.data import ConcatDataset
 
     from lymph_nodes.data.datasets.embedding import TileEmbeddingClassificationDataset
+    from lymph_nodes.data.samplers.hard_negative_bank import HardNegativeBank
 
 
 PARTITION_NAMES: dict[str, int] = {
@@ -82,10 +83,13 @@ class StratifiedEpochSampler(Sampler[int]):
         dataset: ConcatDataset[TileEmbeddingClassificationDataset],
         ratio: Mapping[str, float],
         epoch_length: int | None = None,
+        hard_negative_bank: HardNegativeBank | None = None,
     ) -> None:
         unknown = ratio.keys() - PARTITION_NAMES.keys()
         if unknown:
-            msg = f"Unknown partition name(s) {unknown}; expected {set(PARTITION_NAMES)}"
+            msg = (
+                f"Unknown partition name(s) {unknown}; expected {set(PARTITION_NAMES)}"
+            )
             raise ValueError(msg)
 
         # ConcatDataset.datasets is typed as list[Dataset[T]] (the generic base, not T
@@ -99,6 +103,19 @@ class StratifiedEpochSampler(Sampler[int]):
             msg = "partition_labels() length mismatch with the dataset it was computed from"
             raise ValueError(msg)
 
+        # With a bank, "healthy_hard" is drawn from the tiles this model scores highest
+        # among the negative lymph node tiles (HardNegativeBank), not a fixed table.
+        self.hard_negative_bank = hard_negative_bank
+        self._epoch = 0
+        if hard_negative_bank is not None:
+            slide_of = np.repeat(
+                np.arange(len(sub_datasets)), [len(sub) for sub in sub_datasets]
+            )
+            hard_negative_bank.setup(
+                eligible=np.isin(labels, [HEALTHY, HEALTHY_BROWNISH, HEALTHY_HARD]),
+                slide_of=slide_of,
+            )
+
         self._indices_by_code = {
             PARTITION_NAMES[name]: np.flatnonzero(labels == PARTITION_NAMES[name])
             for name in ratio
@@ -111,7 +128,9 @@ class StratifiedEpochSampler(Sampler[int]):
             # drawing nothing from it — one accidentally-empty partition shouldn't
             # collapse the epoch length for every other partition too.
             supportable = [
-                len(self._indices_by_code[PARTITION_NAMES[name]]) * total_weight / weight
+                len(self._indices_by_code[PARTITION_NAMES[name]])
+                * total_weight
+                / weight
                 for name, weight in ratio.items()
                 if len(self._indices_by_code[PARTITION_NAMES[name]]) > 0
             ]
@@ -126,13 +145,17 @@ class StratifiedEpochSampler(Sampler[int]):
         # per epoch) — params, not metrics. Safe to call repeatedly: mlflow only
         # errors on logging a *different* value for an existing key, and these are
         # deterministic given the same ratio/pool sizes.
-        mlflow.log_params({
-            "train_sampler/epoch_length": epoch_length,
-            **{
-                f"train_sampler/pool_size_{name}": len(self._indices_by_code[PARTITION_NAMES[name]])
-                for name in ratio
-            },
-        })
+        mlflow.log_params(
+            {
+                "train_sampler/epoch_length": epoch_length,
+                **{
+                    f"train_sampler/pool_size_{name}": len(
+                        self._indices_by_code[PARTITION_NAMES[name]]
+                    )
+                    for name in ratio
+                },
+            }
+        )
 
     def __len__(self) -> int:
         return sum(self._counts.values())
@@ -143,7 +166,14 @@ class StratifiedEpochSampler(Sampler[int]):
         # already seeded reproducibly by lightning.seed_everything.
         drawn = []
         for code, count in self._counts.items():
-            pool = self._indices_by_code[code]
+            pool = self._indices_by_code.get(code, np.empty(0, dtype=np.int64))
+            if code == HEALTHY_HARD and self.hard_negative_bank is not None:
+                bank = self.hard_negative_bank
+                pool = bank.pool() if self._epoch >= bank.start_epoch else pool[:0]
+                if (
+                    len(pool) == 0
+                ):  # nothing mined yet (the first epoch): plain negatives
+                    pool = self._indices_by_code.get(HEALTHY, pool)
             if len(pool) == 0:
                 continue
             # Without replacement when the partition covers this epoch's quota (the
@@ -152,6 +182,7 @@ class StratifiedEpochSampler(Sampler[int]):
             replace = count > len(pool)
             drawn.append(np.random.choice(pool, size=count, replace=replace))
 
+        self._epoch += 1
         combined = np.concatenate(drawn)
         np.random.shuffle(combined)
         yield from combined.tolist()

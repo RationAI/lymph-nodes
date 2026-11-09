@@ -20,6 +20,17 @@ scenario: cross-tissue segmentation retiled
 
 brownish_threshold: 0.03
 
+# Hard negatives mined during training, by this model (HardNegativeBank, fed by the
+# HardNegativeMining callback from each step's own scores), instead of H's fixed table
+# (b0281b49: mined once by U+B, an older model on the earlier tilings). From epoch 1,
+# the healthy_hard share of each epoch (ratio 0.15, ~4,900 draws) comes from the 10,000
+# negative lymph node tiles scored highest (at least 0.1, at most 5% of them from one
+# slide); epoch 0 draws plain negatives. Tiles with a vivid DAB-stained spot (DAB
+# density above 0.1 over at least 100 pixels, ~25 um2, as read) are never banked: a
+# negative slide's missed isolated tumour cell must not be taught as benign.
+train_labels:
+  hard_negatives: null
+
 # No positive lymph node slide anywhere in the training job — neither its training nor
 # its validation during fit: lymph node annotations are for the evaluations only
 # (data.eval, data.test). The validation during fit is fold k's negative lymph node
@@ -42,6 +53,16 @@ ln_validation_subset:
 data:
   train:
     cell_pasting: null
+    vivid_dab: 0.1
+    vivid_pixels: 100
+  train_sampler:
+    hard_negative_bank:
+      _target_: lymph_nodes.data.samplers.HardNegativeBank
+      pool_size: 10000
+      min_score: 0.1
+      decay: 0.5
+      slide_cap: 0.05
+      start_epoch: 1
   val:
     tile_filters:
       - ${filters.tissue}
@@ -54,3 +75,5 @@ trainer:
   callbacks:
     lesion_metrics:
       during_fit: true
+    hard_negative_mining:
+      _target_: lymph_nodes.callbacks.HardNegativeMining
