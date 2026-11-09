@@ -30,8 +30,10 @@ class LesionMetrics(Callback):
 
     Tile metrics count tiles, but a pathologist reads lesions: an ITC is one to a few
     tiles, a macrometastasis hundreds, and finding one tile of each is what matters.
-    During ``validate`` and ``test`` (not the validation inside ``fit``), for the
-    lymph node ``cohorts``:
+    During ``validate`` and ``test`` — and, with ``during_fit``, the validation inside
+    ``fit`` too, every epoch (e.g. to select checkpoints by
+    ``validation/lesions/clusters/sensitivity_fpr<r>``) — for the lymph node
+    ``cohorts``:
 
     - a *lesion* is an 8-connected group of positive tiles (the tile labels: the
       refined labels, or the annotation outlines where a tiling has none) on one
@@ -92,8 +94,10 @@ class LesionMetrics(Callback):
         brown_column: str = "brownish_coverage",
         lesion_size_column: str | None = None,
         cell_area_um2: float = 150.0,
+        during_fit: bool = False,
     ) -> None:
         self.cohorts = None if cohorts is None else set(cohorts)
+        self.during_fit = during_fit
         self.budgets = list(budgets)
         self.region_budgets = list(region_budgets)
         self.min_cells = min_cells
@@ -113,14 +117,24 @@ class LesionMetrics(Callback):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        if trainer.state.fn == TrainerFn.VALIDATING:
+        if self._active(trainer):
             self._collect(pl_module, outputs, batch)
 
     def on_validation_epoch_end(
         self, trainer: Trainer, pl_module: LightningModule
     ) -> None:
-        if trainer.state.fn == TrainerFn.VALIDATING:
+        if self._active(trainer):
             self._log(pl_module, trainer.datamodule.val, "validation")  # type: ignore[attr-defined]
+
+    def _active(self, trainer: Trainer) -> bool:
+        """Whether this validation counts: ``validate``, or ``fit``'s with ``during_fit``."""
+        if trainer.state.fn == TrainerFn.VALIDATING:
+            return True
+        return (
+            self.during_fit
+            and trainer.state.fn == TrainerFn.FITTING
+            and not trainer.sanity_checking
+        )
 
     def on_test_batch_end(
         self,

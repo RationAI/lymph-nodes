@@ -1,0 +1,15 @@
+# @package _global_
+
+# segmentation_cross_tissue_combined.yaml with the focal loss alone (no Dice): Dice,
+# over the batch, weighs tumour by its area (a TMA sheet outweighs a cell or two) and
+# on tumour-free regions only rewards ever smaller probabilities — neither what
+# detecting isolated tumour cells needs.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_combined
+  - _self_
+
+scenario: cross-tissue segmentation combined focal
+
+model:
+  criterion:
+    dice_weight: 0.0

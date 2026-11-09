@@ -20,6 +20,64 @@ scenario: cross-tissue segmentation retiled
 
 brownish_threshold: 0.03
 
+# The validation during fit, with lesions (LesionMetrics during_fit), which selects the
+# checkpoint: the loss is dominated by Dice on tumour-free batches and the patch and
+# tile AUROC sit at ~0.999 on these tiles, so neither tells epochs apart.
+# - fold k's lymph node slides: 8 of them whole (ln_validation_subset), negative,
+#   instead of a tenth of all their tiles — the false positive regions per negative
+#   slide need whole slides;
+# - the IHC test cohort's annotated lesions: its tiles with refined labels
+#   (ln_validation_lesions; stride 112, scored by their centres) — the lesions found at
+#   a false positive budget. The IHC test cohort is then no longer independent of the
+#   selection; IHC 2023 val and test are.
+# Checkpoints by cluster sensitivity at 2 false positive regions per negative slide.
+ln_validation_subset:
+  _target_: lymph_nodes.data.datasets.meta_dataset.RandomSubset
+  fraction: 1.0
+  slides: 8
+  cohort: mmci_ihc_2023
+ln_validation_lesions:
+  _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+  column: annotation_brown_coverage
+  op: ">"
+  value: 0
+  cohort: mmci_ihc_test
+ln_validation_negative_slides:
+  _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+  column: tumor
+  op: "=="
+  value: false
+  cohort: mmci_ihc_2023
+
 data:
   train:
     cell_pasting: null
+  val:
+    uris:
+      - ${ihc_run_uri}/fold_${fold}
+      - ${tma_run_uri}/fold_${fold}
+      - ${ihc_test_run_uri}/val
+    labels: ${eval_labels}
+    target_grids: [cytokeratin_grid, annotation_brown_grid]
+    tile_filters:
+      - ${filters.tissue}
+      - ${filters.no_patho_ignore}
+      - ${filters.no_cytokeratin_ignore}
+      - ${tma_ambiguous_band}
+      - ${ln_validation_subset}
+      - ${ln_validation_lesions}
+    slide_filters:
+      - ${ln_validation_negative_slides}
+      - ${filters.no_unflagged_little_tissue}
+      - ${filters.no_tma_control}
+
+trainer:
+  callbacks:
+    lesion_metrics:
+      during_fit: true
+    checkpoint:
+      monitor: validation/lesions/clusters/sensitivity_fpr2
+      mode: max
+    early_stopping:
+      monitor: validation/lesions/clusters/sensitivity_fpr2
+      mode: max

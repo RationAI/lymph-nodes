@@ -33,3 +33,5 @@ criterion:
   focal_weight: 1.0
   dice_weight: 1.0
   gamma: 2.0
+  tile_weight: 0.0  # the tile term: each tile's top-k logits against its label
+  tile_topk: 8

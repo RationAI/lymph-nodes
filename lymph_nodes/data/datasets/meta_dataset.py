@@ -79,7 +79,7 @@ class FilterCondition:
         self.negate = negate
         self.cohort = cohort
 
-    def mask(self, dataset: HFDataset) -> np.ndarray:
+    def mask(self, dataset: HFDataset, slides: HFDataset | None = None) -> np.ndarray:
         column = column_values(dataset, self.column)
         if column.dtype == object and self.op not in ("in", "not in"):
             # A column that is null throughout a run comes back as Python None values
@@ -104,18 +104,41 @@ class RandomSubset:
     ``RandomSubset(0.1, cohort="mmci_ihc_2023")`` (``cohort`` scopes it like
     FilterCondition's: tiles of other cohorts are kept). The subset is drawn with
     ``seed`` over the rows in table order, so the same data gives the same subset.
+
+    ``slides`` keeps whole slides instead: that many of the cohort's slides (the
+    ``seed``'s draw from its slides in table order), all their tiles — e.g. negative
+    slides whole for the false positive regions of LesionMetrics during fit, which a
+    scattered tenth of the tiles cannot tell apart.
     """
 
-    def __init__(self, fraction: float, cohort: str | None = None, seed: int = 0) -> None:
+    def __init__(
+        self,
+        fraction: float = 1.0,
+        cohort: str | None = None,
+        seed: int = 0,
+        slides: int | None = None,
+    ) -> None:
         if not 0 < fraction <= 1:
             raise ValueError(f"fraction must be in (0, 1], got {fraction}")
         self.fraction = fraction
         self.cohort = cohort
         self.seed = seed
-        self.column = f"<random {fraction:.0%}>"  # for _select's messages
+        self.slides = slides
+        self.column = (
+            f"<random {fraction:.0%}>" if slides is None else f"<{slides} random slides>"
+        )  # for _select's messages
 
-    def mask(self, dataset: HFDataset) -> np.ndarray:
-        return np.random.default_rng(self.seed).random(len(dataset)) < self.fraction
+    def mask(self, dataset: HFDataset, slides: HFDataset | None = None) -> np.ndarray:
+        rng = np.random.default_rng(self.seed)
+        if self.slides is None:
+            return rng.random(len(dataset)) < self.fraction
+        slide_ids = column_values(dataset, "slide_id")
+        pool = np.unique(slide_ids)
+        if self.cohort is not None and slides is not None:
+            in_cohort = column_values(slides, "cohort_id") == self.cohort
+            pool = np.intersect1d(pool, column_values(slides, "id")[in_cohort])
+        chosen = rng.choice(pool, size=min(self.slides, len(pool)), replace=False)
+        return np.isin(slide_ids, chosen)
 
 
 def _normalize_lists(dataset: HFDataset) -> HFDataset:
@@ -268,13 +291,16 @@ class MetaDataset[T](MetaTiledSlides[T]):
 
         mask = np.ones(len(dataset), dtype=bool)
         for condition in filters:
-            keep = condition.mask(dataset)
+            keep = condition.mask(dataset, slides)
             if condition.cohort is not None:
-                if slides is None or "cohort_id" not in slides.column_names:
+                # Tile filters get the slides table; a slide filter is on it itself.
+                table = slides if slides is not None else dataset
+                if "cohort_id" not in table.column_names:
                     raise ValueError(f"Filter on {condition.column!r} is scoped to cohort "
                                      f"{condition.cohort!r}, which needs slides with a cohort_id column")
-                cohort_ids = column_values(slides, "id")[column_values(slides, "cohort_id") == condition.cohort]
-                keep |= ~np.isin(column_values(dataset, "slide_id"), cohort_ids)
+                cohort_ids = column_values(table, "id")[column_values(table, "cohort_id") == condition.cohort]
+                ids = "slide_id" if "slide_id" in dataset.column_names else "id"
+                keep |= ~np.isin(column_values(dataset, ids), cohort_ids)
             mask &= keep
 
         selected = dataset.select(np.flatnonzero(mask))

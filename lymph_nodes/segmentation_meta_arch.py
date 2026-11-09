@@ -74,7 +74,9 @@ class SegmentationMetaArch(MetaArch):
     Patches whose label is unknown (meta ``ignore_grid``, TileSegmentationDataset's
     ``ignore_grids``) are weighted by the share known, 1 - ignore, in the loss (which
     must take ``weights``, as DiceFocalLoss) and left out of the patch metrics when
-    mostly unknown.
+    mostly unknown. A criterion with ``components`` (DiceFocalLoss) has its terms logged
+    apart too, ``<phase>/loss/<term>``; Dice only for batches with tumour (on a
+    tumour-free one it measures the probabilities' sum, not an overlap).
     Samples with a second target grid, the pathologists' outlines when the targets are
     the refined labels (meta ``outline_grid``, TileSegmentationDataset's
     ``outline_grids``) get the patch metrics against it too, ``<phase>/patch/outline/``;
@@ -186,9 +188,33 @@ class SegmentationMetaArch(MetaArch):
 
     def training_step(self, batch: Batch, batch_idx: int) -> Tensor:
         tiles, grids, meta = batch
-        loss = self._loss(self._logits(tiles, grids), grids, meta.get("ignore_grid"))
+        logits = self._logits(tiles, grids)
+        ignore = meta.get("ignore_grid")
+        loss = self._loss(logits, grids, ignore)
         self.log("train/loss", loss, on_step=True, prog_bar=True)
+        self._log_terms("train", logits.detach(), grids, ignore, on_step=True)
         return loss
+
+    def _log_terms(
+        self,
+        phase: str,
+        logits: Tensor,
+        grids: Tensor,
+        ignore: Tensor | None,
+        **log_kwargs: Any,
+    ) -> None:
+        """The criterion's terms apart, if it has ``components`` (see the class)."""
+        components = getattr(self.criterion, "components", None)
+        if components is None:
+            return
+        weights = None if ignore is None else 1 - ignore.to(grids.device).float()
+        with torch.no_grad():
+            terms = components(logits, grids.float(), weights)
+            known = grids.float() if weights is None else grids.float() * weights
+            has_tumour = bool(known.sum() > 0)
+        for name, value in terms.items():
+            if name != "dice" or has_tumour:
+                self.log(f"{phase}/loss/{name}", value, **log_kwargs)
 
     def _loss(self, logits: Tensor, grids: Tensor, ignore: Tensor | None) -> Tensor:
         """The criterion, the patches weighted by the share of them with a known label."""
@@ -247,6 +273,14 @@ class SegmentationMetaArch(MetaArch):
             self._loss(logits[keep], grids[keep], ignore),
             on_epoch=True,
             prog_bar=True,
+            batch_size=int(keep.sum()),
+        )
+        self._log_terms(
+            phase,
+            logits[keep],
+            grids[keep],
+            ignore,
+            on_epoch=True,
             batch_size=int(keep.sum()),
         )
 

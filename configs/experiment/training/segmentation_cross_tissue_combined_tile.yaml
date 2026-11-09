@@ -1,0 +1,16 @@
+# @package _global_
+
+# segmentation_cross_tissue_combined_focal.yaml with the tile term (DiceFocalLoss's
+# tile_weight): each tile's 8 highest logits against its label, as the evaluation
+# scores a tile by its most confident cells — a negative tile's highest cells pushed
+# down (the false positive regions), a positive one's up.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_combined_focal
+  - _self_
+
+scenario: cross-tissue segmentation combined tile
+
+model:
+  criterion:
+    tile_weight: 1.0
+    tile_topk: 8
