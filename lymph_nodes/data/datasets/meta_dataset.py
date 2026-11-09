@@ -50,6 +50,9 @@ class FilterCondition:
     that cohort; tiles of other cohorts are kept regardless. E.g.
     ``FilterCondition("cytokeratin_coverage", "<=", 0.5, negate=True, cohort="mmci_tmas")``
     keeps only cytokeratin-positive TMA tiles and leaves lymph node tiles untouched.
+    ``source`` restricts it likewise to the rows of one of the dataset's runs (its
+    ``uris[source]``, the ``source`` column the loading adds) — e.g. one split of a
+    cohort another split of which the dataset holds too.
 
     Example: ``FilterCondition("tissue_coverage", ">", 0.2)``.
 
@@ -71,13 +74,20 @@ class FilterCondition:
     """
 
     def __init__(
-        self, column: str, op: str, value: Any, negate: bool = False, cohort: str | None = None
+        self,
+        column: str,
+        op: str,
+        value: Any,
+        negate: bool = False,
+        cohort: str | None = None,
+        source: int | None = None,
     ) -> None:
         self.column = column
         self.op = op
         self.value = value
         self.negate = negate
         self.cohort = cohort
+        self.source = source
 
     def mask(self, dataset: HFDataset, slides: HFDataset | None = None) -> np.ndarray:
         column = column_values(dataset, self.column)
@@ -108,7 +118,8 @@ class RandomSubset:
     ``slides`` keeps whole slides instead: that many of the cohort's slides (the
     ``seed``'s draw from its slides in table order), all their tiles — e.g. negative
     slides whole for the false positive regions of LesionMetrics during fit, which a
-    scattered tenth of the tiles cannot tell apart.
+    scattered tenth of the tiles cannot tell apart. ``source`` scopes it to one of the
+    dataset's runs, as FilterCondition's.
     """
 
     def __init__(
@@ -117,6 +128,7 @@ class RandomSubset:
         cohort: str | None = None,
         seed: int = 0,
         slides: int | None = None,
+        source: int | None = None,
     ) -> None:
         if not 0 < fraction <= 1:
             raise ValueError(f"fraction must be in (0, 1], got {fraction}")
@@ -124,6 +136,7 @@ class RandomSubset:
         self.cohort = cohort
         self.seed = seed
         self.slides = slides
+        self.source = source
         self.column = (
             f"<random {fraction:.0%}>" if slides is None else f"<{slides} random slides>"
         )  # for _select's messages
@@ -133,7 +146,12 @@ class RandomSubset:
         if self.slides is None:
             return rng.random(len(dataset)) < self.fraction
         slide_ids = column_values(dataset, "slide_id")
-        pool = np.unique(slide_ids)
+        in_source = (
+            np.ones(len(slide_ids), dtype=bool)
+            if self.source is None
+            else column_values(dataset, "source") == self.source
+        )
+        pool = np.unique(slide_ids[in_source])
         if self.cohort is not None and slides is not None:
             in_cohort = column_values(slides, "cohort_id") == self.cohort
             pool = np.intersect1d(pool, column_values(slides, "id")[in_cohort])
@@ -225,10 +243,16 @@ class MetaDataset[T](MetaTiledSlides[T]):
 
     @staticmethod
     def _load_table(uris: Sequence[str], table: str) -> HFDataset:
-        """Load one table (``slides`` or ``tiles``) from every run and concatenate them."""
-        return MetaDataset._concatenate(
-            [_normalize_lists(load_dataset(uris=[str(Path(uri) / table)])["train"]) for uri in uris]
-        )
+        """Load one table (``slides`` or ``tiles``) from every run and concatenate them.
+
+        Each row gets ``source``, the position of its run in ``uris`` (the scope of
+        FilterCondition's and RandomSubset's ``source``).
+        """
+        parts = []
+        for source, uri in enumerate(uris):
+            part = _normalize_lists(load_dataset(uris=[str(Path(uri) / table)])["train"])
+            parts.append(part.add_column("source", np.full(len(part), source, dtype=np.int32)))
+        return MetaDataset._concatenate(parts)
 
     @staticmethod
     def _concatenate(parts: Sequence[HFDataset]) -> HFDataset:
@@ -292,6 +316,8 @@ class MetaDataset[T](MetaTiledSlides[T]):
         mask = np.ones(len(dataset), dtype=bool)
         for condition in filters:
             keep = condition.mask(dataset, slides)
+            # The rows the condition applies to; the others are kept.
+            applies = np.ones(len(dataset), dtype=bool)
             if condition.cohort is not None:
                 # Tile filters get the slides table; a slide filter is on it itself.
                 table = slides if slides is not None else dataset
@@ -300,8 +326,10 @@ class MetaDataset[T](MetaTiledSlides[T]):
                                      f"{condition.cohort!r}, which needs slides with a cohort_id column")
                 cohort_ids = column_values(table, "id")[column_values(table, "cohort_id") == condition.cohort]
                 ids = "slide_id" if "slide_id" in dataset.column_names else "id"
-                keep |= ~np.isin(column_values(dataset, ids), cohort_ids)
-            mask &= keep
+                applies &= np.isin(column_values(dataset, ids), cohort_ids)
+            if getattr(condition, "source", None) is not None:
+                applies &= column_values(dataset, "source") == condition.source
+            mask &= keep | ~applies
 
         selected = dataset.select(np.flatnonzero(mask))
         # select() is normally a pure indices-overlay (no data copy) — but
