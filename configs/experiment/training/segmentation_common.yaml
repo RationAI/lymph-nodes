@@ -35,6 +35,9 @@ tma_ambiguous_band:
 
 data:
   batch_size: 256
+  # Evaluation batches twice as large: a batch of 256 used ~9 of the 2g.24gb slice's
+  # 21.6 GB in the November evaluations, the GPU busy ~65% of the time.
+  eval_batch_size: 512
   num_workers: 8
 
   # The TMA ground truth's ignore label (the core tilings, mmci_tma_cores_segmentation)
