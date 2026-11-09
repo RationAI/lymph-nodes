@@ -14,10 +14,15 @@ class DataModule(LightningDataModule):
         batch_size: int,
         num_workers: int = 0,
         train_sampler: DictConfig | None = None,
+        eval_batch_size: int | None = None,
         **datasets: DictConfig,
     ) -> None:
         super().__init__()
         self.batch_size = batch_size
+        # Validation and test batches: without gradients they take a fraction of a
+        # training batch's GPU memory, and fewer, larger batches spend less time in the
+        # per-batch work between forward passes (metrics, masks). batch_size if None.
+        self.eval_batch_size = eval_batch_size or batch_size
         self.num_workers = num_workers
         self.datasets = datasets
         self._train_sampler_cfg = train_sampler
@@ -62,11 +67,11 @@ class DataModule(LightningDataModule):
         # alive beside the training's hold their memory (~0.6 GiB each) all along.
         return DataLoader(
             self.val,
-            batch_size=self.batch_size,
+            batch_size=self.eval_batch_size,
             num_workers=self.num_workers,
         )
 
     def test_dataloader(self) -> Iterable[Batch]:
         return DataLoader(
-            self.test, batch_size=self.batch_size, num_workers=self.num_workers
+            self.test, batch_size=self.eval_batch_size, num_workers=self.num_workers
         )
