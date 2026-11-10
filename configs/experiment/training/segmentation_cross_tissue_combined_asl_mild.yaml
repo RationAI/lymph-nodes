@@ -1,0 +1,21 @@
+# @package _global_
+
+# segmentation_cross_tissue_combined_asl.yaml with a milder negative part: gamma 2 and
+# clip 0.02 instead of Ridnik's 4 and 0.05. With those, a negative scored 0.3 to 0.6
+# was barely pushed down (at 0.5 a quarter of the focal term's gradient, at 0.3 a
+# fifteenth) while every positive got the full cross-entropy, so the probabilities
+# drifted up: 31 false-positive regions per negative slide at 0.5 (IHC 2023 val), as
+# few as Dice + focal's only from ~0.9; the hard-negative bank stayed full (lowest
+# score 0.36 at epoch 7), its tiles served but hardly learnt from. At gamma 2 and clip
+# 0.02 the negatives' gradient is close to the focal term's (0.27 vs 0.30 at 0.5, 0.06
+# vs 0.07 at 0.3), the positives keep the full cross-entropy.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_combined_asl
+  - _self_
+
+scenario: cross-tissue segmentation combined asl mild
+
+model:
+  criterion:
+    asl_gamma_neg: 2.0
+    asl_clip: 0.02
