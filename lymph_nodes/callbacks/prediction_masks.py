@@ -8,13 +8,15 @@ import numpy as np
 import torch
 from lightning import Callback
 from lightning.pytorch.trainer.states import TrainerFn
-from ratiopath.masks import write_big_tiff
-from ratiopath.masks.mask_builders import MaskBuilder
+from ratiopath.masks.mask_builders import MaskBuilder, MaxAggregator, MeanAggregator
 
 from lymph_nodes.data.datasets.meta_dataset import column_values
 
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    import pyvips
     from lightning import LightningModule, Trainer
     from rationai.mlkit.lightning.loggers import MLFlowLogger
 
@@ -33,6 +35,12 @@ _GEOMETRY = (
     "mpp_x",
     "mpp_y",
 )
+# PredictionMasks' combine: the artifact directory of each kind of mask.
+_DIRECTORIES = {
+    "centre": "prediction_masks",
+    "mean": "prediction_masks_mean",
+    "max": "prediction_masks_max",
+}
 
 
 class PredictionMasks(Callback):
@@ -40,7 +48,8 @@ class PredictionMasks(Callback):
 
     During ``validate`` and ``test`` (not the validation inside ``fit``), each evaluated
     slide gets a BigTIFF of the predicted cancer probability scaled to 0-255 (0 also
-    where no tile was evaluated), logged as ``prediction_masks/<cohort>/<slide_name>.tiff``.
+    where no tile was evaluated), logged as ``prediction_masks/<cohort>/<slide_name>.tiff``
+    with a max-pooled pyramid (``_write_mask``: a flag stays visible zoomed out).
 
     The mask has one pixel per tile: the stride x stride cell at the tile's grid
     position, so its mpp is the tiling level's times the stride. It covers the slide
@@ -65,11 +74,26 @@ class PredictionMasks(Callback):
     comes from the tile in which it has the most context (eval_stride of
     configs/experiment/tiling/mmci_hdab_segmentation.yaml). Other overlaps are averaged.
 
+    ``combine``: which masks to log, by how the overlapping tiles make a pixel —
+    ``centre`` (as above, ``prediction_masks/``), and the ``mean`` or ``max`` of the
+    full outputs of every tile covering it (``prediction_masks_mean/``,
+    ``prediction_masks_max/``; up to four tiles at half a tile's stride): the centre
+    takes each point from the tile in which it has the most context, the mean smooths
+    over the tiles' disagreement, the max keeps whatever any of them flagged. Mean and
+    max for per-patch outputs only, where the overlapping tiles' patches coincide
+    (stride x g a multiple of the tile extent): all three on one pixel grid.
+
     Needs the steps to return their logits and the samples' meta to carry ``slide``
     (position in the dataset's ``slides``), ``tile_x`` and ``tile_y``.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, combine: Sequence[str] = ("centre",)) -> None:
+        unknown = set(combine) - set(_DIRECTORIES)
+        if unknown:
+            raise ValueError(
+                f"combine: unknown {sorted(unknown)}, not of {list(_DIRECTORIES)}"
+            )
+        self.combine = tuple(combine)
         # Per batch: slide positions, tile_x, tile_y, probabilities (per tile or patch).
         self._predictions: list[
             tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
@@ -149,23 +173,62 @@ class PredictionMasks(Callback):
             for position, tiles in zip(
                 positions, np.split(order, starts[1:]), strict=True
             ):
-                directory = Path(
-                    tmp, str(cohorts[position]) if cohorts is not None else "unknown"
-                )
-                directory.mkdir(exist_ok=True)
+                cohort = str(cohorts[position]) if cohorts is not None else "unknown"
                 slide_geometry = {
                     column: values[position] for column, values in geometry.items()
                 }
-                mask, (pixel_y, pixel_x) = _prediction_mask(
-                    slide_geometry, tile_x[tiles], tile_y[tiles], probability[tiles]
+                for combine in self.combine:
+                    built = _prediction_mask(
+                        slide_geometry,
+                        tile_x[tiles],
+                        tile_y[tiles],
+                        probability[tiles],
+                        combine,
+                    )
+                    if built is None:
+                        continue
+                    mask, (pixel_y, pixel_x) = built
+                    directory = Path(tmp, _DIRECTORIES[combine], cohort)
+                    directory.mkdir(parents=True, exist_ok=True)
+                    _write_mask(
+                        pyvips.Image.new_from_array(mask),
+                        path=directory / f"{names[position]}.tiff",
+                        mpp_x=float(slide_geometry["mpp_x"] * pixel_x),
+                        mpp_y=float(slide_geometry["mpp_y"] * pixel_y),
+                    )
+            for directory in sorted(Path(tmp).iterdir()):
+                cast("MLFlowLogger", trainer.logger).log_artifacts(
+                    str(directory), directory.name
                 )
-                write_big_tiff(
-                    pyvips.Image.new_from_array(mask),
-                    path=directory / f"{names[position]}.tiff",
-                    mpp_x=float(slide_geometry["mpp_x"] * pixel_x),
-                    mpp_y=float(slide_geometry["mpp_y"] * pixel_y),
-                )
-            cast("MLFlowLogger", trainer.logger).log_artifacts(tmp, "prediction_masks")
+
+
+def _write_mask(image: pyvips.Image, path: Path, mpp_x: float, mpp_y: float) -> None:
+    """Ratiopath's write_big_tiff, its pyramid max-pooled rather than averaged.
+
+    An averaged pyramid loses a flag of a cell or two (a pixel or two of the mask)
+    within a few levels: averaged with its unflagged neighbours it falls below the
+    viewer's threshold, so zoomed out xOpat drew nothing where the model flagged
+    (measured on the 3.4 um masks: a flag at 0.9 is under 0.35 from the 14 um level
+    on). Max-pooled, every level keeps each region's highest probability, so a flag
+    stays drawn at any zoom. The full-resolution level, which the metrics and the
+    reports read, is the same either way. The resolution in pixels per cm, as libvips
+    wrote it by default before 8.18 (which writes inches) and as the reports read it.
+    """
+    import pyvips
+
+    image.tiffsave(
+        path,
+        bigtiff=True,
+        compression=pyvips.enums.ForeignTiffCompression.DEFLATE,
+        tile=True,
+        tile_width=512,
+        tile_height=512,
+        xres=1000 / mpp_x,
+        yres=1000 / mpp_y,
+        resunit=pyvips.enums.ForeignTiffResunit.CM,
+        pyramid=True,
+        region_shrink=pyvips.enums.RegionShrink.MAX,
+    )
 
 
 def _prediction_mask(
@@ -173,28 +236,40 @@ def _prediction_mask(
     tile_x: np.ndarray,
     tile_y: np.ndarray,
     probability: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
-    """The uint8 probability mask of one slide (see PredictionMasks).
+    combine: str = "centre",
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """The uint8 probability mask of one slide (see PredictionMasks), or None.
 
-    Also returns the size of a mask pixel in pixels of the tiling level, (y, x).
+    Also returns the size of a mask pixel in pixels of the tiling level, (y, x). None
+    for a ``combine`` of ``mean`` or ``max`` the outputs don't allow (PredictionMasks).
     """
     stride = (int(slide["stride_y"]), int(slide["stride_x"]))
+    full = (int(slide["tile_extent_y"]), int(slide["tile_extent_x"]))
     output_extent: int | tuple[int, ...]
     clipping: tuple[int, int] = (0, 0)
     if probability.ndim == 1:
+        if combine != "centre":
+            return None  # full tiles would need a grid of gcd(tile extent, stride)
         # One mask pixel per tile: a "tile" of stride x stride source pixels.
         tile_extent, output_extent, values = stride, 1, probability[:, np.newaxis]
     else:
         # One mask pixel per patch of the full tile; of its centre if tiles overlap.
-        tile_extent = (int(slide["tile_extent_y"]), int(slide["tile_extent_x"]))
+        tile_extent = full
         output_extent, values = probability.shape[1:], probability[:, np.newaxis]
-        clipping = _centre_clipping(tile_extent, stride, probability.shape[1:])
+        if combine == "centre":
+            clipping = _centre_clipping(tile_extent, stride, probability.shape[1:])
+        elif any(
+            (step * n) % extent
+            for step, n, extent in zip(stride, probability.shape[1:], full, strict=True)
+        ):
+            return None  # the overlapping tiles' patches don't coincide
 
     builder = MaskBuilder(
         source_extents=(int(slide["extent_y"]), int(slide["extent_x"])),
         source_tile_extent=tile_extent,
         output_tile_extent=output_extent,
         stride=stride,
+        aggregation=MaxAggregator if combine == "max" else MeanAggregator,
     )
     try:
         builder.update_batch(
@@ -202,7 +277,9 @@ def _prediction_mask(
             np.stack([tile_y, tile_x], axis=1).astype(np.int64),
             edge_clipping=clipping,
         )
-        mask = np.round(builder.finalize()["mask"][0] * 255).astype(np.uint8)
+        result = builder.finalize()
+        mask = result["mask"] if isinstance(result, dict) else result
+        mask = np.round(mask[0] * 255).astype(np.uint8)
         pixel = builder.span / builder.mask_extents
         # The slide's extent in mask pixels (see PredictionMasks: no overhang).
         extent = np.array([int(slide["extent_y"]), int(slide["extent_x"])])

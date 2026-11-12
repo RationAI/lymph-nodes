@@ -95,7 +95,12 @@ class TileAugmentation:
       lymph node tissue reads ~0.03 throughout (median of its tiles), MMCI's ~0.003,
       and models trained on MMCI flag it: background staining should mean nothing;
     - with probability ``blur_p``, a Gaussian blur of ``blur_sigma`` px (a range),
-      for scans less sharp than the training ones (FN Brno's).
+      for scans less sharp than the training ones (FN Brno's) and slides partly out of
+      focus; of the blurred tiles a share ``blur_partial_p`` only on one side of a soft
+      straight edge at a random angle and place — the seam between a scanner's fields
+      focused at different depths (IHC 2023 val: the clusters the models missed lay in
+      fields ~0.4-0.6 um softer than their neighbours) — so that blur is no cue of the
+      whole tile.
 
     Called with the tile (H, W, 3) uint8, its target grid (g, g), a numpy Generator
     and, optionally, the tiling's tissue (H, W) bool, narrowed to tissue_mask's (the
@@ -113,6 +118,7 @@ class TileAugmentation:
         dab_background_p: float = 0.3,
         blur_p: float = 0.2,
         blur_sigma: Sequence[float] = (0.5, 1.5),
+        blur_partial_p: float = 0.0,
         dab_fade_p: float = 0.0,
         dab_fade_to: Sequence[float] = (0.03, 0.05),
         min_fade: float = 0.25,
@@ -124,6 +130,7 @@ class TileAugmentation:
         self.dab_background_p = dab_background_p
         self.blur_p = blur_p
         self.blur_sigma = (float(blur_sigma[0]), float(blur_sigma[1]))
+        self.blur_partial_p = blur_partial_p
         self.dab_fade_p = dab_fade_p
         self.dab_fade_to = (float(dab_fade_to[0]), float(dab_fade_to[1]))
         self.min_fade = min_fade
@@ -160,11 +167,14 @@ class TileAugmentation:
 
         if rng.random() < self.blur_p:
             sigma = rng.uniform(*self.blur_sigma)
-            tile = (
-                ndimage.gaussian_filter(tile.astype(np.float32), (sigma, sigma, 0))
-                .round()
-                .astype(np.uint8)
+            blurred = ndimage.gaussian_filter(
+                tile.astype(np.float32), (sigma, sigma, 0)
             )
+            # Drawn only when on: the random stream of the scenarios without it stays.
+            if self.blur_partial_p and rng.random() < self.blur_partial_p:
+                seam = _seam(tile.shape[:2], rng)[..., np.newaxis]
+                blurred = seam * blurred + (1 - seam) * tile
+            tile = blurred.round().astype(np.uint8)
         return (
             np.ascontiguousarray(tile),
             np.ascontiguousarray(grid),
@@ -229,6 +239,22 @@ class TileAugmentation:
         return amplitude * smooth * np.clip(1 + 0.15 * grain, 0, None)
 
 
+def _seam(shape: tuple[int, ...], rng: np.random.Generator) -> np.ndarray:
+    """Weights (H, W) in [0, 1]: 1 on one side of a straight edge, 0 on the other.
+
+    The edge at a random angle through a random point of the middle half of the tile,
+    soft over a random 2 to 15 px (scanner fields meet along straight lines; the
+    focus changes over a few um).
+    """
+    h, w = shape[:2]
+    angle = rng.uniform(0, 2 * np.pi)
+    cy, cx = rng.uniform(0.25, 0.75) * h, rng.uniform(0.25, 0.75) * w
+    softness = rng.uniform(2.0, 15.0)
+    yy, xx = np.mgrid[:h, :w].astype(np.float32)
+    distance = (xx - cx) * np.cos(angle) + (yy - cy) * np.sin(angle)
+    return (0.5 * (1 + np.tanh(distance / softness))).astype(np.float32)
+
+
 class CellPasting:
     """Synthetic isolated tumour cells: TMA tumour cells pasted into negative lymph node tiles.
 
@@ -241,7 +267,13 @@ class CellPasting:
       range; slightly irregular and elliptic) around a nucleus with stained cytoplasm
       around it (mean DAB density above ``donor_dab``), or, with probability
       ``cluster_p``, one small group: a disk of ``cluster_radius_um`` around a stained
-      point;
+      point, or, with probability ``fragment_p``, one larger fragment: the donor's
+      stained epithelium (with the nuclei inside it) around a stained point, cut to an
+      irregular ellipse ``fragment_um`` long and up to 3x narrower — nests, cords and
+      branching strands of tens of cells, the shape the stained tissue has. Small
+      groups alone left the models flagging only the edges and loose cells of larger
+      clusters in lymph nodes: in lymph node tissue they had never seen a positive
+      larger than a handful of cells;
     - each pasted at a random place on the tissue with nuclei around (cellular_mask,
       haematoxylin density above ``placement_density``: lower takes in sparser stroma
       too), blended in optical density (soft edge), with the donor's haematoxylin scaled
@@ -270,6 +302,8 @@ class CellPasting:
         cluster_p: float = 0.3,
         cell_radius_um: Sequence[float] = (5.0, 8.0),
         cluster_radius_um: Sequence[float] = (10.0, 20.0),
+        fragment_p: float = 0.0,
+        fragment_um: Sequence[float] = (30.0, 80.0),
         donor_dab: float = 0.05,
         donor_cohorts: Sequence[str] = ("mmci_tmas",),
         placement_density: float = 0.01,
@@ -279,6 +313,8 @@ class CellPasting:
         self.negative_p = negative_p
         self.max_cells = max_cells
         self.cluster_p = cluster_p
+        self.fragment_p = fragment_p
+        self.fragment_um = (float(fragment_um[0]), float(fragment_um[1]))
         self.cell_radius_um = (float(cell_radius_um[0]), float(cell_radius_um[1]))
         self.cluster_radius_um = (
             float(cluster_radius_um[0]),
@@ -309,11 +345,19 @@ class CellPasting:
         if donor is not None:
             pasted = np.zeros(tile.shape[:2], dtype=bool)
             donor_hed, donor_tissue = rgb_to_hed(donor), tissue_mask(donor)
-            cluster = rng.random() < self.cluster_p
-            count = 1 if cluster else int(rng.integers(1, self.max_cells + 1))
+            kind = rng.random()
+            fragment = kind < self.fragment_p
+            cluster = not fragment and kind < self.fragment_p + self.cluster_p
+            count = (
+                1 if cluster or fragment else int(rng.integers(1, self.max_cells + 1))
+            )
             reference = np.percentile(hed[..., H][tissue], 90) if tissue.any() else None
             for _ in range(count):
-                cut = self._cut_cell(donor_hed, donor_tissue, mpp, rng, cluster)
+                cut = (
+                    self._cut_fragment(donor_hed, donor_tissue, mpp, rng)
+                    if fragment
+                    else self._cut_cell(donor_hed, donor_tissue, mpp, rng, cluster)
+                )
                 if cut is None:
                     break
                 window, alpha = cut
@@ -357,6 +401,65 @@ class CellPasting:
             around = ndimage.uniform_filter(dab, size=round(2 * radius) | 1)
             candidates = peaks & (around > self.donor_dab)
         return _cut(hed, tissue, candidates, radius, rng)
+
+    def _cut_fragment(
+        self, hed: np.ndarray, tissue: np.ndarray, mpp: float, rng: np.random.Generator
+    ) -> tuple[np.ndarray, np.ndarray] | None:
+        """A fragment of the donor's stained epithelium: densities and blending weights, or None.
+
+        The stained tissue (DAB density above ``donor_dab``, closed over ~2 um and its
+        holes filled: the unstained nuclei inside the cells) within an irregular ellipse
+        around a strongly stained point, ``fragment_um`` long (at most 0.6 of the tile)
+        and 1 to 3x narrower; of it, the piece joined to that point, so that its outline
+        is the epithelium's (or the donor tile's edge). Cropped to the piece.
+        """
+        length = rng.uniform(*self.fragment_um) / mpp
+        length = min(length, 0.6 * min(hed.shape[:2]))  # _paste needs it within a tile
+        width = length / rng.uniform(1.0, 3.0)
+        dab = ndimage.gaussian_filter(hed[..., DAB], 1.0 / mpp)
+        stained = ndimage.binary_closing(
+            dab > self.donor_dab, iterations=max(1, round(2.0 / mpp))
+        )
+        stained = ndimage.binary_fill_holes(stained) & tissue
+        ys, xs = np.nonzero(stained & (dab > 2 * self.donor_dab))
+        if len(ys) == 0:
+            return None
+        # Padded, so that a point near the donor's edge is cut at the edge.
+        r = int(np.ceil(length / 2 * 1.3)) + 2
+        stained = np.pad(stained, r)
+        hed = np.pad(hed, ((r, r), (r, r), (0, 0)), mode="edge")
+        i = int(rng.integers(len(ys)))
+        cy, cx = int(ys[i]) + r, int(xs[i]) + r
+        yy, xx = np.mgrid[-r : r + 1, -r : r + 1].astype(np.float32)
+        angle = rng.uniform(0, np.pi)
+        u = xx * np.cos(angle) + yy * np.sin(angle)
+        v = -xx * np.sin(angle) + yy * np.cos(angle)
+        theta = np.arctan2(v, u)
+        wobble = sum(
+            rng.normal(0, 0.1) * np.cos(k * theta + rng.uniform(0, 2 * np.pi))
+            for k in (2, 3, 5)
+        )
+        inside = np.hypot(u / (length / 2), v / (width / 2)) <= 1 + wobble
+        inside &= stained[cy - r : cy + r + 1, cx - r : cx + r + 1]
+        pieces, _ = ndimage.label(inside)
+        if pieces[r, r] == 0:
+            return None
+        inside = pieces == pieces[r, r]
+        alpha = np.clip(ndimage.gaussian_filter(inside.astype(np.float32), 0.8), 0, 1)
+        # Square (as _paste places it), around the piece with a pixel or two of margin;
+        # padded first, so that the square fits however the piece lies in the window.
+        rows, cols = np.nonzero(alpha > 0.01)
+        half = max(rows.max() - rows.min(), cols.max() - cols.min()) // 2 + 2
+        cy0 = (rows.min() + rows.max()) // 2 + half
+        cx0 = (cols.min() + cols.max()) // 2 + half
+        window = np.pad(
+            hed[cy - r : cy + r + 1, cx - r : cx + r + 1],
+            ((half, half), (half, half), (0, 0)),
+            mode="edge",
+        )
+        alpha = np.pad(alpha, half)
+        crop = np.s_[cy0 - half : cy0 + half + 1, cx0 - half : cx0 + half + 1]
+        return window[crop].copy(), alpha[crop]
 
     def _cut_brown(
         self, hed: np.ndarray, tissue: np.ndarray, mpp: float, rng: np.random.Generator

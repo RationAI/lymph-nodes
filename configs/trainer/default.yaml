@@ -25,9 +25,13 @@ callbacks:
     monitor: validation/auroc
     mode: max
     patience: 5
-  # Only active in the final evaluations (validate / test), not during fit.
+  # Only active in the final evaluations (validate / test), not during fit. Overlapping
+  # tiles' outputs three ways: each point from its most central tile
+  # (prediction_masks/), and the mean and the max of all tiles covering it
+  # (prediction_masks_mean/, prediction_masks_max/; per-patch models only).
   prediction_masks:
     _target_: lymph_nodes.callbacks.PredictionMasks
+    combine: [centre, mean, max]
   # Lesion-level detection (lymph_nodes/callbacks/lesion_metrics.py), final
   # evaluations only. Lymph node cohorts only: TMA slides have no tumour status.
   lesion_metrics:
