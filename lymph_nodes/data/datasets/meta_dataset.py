@@ -175,13 +175,55 @@ def _normalize_lists(dataset: HFDataset) -> HFDataset:
 def _normalized(table: Any) -> Any:
     """_normalize_lists on a ``datasets`` table; the same table if nothing changes.
 
-    A split cached in several files (e.g. the 32 x 32 grids of a large cohort) loads as
-    a ConcatenationTable, which has no ``set_column``: its blocks, memory-mapped tables,
-    are normalized one by one instead, so the data stays memory-mapped (and cheap to
-    pickle to DataLoader workers).
+    With the table's own flatten, drop, rename_columns and cast only: on a memory-mapped
+    table (a split's cache files) ``datasets`` records each as a replay of the call — a
+    schema, column names — so the data stays memory-mapped, cheap to pickle and to
+    fingerprint. Columns replaced with set_column (_normalized_by_column) are recorded
+    as the columns themselves, which ``datasets`` then pickles and holds in memory: two
+    grid-64 lymph node folds held 15 GiB (22 GiB at peak) where the tables hold none,
+    and the grid-64 fits stalled at their memory limit (2026-11-16); a quarter of that
+    at grid 32.
+    """
+    schema = table.schema
+    tensors = [field.name for field in schema if _is_tensor_struct(field.type)]
+    if any(isinstance(kind, pa.ExtensionType) for kind in schema.types) or any(
+        pa.types.is_struct(field.type) for field in schema if field.name not in tensors
+    ):
+        return _normalized_by_column(table)  # flatten would split other structs too
+    if tensors:
+        # Each tensor struct becomes <name>.data and <name>.shape: the data keeps the name.
+        table = table.flatten().drop([f"{name}.shape" for name in tensors])
+        renamed = {f"{name}.data": name for name in tensors}
+        table = table.rename_columns([renamed.get(n, n) for n in table.column_names])
+    fields = [
+        pa.field(field.name, pa.large_list(field.type.value_type))
+        if pa.types.is_list(field.type) or pa.types.is_fixed_size_list(field.type)
+        else field
+        for field in table.schema
+    ]
+    if fields != list(table.schema):
+        table = table.cast(pa.schema(fields))
+    return table
+
+
+def _is_tensor_struct(kind: pa.DataType) -> bool:
+    """Ray Data's tensor extension stored as a struct of the values and their shape."""
+    return pa.types.is_struct(kind) and {
+        kind.field(i).name for i in range(kind.num_fields)
+    } == {"data", "shape"}
+
+
+def _normalized_by_column(table: Any) -> Any:
+    """_normalized column by column, with set_column: for tables flatten can't do.
+
+    Ray's tensor extension type itself (not its struct), or other struct columns. Holds
+    the new columns in memory (see _normalized). A split cached in several files loads as a ConcatenationTable, which has no
+    ``set_column``: its blocks are normalized one by one instead.
     """
     if isinstance(table, ConcatenationTable):
-        blocks = [[_normalized(block) for block in row] for row in table.blocks]
+        blocks = [
+            [_normalized_by_column(block) for block in row] for row in table.blocks
+        ]
         unchanged = all(
             new is old
             for row, old_row in zip(blocks, table.blocks, strict=True)
