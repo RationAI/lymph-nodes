@@ -1,0 +1,23 @@
+# @package _global_
+
+# The Dice + focal fit of analysis/reports/mask_thresholds.html at grid 64
+# (grid/grid64.yaml): fit 0abbc8ca, segmentation_cross_tissue_combined.yaml as it ran on
+# 2026-11-09, at twice the output resolution and otherwise the same. That fit drew its
+# hard negatives from U+B's fixed table (b0281b49), from before the online bank of
+# segmentation_cross_tissue_retiled.yaml: so here too, the table back and the bank off
+# (HardNegativeMining then does nothing). The validation during fit is today's (8 whole
+# negative slides with their false positive regions instead of a tenth of fold 0's
+# tiles): it watches, it does not change the weights.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_combined
+  - /experiment/training/grid/grid64
+  - _self_
+
+scenario: cross-tissue segmentation combined grid 64
+
+train_labels:
+  hard_negatives: mlflow-artifacts:/4/b0281b499f8549469604cd7b374a1994/artifacts/hard_negatives
+
+data:
+  train_sampler:
+    hard_negative_bank: null

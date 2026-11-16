@@ -46,6 +46,35 @@ def hed_to_rgb(hed: np.ndarray) -> np.ndarray:
     return np.clip(255 * np.exp(-od * _OD_SCALE), 0, 255).round().astype(np.uint8)
 
 
+def _cell_starts(size: int, cells: int) -> np.ndarray:
+    """The first pixel of each of ``cells`` cells across ``size`` pixels.
+
+    Rounded edges, as the tiling's grids (preprocessing.tiling_blocks.grid_coverage):
+    exact when ``size`` is a multiple of ``cells`` (224 px at grid 16 or 32), else cells
+    of alternating widths (grid 64: 3.5 px -> 4, 3, 3, 4, ...).
+    """
+    return np.linspace(0, size, cells + 1).round().astype(int)[:-1]
+
+
+def cells_to_pixels(cells: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
+    """A (g, g) grid as an (H, W) image: each pixel takes its cell's value."""
+    rows, cols = (
+        np.searchsorted(_cell_starts(n, g), np.arange(n), side="right") - 1
+        for n, g in zip(shape[:2], cells.shape, strict=True)
+    )
+    return cells[rows[:, np.newaxis], cols[np.newaxis, :]]
+
+
+def pixels_to_cells(pixels: np.ndarray, cells: int) -> np.ndarray:
+    """The mean of an (H, W) image over each cell of a ``cells`` x ``cells`` grid."""
+    h, w = pixels.shape[:2]
+    rows, cols = _cell_starts(h, cells), _cell_starts(w, cells)
+    sums = np.add.reduceat(
+        np.add.reduceat(pixels.astype(np.float64), rows, axis=0), cols, axis=1
+    )
+    return sums / np.outer(np.diff(rows, append=h), np.diff(cols, append=w))
+
+
 def tissue_mask(
     rgb: np.ndarray, min_density: float = 0.15, window: int = 15
 ) -> np.ndarray:
@@ -194,9 +223,7 @@ class TileAugmentation:
         hed = rgb_to_hed(tile)
         dab = hed[..., DAB]
         stained = tissue & (dab > _STAINED)
-        g = grid.shape[0]
-        scale = dab.shape[0] // g
-        positive = np.repeat(np.repeat(grid > 0.5, scale, axis=0), scale, axis=1)
+        positive = cells_to_pixels(grid > 0.5, dab.shape)
         if (stained & positive).sum() >= min_pixels:
             stained &= positive
         if stained.sum() < min_pixels:
@@ -368,9 +395,7 @@ class CellPasting:
                 if placed is not None:
                     pasted |= placed
             if pasted.any():
-                g = grid.shape[0]
-                h, w = tile.shape[:2]
-                coverage = pasted.reshape(g, h // g, g, w // g).mean(axis=(1, 3))
+                coverage = pixels_to_cells(pasted, grid.shape[0])
                 grid = np.maximum(grid, coverage.astype(np.float32))
         return hed_to_rgb(hed), grid
 

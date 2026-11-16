@@ -7,7 +7,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
 
-from lymph_nodes.data.augmentations import DAB, rgb_to_hed
+from lymph_nodes.data.augmentations import DAB, cells_to_pixels, rgb_to_hed
 from lymph_nodes.data.datasets.embedding import (
     CANCER,
     HEALTHY,
@@ -304,8 +304,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
     def _cell_pixels(self, cells: np.ndarray, size: int) -> np.ndarray:
         """A grid column's cells (>= half covered) as a (size, size) pixel mask."""
         covered = cells.reshape(self.grid, self.grid) >= 128
-        scale = size // self.grid
-        return np.repeat(np.repeat(covered, scale, axis=0), scale, axis=1)
+        return cells_to_pixels(covered, (size, size))
 
     def _paste(
         self,

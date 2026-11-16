@@ -1,0 +1,40 @@
+# @package _global_
+
+# The grid-64 settings, added after a scenario in its defaults (a fragment, not a
+# scenario of its own): 64 x 64 logits per 224 px tile instead of the upsampled
+# scenarios' 32 x 32 (segmentation_cross_tissue_upsampled.yaml). UpsamplingHead at scale
+# 4 splits each 14 px patch token into 4 x 4 cells of 3.5 px (~1.7 um, mask pixels of
+# half the 3.4 um), trained against the tilings re-run with grid=64
+# (scripts/preprocessing/segmentation_tiling.py --grid 64).
+#
+# 224 px is no multiple of 64: the cells are 4 and 3 px wide in turn, in the tiling
+# (preprocessing.tiling_blocks.grid_coverage) and the training (cells_to_pixels and
+# pixels_to_cells of lymph_nodes/data/augmentations.py) alike. A grid has to be a
+# multiple of the 16 patch tokens for a whole upsampling scale, so 56 (4 px) is out, and
+# 112 (2 px) holds 12x the grid of 32.
+#
+# The grid-64 tilings' runs (2026-11-16; the same configs as the grid-32 runs of
+# segmentation_cross_tissue_upsampled.yaml, grid=64). Keys of their own: with the grid-32
+# runs the 64 x 64 logits would be resized to the 32 x 32 targets
+# (SegmentationMetaArch._logits) without a word.
+grid64_run_uris:
+  ihc: mlflow-artifacts:/4/84cea21e501346628deea24fe38f9893/artifacts  # IHC 2023: fold_0..fold_4, val, test
+  tma: mlflow-artifacts:/4/ab0cdd17cad441d5904e6c77581fb966/artifacts  # TMA cores: fold_0..fold_4, val
+  ihc_test: mlflow-artifacts:/4/4d015022673f4825babc0bfffb1958f8/artifacts  # IHC test cohort: val
+ihc_run_uri: ${grid64_run_uris.ihc}
+tma_run_uri: ${grid64_run_uris.tma}
+ihc_test_run_uri: ${grid64_run_uris.ihc_test}
+
+model:
+  decode_head:
+    scale: 4
+
+data:
+  train:
+    grid: 64
+  val:
+    grid: 64
+  eval:
+    grid: 64
+  test:
+    grid: 64

@@ -1,0 +1,11 @@
+# @package _global_
+
+# The ASL mild fit of analysis/reports/mask_thresholds.html (fit 783a9772,
+# segmentation_cross_tissue_combined_asl_mild.yaml: the online hard-negative bank) at
+# grid 64 (grid/grid64.yaml): twice the output resolution, otherwise the same.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_combined_asl_mild
+  - /experiment/training/grid/grid64
+  - _self_
+
+scenario: cross-tissue segmentation combined asl mild grid 64
