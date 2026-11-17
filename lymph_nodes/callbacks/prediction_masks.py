@@ -85,6 +85,12 @@ class PredictionMasks(Callback):
 
     Needs the steps to return their logits and the samples' meta to carry ``slide``
     (position in the dataset's ``slides``), ``tile_x`` and ``tile_y``.
+
+    Each slide's masks are written as soon as its last tile is in (the evaluation reads
+    the slides one after another), and logged at the end: only the slides still being
+    read are held. Holding every tile's outputs to the end took 2 KB a tile at 32 x 32
+    patches (6.7 GB for the 3.3M tiles of a lymph node evaluation, twice that while
+    they were joined), and would take 8 KB at 64 x 64: 27 GB, 54 GB joined.
     """
 
     def __init__(self, combine: Sequence[str] = ("centre",)) -> None:
@@ -94,10 +100,7 @@ class PredictionMasks(Callback):
                 f"combine: unknown {sorted(unknown)}, not of {list(_DIRECTORIES)}"
             )
         self.combine = tuple(combine)
-        # Per batch: slide positions, tile_x, tile_y, probabilities (per tile or patch).
-        self._predictions: list[
-            tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
-        ] = []
+        self._run: _Run | None = None
 
     def on_validation_batch_end(
         self,
@@ -109,13 +112,13 @@ class PredictionMasks(Callback):
         dataloader_idx: int = 0,
     ) -> None:
         if trainer.state.fn == TrainerFn.VALIDATING:
-            self._collect(outputs, batch)
+            self._collect(trainer.datamodule.val, outputs, batch)  # type: ignore[attr-defined]
 
     def on_validation_epoch_end(
         self, trainer: Trainer, pl_module: LightningModule
     ) -> None:
         if trainer.state.fn == TrainerFn.VALIDATING:
-            self._log_masks(trainer, trainer.datamodule.val)  # type: ignore[attr-defined]
+            self._log_masks(trainer)
 
     def on_test_batch_end(
         self,
@@ -126,80 +129,94 @@ class PredictionMasks(Callback):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        self._collect(outputs, batch)
+        self._collect(trainer.datamodule.test, outputs, batch)  # type: ignore[attr-defined]
 
     def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        self._log_masks(trainer, trainer.datamodule.test)  # type: ignore[attr-defined]
+        self._log_masks(trainer)
 
-    def _collect(self, outputs: Outputs, batch: Batch) -> None:
-        _, _, meta = batch
-        self._predictions.append(
-            (
-                meta["slide"].cpu().numpy(),
-                meta["tile_x"].cpu().numpy(),
-                meta["tile_y"].cpu().numpy(),
-                torch.sigmoid(outputs.detach().float())
-                .cpu()
-                .numpy()
-                .astype(np.float16),
-            )
-        )
-
-    def _log_masks(
-        self, trainer: Trainer, dataset: EmbeddingClassificationDataset
+    def _collect(
+        self, dataset: EmbeddingClassificationDataset, outputs: Outputs, batch: Batch
     ) -> None:
+        _, _, meta = batch
+        if self._run is None:
+            self._run = _Run(dataset)
+        run = self._run
+        slide = meta["slide"].cpu().numpy()
+        tile_x = meta["tile_x"].cpu().numpy()
+        tile_y = meta["tile_y"].cpu().numpy()
+        probability = (
+            torch.sigmoid(outputs.detach().float()).cpu().numpy().astype(np.float16)
+        )
+        for position in np.unique(slide).tolist():
+            rows = slide == position
+            run.pending.setdefault(position, []).append(
+                (tile_x[rows], tile_y[rows], probability[rows])
+            )
+            run.received[position] += int(rows.sum())
+            if run.received[position] >= run.expected[position]:
+                self._write_slide(run, position)
+
+    def _write_slide(self, run: _Run, position: int) -> None:
+        """The masks of the slide at ``position`` (dataset.slides), into run's directory."""
         import pyvips
 
-        if not self._predictions:
-            return
-        slide, tile_x, tile_y, probability = (
-            np.concatenate(c) for c in zip(*self._predictions, strict=True)
+        tile_x, tile_y, probability = (
+            np.concatenate(c) for c in zip(*run.pending.pop(position), strict=True)
         )
-        self._predictions.clear()
+        cohort = str(run.cohorts[position]) if run.cohorts is not None else "unknown"
+        geometry = {column: values[position] for column, values in run.geometry.items()}
+        for combine in self.combine:
+            built = _prediction_mask(geometry, tile_x, tile_y, probability, combine)
+            if built is None:
+                continue
+            mask, (pixel_y, pixel_x) = built
+            directory = Path(run.directory.name, _DIRECTORIES[combine], cohort)
+            directory.mkdir(parents=True, exist_ok=True)
+            _write_mask(
+                pyvips.Image.new_from_array(mask),
+                path=directory / f"{run.names[position]}.tiff",
+                mpp_x=float(geometry["mpp_x"] * pixel_x),
+                mpp_y=float(geometry["mpp_y"] * pixel_y),
+            )
 
+    def _log_masks(self, trainer: Trainer) -> None:
+        run, self._run = self._run, None
+        if run is None:
+            return
+        try:
+            # Slides with fewer tiles evaluated than they have (limit_*_batches).
+            for position in sorted(run.pending):
+                self._write_slide(run, position)
+            for directory in sorted(Path(run.directory.name).iterdir()):
+                cast("MLFlowLogger", trainer.logger).log_artifacts(
+                    str(directory), directory.name
+                )
+        finally:
+            run.directory.cleanup()
+
+
+class _Run:
+    """PredictionMasks' state through one evaluation of ``dataset``.
+
+    ``expected``: each slide's number of tiles (the dataset's per-slide datasets, in
+    the order of its ``slides``); ``received``: how many of them are in so far;
+    ``pending``: per slide still being read, its batches' tile_x, tile_y and
+    probabilities; ``directory``: the masks written so far.
+    """
+
+    def __init__(self, dataset: EmbeddingClassificationDataset) -> None:
+        self.expected = np.diff(dataset.cumulative_sizes, prepend=0)
+        self.received = np.zeros_like(self.expected)
+        self.pending: dict[int, list[tuple[np.ndarray, np.ndarray, np.ndarray]]] = {}
+        self.directory = TemporaryDirectory()
         slides = dataset.slides
-        names = column_values(slides, "slide_name")
-        cohorts = (
+        self.names = column_values(slides, "slide_name")
+        self.cohorts = (
             column_values(slides, "cohort_id")
             if "cohort_id" in slides.column_names
             else None
         )
-        geometry = {column: column_values(slides, column) for column in _GEOMETRY}
-
-        # The tiles of each slide, as one contiguous run of the sorted predictions.
-        order = np.argsort(slide, kind="stable")
-        positions, starts = np.unique(slide[order], return_index=True)
-        with TemporaryDirectory() as tmp:
-            for position, tiles in zip(
-                positions, np.split(order, starts[1:]), strict=True
-            ):
-                cohort = str(cohorts[position]) if cohorts is not None else "unknown"
-                slide_geometry = {
-                    column: values[position] for column, values in geometry.items()
-                }
-                for combine in self.combine:
-                    built = _prediction_mask(
-                        slide_geometry,
-                        tile_x[tiles],
-                        tile_y[tiles],
-                        probability[tiles],
-                        combine,
-                    )
-                    if built is None:
-                        continue
-                    mask, (pixel_y, pixel_x) = built
-                    directory = Path(tmp, _DIRECTORIES[combine], cohort)
-                    directory.mkdir(parents=True, exist_ok=True)
-                    _write_mask(
-                        pyvips.Image.new_from_array(mask),
-                        path=directory / f"{names[position]}.tiff",
-                        mpp_x=float(slide_geometry["mpp_x"] * pixel_x),
-                        mpp_y=float(slide_geometry["mpp_y"] * pixel_y),
-                    )
-            for directory in sorted(Path(tmp).iterdir()):
-                cast("MLFlowLogger", trainer.logger).log_artifacts(
-                    str(directory), directory.name
-                )
+        self.geometry = {column: column_values(slides, column) for column in _GEOMETRY}
 
 
 def _write_mask(image: pyvips.Image, path: Path, mpp_x: float, mpp_y: float) -> None:
