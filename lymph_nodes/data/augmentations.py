@@ -356,7 +356,11 @@ class CellPasting:
     stained-cell level), cut from any tile of the donor cohorts (TileSegmentationDataset:
     every partition, not only the tumour tiles) — the same scanner, blending and edges
     as the tumour cells of those cohorts, no tumour; with ``mark`` false, pastes leave
-    the target grid as it was (negatives).
+    the target grid as it was (negatives). ``donor_pool`` narrows the donor tiles:
+    ``"cancer"`` (the tumour tiles: unstained cells among tumour, CK-negative tumour cells
+    possibly among them) or ``"no_cytokeratin"`` (tiles without any cytokeratin: stroma
+    and benign cells); ``"default"``: the tumour tiles for tumour cells, every tile for
+    unstained ones.
 
     Called (after a donor tile is read) with the tile (H, W, 3) uint8, its target grid
     (g, g), the slide's resolution, a numpy Generator, the donor tile (or one per
@@ -389,9 +393,14 @@ class CellPasting:
         donor_weights: Mapping[str, float] | None = None,
         cut: str = "stained",
         mark: bool = True,
+        donor_pool: str = "default",
     ) -> None:
         if cut not in ("stained", "unstained"):
             raise ValueError(f"cut: 'stained' or 'unstained', not {cut!r}")
+        if donor_pool not in ("default", "cancer", "no_cytokeratin"):
+            raise ValueError(
+                f"donor_pool: 'default', 'cancer' or 'no_cytokeratin', not {donor_pool!r}"
+            )
         self.p = p
         self.negative_p = negative_p
         self.max_cells = max_cells
@@ -417,6 +426,7 @@ class CellPasting:
         self.donor_weights = None if donor_weights is None else dict(donor_weights)
         self.cut = cut
         self.mark = mark
+        self.donor_pool = donor_pool
 
     def __call__(
         self,

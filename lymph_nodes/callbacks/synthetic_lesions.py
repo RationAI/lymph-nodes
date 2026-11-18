@@ -6,8 +6,10 @@ import numpy as np
 import torch
 from lightning import Callback
 from lightning.pytorch.trainer.states import TrainerFn
+from scipy import ndimage
 
 from lymph_nodes.callbacks.lesion_metrics import _region_thresholds
+from lymph_nodes.data.augmentations import DAB, E, H, rgb_to_hed, tissue_mask
 from lymph_nodes.data.datasets.meta_dataset import column_values
 from lymph_nodes.segmentation_meta_arch import tile_scores
 
@@ -60,6 +62,15 @@ class SyntheticLesionMetrics(Callback):
     lymph node evaluation compares runs. ``during_validate`` measures in ``validate``
     too (with DataModule's ``validate_on: val``, diagnostics of a checkpoint), else only
     in the validation during fit.
+
+    With ``gallery`` (diagnostics: what does the model react to in a paste?), every set
+    keeps its originals, and to the run's artifacts, under ``synthetic_lesions/``, go per
+    set a table of every pasted tile (``<set>.csv``: its score, the same region's
+    before the pasting, and paste_features: the paste's size, its nucleus' size and
+    darkness, its stain and shade and its sharpness against the tissue around it) and
+    the ``gallery`` highest- and lowest-scored pastes (``<set>_top.png``,
+    ``<set>_bottom.png``: each the region before and after the pasting, the paste
+    outlined, with its score).
     """
 
     def __init__(
@@ -73,6 +84,7 @@ class SyntheticLesionMetrics(Callback):
         extra_lesions: Mapping[str, CellPasting] | None = None,
         decoys: Mapping[str, CellPasting] | None = None,
         during_validate: bool = False,
+        gallery: int = 0,
     ) -> None:
         self.cell_pasting = cell_pasting
         self.count = count
@@ -83,6 +95,7 @@ class SyntheticLesionMetrics(Callback):
         self.extra_lesions = dict(extra_lesions or {})
         self.decoys = dict(decoys or {})
         self.during_validate = during_validate
+        self.gallery = gallery
         # Per validation batch: slide positions, tile_x, tile_y, tile scores.
         self._tiles: list[tuple[np.ndarray, ...]] = []
         # Per set: the pasted tiles, their grids and the originals (decoys), built at
@@ -141,8 +154,10 @@ class SyntheticLesionMetrics(Callback):
         cuts = [("", 0.5), *budgets]
         values: dict[str, float] = {}
         sensitivity: dict[str, list[float]] = {}
+        scored: dict[str, tuple[np.ndarray, np.ndarray | None]] = {}
         for name in ["", *self.extra_lesions]:
-            scores, _ = self._scores(trainer, pl_module, name)
+            scores, baseline = self._scores(trainer, pl_module, name)
+            scored[name or "lesions"] = (scores, baseline)
             prefix = f"{name}/" if name else ""
             values[f"{prefix}n_lesions"] = float(len(scores))
             for suffix, threshold in cuts:
@@ -156,6 +171,7 @@ class SyntheticLesionMetrics(Callback):
         rates = []
         for name in self.decoys:
             scores, baseline = self._scores(trainer, pl_module, f"decoys/{name}")
+            scored[f"decoys/{name}"] = (scores, baseline)
             for suffix, threshold in cuts:
                 values[f"decoys/{name}/rate{suffix}"] = float(
                     (scores >= threshold).mean()
@@ -172,6 +188,45 @@ class SyntheticLesionMetrics(Callback):
         pl_module.log_dict(
             {f"validation/synthetic/{key}": value for key, value in values.items()}
         )
+        if self.gallery:
+            self._report(trainer, scored)
+
+    def _report(
+        self, trainer: Trainer, scored: dict[str, tuple[np.ndarray, np.ndarray | None]]
+    ) -> None:
+        """Per set, the features table and the galleries, logged to the run."""
+        import tempfile
+        from pathlib import Path
+
+        import pandas as pd
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            for name, (scores, baseline) in scored.items():
+                tiles, _, originals = self._sets["" if name == "lesions" else name]
+                if originals is None:
+                    continue
+                rows = [
+                    paste_features(tile, original)
+                    for tile, original in zip(tiles, originals, strict=True)
+                ]
+                table = pd.DataFrame(rows).assign(
+                    score=scores,
+                    baseline=np.nan if baseline is None else baseline,
+                )
+                stem = name.replace("/", "_")
+                table.to_csv(out / f"{stem}.csv", index_label="tile")
+                order = np.argsort(-scores)
+                for which, picked in (
+                    ("top", order[: self.gallery]),
+                    ("bottom", order[::-1][: self.gallery]),
+                ):
+                    gallery_image(
+                        tiles[picked], originals[picked], scores[picked]
+                    ).save(out / f"{stem}_{which}.png")
+            logger = trainer.logger
+            if logger is not None and hasattr(logger, "log_artifacts"):
+                logger.log_artifacts(str(out), "synthetic_lesions")
 
     def _thresholds(
         self, dataset: TileSegmentationDataset
@@ -203,9 +258,10 @@ class SyntheticLesionMetrics(Callback):
         """The pasted sets, once: the lesions, the extra lesions, the decoys."""
         if self._sets:
             return
+        keep = bool(self.gallery)  # the galleries show every set before and after
         pastings = {
-            "": (self.cell_pasting, False),
-            **{name: (p, False) for name, p in self.extra_lesions.items()},
+            "": (self.cell_pasting, keep),
+            **{name: (p, keep) for name, p in self.extra_lesions.items()},
             **{f"decoys/{name}": (p, True) for name, p in self.decoys.items()},
         }
         for name, (pasting, originals) in pastings.items():
@@ -259,3 +315,82 @@ class SyntheticLesionMetrics(Callback):
         finally:
             pl_module.train(was_training)
         return np.concatenate(scores)
+
+
+def paste_features(tile: np.ndarray, original: np.ndarray) -> dict[str, float]:
+    """What was pasted into ``tile`` (vs ``original``), measured against its surroundings.
+
+    The paste: the pixels changed by more than 0.03 in summed H, E and DAB density;
+    around it, a ring 6 px wide. ``area_px``, ``nucleus_px`` (the paste's pixels darker
+    in haematoxylin than 80% of the original's tissue), ``h_*``, ``e_*``, ``dab_*``: mean
+    densities in the paste and the ring; ``sharp_*``: the variance of the grey level's
+    Laplacian (focus); ``shade_delta``: the distance of the paste's mean RGB from the
+    ring's; ``y``, ``x``: its centre.
+    """
+    hed, before = rgb_to_hed(tile), rgb_to_hed(original)
+    paste = np.abs(hed - before).sum(axis=-1) > 0.03
+    if not paste.any():
+        return {"area_px": 0.0}
+    ring = ndimage.binary_dilation(paste, iterations=6) & ~paste
+    tissue = tissue_mask(original)
+    dark = np.percentile(before[..., H][tissue], 80) if tissue.any() else np.inf
+    grey = ndimage.laplace(tile.astype(np.float32).mean(axis=-1))
+    ys, xs = np.nonzero(paste)
+    features = {
+        "area_px": float(paste.sum()),
+        "nucleus_px": float((paste & (hed[..., H] > dark)).sum()),
+        "y": float(ys.mean()),
+        "x": float(xs.mean()),
+        "sharp_paste": float(grey[paste].var()),
+        "sharp_ring": float(grey[ring].var()) if ring.any() else np.nan,
+        "shade_delta": float(
+            np.linalg.norm(
+                tile[paste].astype(np.float32).mean(axis=0)
+                - tile[ring].astype(np.float32).mean(axis=0)
+            )
+        )
+        if ring.any()
+        else np.nan,
+    }
+    for channel, label in ((H, "h"), (E, "e"), (DAB, "dab")):
+        features[f"{label}_paste"] = float(hed[..., channel][paste].mean())
+        features[f"{label}_ring"] = (
+            float(hed[..., channel][ring].mean()) if ring.any() else np.nan
+        )
+    return features
+
+
+def gallery_image(
+    tiles: np.ndarray, originals: np.ndarray, scores: np.ndarray, crop: int = 72
+) -> Any:
+    """A sheet of pastes: per tile the region before and after (outlined), its score."""
+    from PIL import Image, ImageDraw
+
+    zoom, columns, label = 2, 6, 14
+    cell = (2 * crop * zoom + 6, crop * zoom + label)
+    rows = -(-len(tiles) // columns)
+    sheet = Image.new("RGB", (columns * cell[0], max(rows, 1) * cell[1]), "white")
+    draw = ImageDraw.Draw(sheet)
+    for k, (tile, original, score) in enumerate(
+        zip(tiles, originals, scores, strict=True)
+    ):
+        paste = np.abs(rgb_to_hed(tile) - rgb_to_hed(original)).sum(axis=-1) > 0.03
+        ys, xs = np.nonzero(paste) if paste.any() else ([tile.shape[0] // 2],) * 2
+        cy, cx = int(np.mean(ys)), int(np.mean(xs))
+        y0 = int(np.clip(cy - crop // 2, 0, tile.shape[0] - crop))
+        x0 = int(np.clip(cx - crop // 2, 0, tile.shape[1] - crop))
+        window = np.s_[y0 : y0 + crop, x0 : x0 + crop]
+        after = tile[window].copy()
+        edge = paste[window] & ~ndimage.binary_erosion(paste[window])
+        after[edge] = (255, 220, 0)
+        left = (k % columns) * cell[0]
+        top = (k // columns) * cell[1]
+        for j, image in enumerate((original[window], after)):
+            sheet.paste(
+                Image.fromarray(np.ascontiguousarray(image)).resize(
+                    (crop * zoom, crop * zoom), Image.Resampling.NEAREST
+                ),
+                (left + j * (crop * zoom + 2), top + label),
+            )
+        draw.text((left + 2, top + 1), f"{score:.2f}", fill="black")
+    return sheet

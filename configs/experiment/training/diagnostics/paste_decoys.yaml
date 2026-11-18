@@ -17,6 +17,15 @@
 # its baseline, the same regions before the pasting. Compared between a model trained
 # with pasting and one without (fit ba821d68): a decoy rate above its baseline, and
 # above the unpasted model's, is the pasting learnt.
+#
+# Morphology or texture? (2026-11-18: D+F with pasting flagged 67% of the TMA decoys,
+# 22% of the lymph node ones, none before the pasting; without pasting none.) The TMA
+# decoys split by origin — from the tumour tiles (decoys/tma_unstained_cancer/: among
+# them possibly CK-negative tumour cells) and from tiles without any cytokeratin
+# (decoys/tma_unstained_stroma/: stroma, benign cells) — and with gallery, per set a
+# table of every paste (its nucleus' size and darkness, stain, shade and sharpness
+# against its surroundings, its score) and sheets of the 24 highest- and lowest-scored
+# pastes, logged under synthetic_lesions/.
 data:
   validate_on: val
 
@@ -25,6 +34,7 @@ trainer:
     synthetic_lesions:
       _target_: lymph_nodes.callbacks.SyntheticLesionMetrics
       during_validate: true
+      gallery: 24
       count: 1000
       seed: 0
       cohorts: [mmci_ihc_2023]
@@ -56,6 +66,28 @@ trainer:
         tma_unstained:
           _target_: lymph_nodes.data.augmentations.CellPasting
           cut: unstained
+          donor_cohorts: [mmci_tmas]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
+        tma_unstained_cancer:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          cut: unstained
+          donor_pool: cancer
+          donor_cohorts: [mmci_tmas]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
+        tma_unstained_stroma:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          cut: unstained
+          donor_pool: no_cytokeratin
           donor_cohorts: [mmci_tmas]
           p: 1.0
           negative_p: 0.0

@@ -204,12 +204,20 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         # Lymph node tiles only: TMA tiles are never in these partitions.
         negative = np.isin(partitions, [HEALTHY, HEALTHY_BROWNISH, HEALTHY_EXTERNAL])
         # Tumour cells from the donor cohorts' tumour tiles; unstained decoy cells from
-        # any of their tiles.
-        donors = np.flatnonzero(
-            donor_cohort
-            if cell_pasting.cut == "unstained"
-            else donor_cohort & (partitions == CANCER)
-        )
+        # any of their tiles, or the pool asked for.
+        pool = cell_pasting.donor_pool
+        if pool == "default":
+            pool = "all" if cell_pasting.cut == "unstained" else "cancer"
+        if pool == "cancer":
+            donors = np.flatnonzero(donor_cohort & (partitions == CANCER))
+        elif pool == "no_cytokeratin":
+            coverage = self.tiles.data.column("cytokeratin_coverage").to_numpy(
+                zero_copy_only=False
+            )
+            none = np.nan_to_num(coverage[index.rows].astype(float), nan=1.0) == 0
+            donors = np.flatnonzero(donor_cohort & none)
+        else:
+            donors = np.flatnonzero(donor_cohort)
         recipients = negative
         brown_donors = np.flatnonzero(~donor_cohort & (partitions == HEALTHY_BROWNISH))
         # Within the lymph node: recipients with node coverage, placement on node_grid.
