@@ -1,0 +1,15 @@
+# @package _global_
+
+# The fixed hard-negative table instead of the online bank, added after a scenario in
+# its defaults (a fragment): segmentation_cross_tissue_combined.yaml so becomes the
+# D+F fit 0abbc8ca (Model A of analysis/reports/ln_flag_overview.html), which predates
+# the bank. Table b0281b49: 816 tiles (810 after the filters) that the older model U+B
+# flagged on the training folds' negative slides (folds 1-4: none of fold 0), mined
+# once; the healthy_hard share (0.15) draws from it. The HardNegativeMining callback
+# stays, idle without a bank.
+train_labels:
+  hard_negatives: mlflow-artifacts:/4/b0281b499f8549469604cd7b374a1994/artifacts/hard_negatives
+
+data:
+  train_sampler:
+    hard_negative_bank: null

@@ -1,0 +1,32 @@
+# @package _global_
+
+# More varied cell pasting, added after a scenario with CellPasting in its defaults (a
+# fragment; lymph_nodes.data.augmentations.CellPasting):
+# - up to 6 single cells instead of 3, radius 4-8 um instead of 5-8, placed in sparser
+#   tissue too (placement_density 0.005);
+# - 1 to 3 pastes per tile, each of its own kind and donor, never over one another
+#   (min_gap_um 2);
+# - a third of the pastes faded alone to the faint ITCs' DAB (0.03-0.05), besides the
+#   whole-tile fade of TileAugmentation: the missed ITCs are the faint ones (single
+#   cells: recall 0.41 faint vs 0.81 strong, 2026-10-30);
+# - where a tile holds the lymph node's outline, half the pastes within 50 um inside it
+#   (the subcapsular sinus, where metastatic cells arrive);
+# - donors drawn evenly by TMA kind: of the training folds' cores 136 are TNBC, 68
+#   colorectal (KOS), 12 breast FIN, and drawn by tile the TNBC and colorectal cells
+#   dominated.
+data:
+  train:
+    cell_pasting:
+      max_cells: 6
+      cell_radius_um: [4.0, 8.0]
+      placement_density: 0.005
+      pastes: [1, 3]
+      min_gap_um: 2.0
+      cell_fade_p: 0.3
+      cell_fade_to: [0.03, 0.05]
+      edge_p: 0.5
+      edge_um: 50.0
+      donor_weights:
+        FIN: 1.0
+        TNBC: 1.0
+        KOS: 1.0

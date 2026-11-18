@@ -20,7 +20,7 @@ from scipy import ndimage
 
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
 
 _RGB_FROM_HED = np.array(
@@ -229,24 +229,7 @@ class TileAugmentation:
         if stained.sum() < min_pixels:
             return tile
         target = rng.uniform(*self.dab_fade_to)
-        level = float(np.median(dab[stained]))
-        if level <= target:
-            return tile
-        od = -np.log(np.maximum(tile.astype(np.float32), 1.0) / 255)
-        densities = np.clip(hed, 0, None)
-        share = densities[..., DAB] / np.maximum(
-            densities[..., H] + densities[..., DAB], 1e-6
-        )
-        # Mixed pixels fade less than the factor: a few corrections of it.
-        factor, faded = max(target / level, self.min_fade), tile
-        for _ in range(steps):
-            scaled = od * (1 - (1 - factor) * share)[..., np.newaxis]
-            faded = np.clip(255 * np.exp(-scaled), 0, 255).round().astype(np.uint8)
-            reached = float(np.median(rgb_to_hed(faded)[..., DAB][stained]))
-            if reached <= target * 1.05 or factor <= self.min_fade:
-                break
-            factor = max(factor * target / reached, self.min_fade)
-        return faded
+        return fade_dab(tile, stained, target, self.min_fade, steps)
 
     def _background(
         self, shape: tuple[int, ...], rng: np.random.Generator
@@ -264,6 +247,40 @@ class TileAugmentation:
         grain /= grain.std() + 1e-6
         amplitude = rng.uniform(0, self.dab_background)
         return amplitude * smooth * np.clip(1 + 0.15 * grain, 0, None)
+
+
+def fade_dab(
+    tile: np.ndarray,
+    stained: np.ndarray,
+    target: float,
+    min_fade: float = 0.25,
+    steps: int = 3,
+) -> np.ndarray:
+    """``tile`` (RGB uint8) faded so that its ``stained`` pixels' median DAB density is ``target``.
+
+    Unchanged if already as faint. Hue-preserving (TileAugmentation): each pixel's
+    optical density scaled by ``1 - (1 - f) * s``, ``s`` its DAB share of the H and DAB
+    densities, the factor ``f`` at least ``min_fade``.
+    """
+    hed = rgb_to_hed(tile)
+    level = float(np.median(hed[..., DAB][stained]))
+    if level <= target:
+        return tile
+    od = -np.log(np.maximum(tile.astype(np.float32), 1.0) / 255)
+    densities = np.clip(hed, 0, None)
+    share = densities[..., DAB] / np.maximum(
+        densities[..., H] + densities[..., DAB], 1e-6
+    )
+    # Mixed pixels fade less than the factor: a few corrections of it.
+    factor, faded = max(target / level, min_fade), tile
+    for _ in range(steps):
+        scaled = od * (1 - (1 - factor) * share)[..., np.newaxis]
+        faded = np.clip(255 * np.exp(-scaled), 0, 255).round().astype(np.uint8)
+        reached = float(np.median(rgb_to_hed(faded)[..., DAB][stained]))
+        if reached <= target * 1.05 or factor <= min_fade:
+            break
+        factor = max(factor * target / reached, min_fade)
+    return faded
 
 
 def _seam(shape: tuple[int, ...], rng: np.random.Generator) -> np.ndarray:
@@ -315,10 +332,30 @@ class CellPasting:
     the tiling's node_grid narrows the placement, and tiles without node coverage get
     none) — isolated tumour cells sit in the node, not in the fat or capsule around it.
 
+    For more varied pastes (each off by default, the random stream then as before):
+
+    - ``pastes``: how many pastes (a range) a tile gets, each of its own kind (cells,
+      group or fragment) and from its own donor tile (TileSegmentationDataset reads one
+      per paste);
+    - ``min_gap_um``: everything pasted into a tile (the brown spot too) at least this
+      far apart — no paste over another;
+    - ``cell_fade_p``: each paste's DAB faded with this probability, alone, to a median
+      DAB density in ``cell_fade_to`` (as TileAugmentation's fade, hue-preserving): faint
+      cells in a tile otherwise as stained as it was, the missed isolated tumour cells'
+      look (TileAugmentation's fade takes the whole tile);
+    - ``edge_p``: where a tile holds the lymph node's outline, each paste placed with this
+      probability within ``edge_um`` inside it — the subcapsular sinus, where metastatic
+      cells arrive with the afferent lymph;
+    - ``donor_weights``: the donor tiles drawn by group, a group's share by its weight,
+      the groups slide-name prefixes (e.g. TMA kinds ``FIN``, ``TNBC``, ``KOS``; donors
+      of no group never drawn) — TileSegmentationDataset draws them. By default every
+      donor tile alike, so the kinds with the most tumour tiles dominate.
+
     Called (after a donor tile is read) with the tile (H, W, 3) uint8, its target grid
-    (g, g), the slide's resolution, a numpy Generator and, optionally, the tiling's
-    tissue (H, W) bool, narrowed to tissue_mask's as in TileAugmentation; returns the
-    tile and grid.
+    (g, g), the slide's resolution, a numpy Generator, the donor tile (or one per
+    paste), optionally a brown donor, the tiling's tissue (H, W) bool, narrowed to
+    tissue_mask's as in TileAugmentation, and the lymph node (H, W) bool, for
+    ``edge_p``; returns the tile and grid.
     """
 
     def __init__(
@@ -335,6 +372,14 @@ class CellPasting:
         donor_cohorts: Sequence[str] = ("mmci_tmas",),
         placement_density: float = 0.01,
         within_node: bool = True,
+        pastes: Sequence[int] = (1, 1),
+        min_gap_um: float | None = None,
+        cell_fade_p: float = 0.0,
+        cell_fade_to: Sequence[float] = (0.03, 0.05),
+        min_fade: float = 0.25,
+        edge_p: float = 0.0,
+        edge_um: float = 50.0,
+        donor_weights: Mapping[str, float] | None = None,
     ) -> None:
         self.p = p
         self.negative_p = negative_p
@@ -351,6 +396,14 @@ class CellPasting:
         self.donor_cohorts = [str(cohort) for cohort in donor_cohorts]
         self.placement_density = placement_density
         self.within_node = within_node
+        self.pastes = (int(pastes[0]), int(pastes[1]))
+        self.min_gap_um = min_gap_um
+        self.cell_fade_p = cell_fade_p
+        self.cell_fade_to = (float(cell_fade_to[0]), float(cell_fade_to[1]))
+        self.min_fade = min_fade
+        self.edge_p = edge_p
+        self.edge_um = edge_um
+        self.donor_weights = None if donor_weights is None else dict(donor_weights)
 
     def __call__(
         self,
@@ -358,46 +411,108 @@ class CellPasting:
         grid: np.ndarray,
         mpp: float,
         rng: np.random.Generator,
-        donor: np.ndarray | None = None,
+        donor: np.ndarray | Sequence[np.ndarray] | None = None,
         brown: np.ndarray | None = None,
         tissue: np.ndarray | None = None,
+        node: np.ndarray | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         tissue = tissue_mask(tile) if tissue is None else tissue & tissue_mask(tile)
         hed = rgb_to_hed(tile)
         tissue &= cellular_mask(hed, self.placement_density)
+        # What is pasted so far, kept apart from the next pastes with min_gap_um.
+        occupied = (
+            None if self.min_gap_um is None else np.zeros(tile.shape[:2], dtype=bool)
+        )
         if brown is not None:
             cut = self._cut_brown(rgb_to_hed(brown), tissue_mask(brown), mpp, rng)
             if cut is not None:
-                _paste(hed, *cut, tissue, rng)
-        if donor is not None:
-            pasted = np.zeros(tile.shape[:2], dtype=bool)
-            donor_hed, donor_tissue = rgb_to_hed(donor), tissue_mask(donor)
-            kind = rng.random()
-            fragment = kind < self.fragment_p
-            cluster = not fragment and kind < self.fragment_p + self.cluster_p
-            count = (
-                1 if cluster or fragment else int(rng.integers(1, self.max_cells + 1))
-            )
-            reference = np.percentile(hed[..., H][tissue], 90) if tissue.any() else None
-            for _ in range(count):
-                cut = (
-                    self._cut_fragment(donor_hed, donor_tissue, mpp, rng)
-                    if fragment
-                    else self._cut_cell(donor_hed, donor_tissue, mpp, rng, cluster)
+                placed = _paste(
+                    hed, *cut, tissue, rng, forbidden=self._apart(occupied, mpp)
                 )
-                if cut is None:
-                    break
-                window, alpha = cut
-                if reference is not None:
-                    level = np.percentile(window[..., H][alpha > 0.5], 90)
-                    window[..., H] *= np.clip(reference / max(level, 1e-6), 0.6, 1.5)
-                placed = _paste(hed, window, alpha, tissue, rng)
-                if placed is not None:
-                    pasted |= placed
+                if placed is not None and occupied is not None:
+                    occupied |= placed
+        donors = (
+            []
+            if donor is None
+            else [donor]
+            if isinstance(donor, np.ndarray)
+            else list(donor)
+        )
+        if donors:
+            pasted = np.zeros(tile.shape[:2], dtype=bool)
+            reference = np.percentile(hed[..., H][tissue], 90) if tissue.any() else None
+            edge = (
+                _edge_band(node, self.edge_um / mpp)
+                if self.edge_p and node is not None
+                else None
+            )
+            for donor_tile in donors:
+                donor_hed, donor_tissue = (
+                    rgb_to_hed(donor_tile),
+                    tissue_mask(donor_tile),
+                )
+                kind = rng.random()
+                fragment = kind < self.fragment_p
+                cluster = not fragment and kind < self.fragment_p + self.cluster_p
+                count = (
+                    1
+                    if cluster or fragment
+                    else int(rng.integers(1, self.max_cells + 1))
+                )
+                where = tissue
+                if edge is not None and rng.random() < self.edge_p:
+                    near = tissue & edge
+                    where = near if near.any() else tissue
+                for _ in range(count):
+                    cut = (
+                        self._cut_fragment(donor_hed, donor_tissue, mpp, rng)
+                        if fragment
+                        else self._cut_cell(donor_hed, donor_tissue, mpp, rng, cluster)
+                    )
+                    if cut is None:
+                        break
+                    window, alpha = cut
+                    if reference is not None:
+                        level = np.percentile(window[..., H][alpha > 0.5], 90)
+                        window[..., H] *= np.clip(
+                            reference / max(level, 1e-6), 0.6, 1.5
+                        )
+                    if self.cell_fade_p and rng.random() < self.cell_fade_p:
+                        window = self._fade_window(window, alpha, rng)
+                    placed = _paste(
+                        hed,
+                        window,
+                        alpha,
+                        where,
+                        rng,
+                        forbidden=self._apart(occupied, mpp),
+                    )
+                    if placed is not None:
+                        pasted |= placed
+                        if occupied is not None:
+                            occupied |= placed
             if pasted.any():
                 coverage = pixels_to_cells(pasted, grid.shape[0])
                 grid = np.maximum(grid, coverage.astype(np.float32))
         return hed_to_rgb(hed), grid
+
+    def _apart(self, occupied: np.ndarray | None, mpp: float) -> np.ndarray | None:
+        """Where a paste may not go: within ``min_gap_um`` of the pasted (None: anywhere)."""
+        if occupied is None or not occupied.any():
+            return None
+        gap = max(1, round(float(self.min_gap_um or 0) / mpp))
+        return ndimage.binary_dilation(occupied, iterations=gap)
+
+    def _fade_window(
+        self, window: np.ndarray, alpha: np.ndarray, rng: np.random.Generator
+    ) -> np.ndarray:
+        """A cut's densities with its stained pixels faded to ``cell_fade_to``."""
+        stained = (alpha > 0.5) & (window[..., DAB] > _STAINED)
+        if stained.sum() < 10:
+            return window
+        rgb = hed_to_rgb(window)
+        target = rng.uniform(*self.cell_fade_to)
+        return rgb_to_hed(fade_dab(rgb, stained, target, self.min_fade))
 
     def _cut_cell(
         self,
@@ -547,6 +662,17 @@ def _cut(
     return window, alpha
 
 
+def _edge_band(node: np.ndarray, width: float) -> np.ndarray | None:
+    """The lymph node's pixels within ``width`` px of its outline in the tile, or None.
+
+    None where the tile holds no outline (all node or none): the tile's own edges are
+    no outline.
+    """
+    if node.all() or not node.any():
+        return None
+    return node & (ndimage.distance_transform_edt(node) <= width)
+
+
 def _paste(
     hed: np.ndarray,
     window: np.ndarray,
@@ -554,11 +680,12 @@ def _paste(
     tissue: np.ndarray,
     rng: np.random.Generator,
     attempts: int = 20,
+    forbidden: np.ndarray | None = None,
 ) -> np.ndarray | None:
     """Blends ``window`` into ``hed`` in place at a random place on the tissue.
 
     Returns the pasted pixels (alpha above 0.5) as a mask of the tile, or None if no
-    place (mostly tissue, within the tile) was found.
+    place (mostly tissue, within the tile, none of its pixels ``forbidden``) was found.
     """
     size = window.shape[0]
     h, w = tissue.shape
@@ -577,6 +704,11 @@ def _paste(
         i = int(rng.integers(len(ys)))
         y, x = int(ys[i]) - size // 2, int(xs[i]) - size // 2
         if tissue[y : y + size, x : x + size][inside].mean() < 0.8:
+            continue
+        if (
+            forbidden is not None
+            and forbidden[y : y + size, x : x + size][inside].any()
+        ):
             continue
         region = hed[y : y + size, x : x + size]
         region += alpha[..., np.newaxis] * (window - region)

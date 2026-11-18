@@ -1,0 +1,17 @@
+# @package _global_
+
+# More TMA context, added after a scenario in its defaults (a fragment): of the TMA
+# draws three quarters from the tiles with cytokeratin coverage up to 0.5 (healthy_tma)
+# instead of a quarter, the rest from those above (cancer) — 3 and 1 instead of 1 and 3,
+# so the lymph node draws, and with them the pasted cells, stay as they were.
+#
+# Why: the healthy_tma tiles are stroma beside tumour plus the epithelium's edges and
+# small islands (their targets per patch, the cytokeratin grid), positives nearer an
+# ITC's size than the tumour sheets of the cancer tiles, which made ~half of all draws.
+# Risk: faint epithelium the TMA masks leave unlabelled is taught as negative more often
+# (the corrected ground truth's ignore label covers only part of it).
+data:
+  train_sampler:
+    ratio:
+      healthy_tma: 3
+      cancer: 1

@@ -1,0 +1,50 @@
+# @package _global_
+
+# Early stopping and checkpoint selection on the detection of synthetic isolated tumour
+# cells (lymph_nodes.callbacks.SyntheticLesionMetrics), added after a scenario in its
+# defaults (a fragment), instead of a fixed number of epochs.
+#
+# Why: the validation during fit holds no positive lymph node (none may steer the
+# training: lymph node annotations are for the evaluations only), its TMA patch AUROC
+# is ~0.999 from the first epoch on, and its negative slides' false positives alone
+# favour a model that flags nothing — the fits so far ran 8 epochs and took the last.
+# Here 1,000 tiles of the held-out fold's negative lymph node slides get the held-out
+# fold's TMA tumour cells pasted inside the node, the same ones every epoch and every
+# run (seed 0): single cells, small groups and a few fragments, a third faded to the
+# missed ITCs' faint DAB. froc: their mean sensitivity at 0.5, 1, 2, 4 and 8
+# false-positive regions per negative slide of the validation (its 8 whole fold-0
+# slides). The best epoch's checkpoint is kept; training stops 3 epochs without a gain.
+#
+# The cosine learning rate runs over max_epochs (16): a run stopped early stops before
+# its rate is down, the moving average of the head evaluating.
+trainer:
+  max_epochs: 16
+  callbacks:
+    synthetic_lesions:
+      _target_: lymph_nodes.callbacks.SyntheticLesionMetrics
+      count: 1000
+      seed: 0
+      cohorts: [mmci_ihc_2023]
+      region_budgets: [0.5, 1, 2, 4, 8]
+      cell_pasting:
+        _target_: lymph_nodes.data.augmentations.CellPasting
+        p: 1.0
+        negative_p: 0.0
+        max_cells: 3
+        cluster_p: 0.3
+        cell_radius_um: [5.0, 8.0]
+        fragment_p: 0.1
+        fragment_um: [30.0, 80.0]
+        placement_density: 0.01
+        within_node: true
+        min_gap_um: 2.0
+        cell_fade_p: 0.3
+        cell_fade_to: [0.03, 0.05]
+    checkpoint:
+      monitor: validation/synthetic/froc
+      mode: max
+      save_top_k: 1
+    early_stopping:
+      monitor: validation/synthetic/froc
+      mode: max
+      patience: 3

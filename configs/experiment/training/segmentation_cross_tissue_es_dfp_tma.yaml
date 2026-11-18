@@ -1,0 +1,14 @@
+# @package _global_
+
+# The early-stopping series (2026-11-18): Dice + focal with the online hard-negative
+# bank (segmentation_cross_tissue_combined.yaml as it now stands; never fitted so), with
+# more TMA context (sampling/tma_context.yaml); trained until the detection of synthetic
+# isolated tumour cells stops improving (early_stopping/synthetic_froc.yaml) instead of
+# a fixed 8 epochs.
+defaults:
+  - /experiment/training/segmentation_cross_tissue_combined
+  - /experiment/training/sampling/tma_context
+  - /experiment/training/early_stopping/synthetic_froc
+  - _self_
+
+scenario: cross-tissue segmentation es dfp tma

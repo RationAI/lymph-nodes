@@ -1,0 +1,16 @@
+# @package _global_
+
+# Larger pasted groups, added after a scenario with CellPasting in its defaults (a
+# fragment; as segmentation_cross_tissue_combined_fragments.yaml, never fitted): a fifth
+# of the pastes a fragment of the TMA donor's stained epithelium, 30-80 um long (at most
+# 0.6 of the tile) and up to 3x narrower, cut along the stained tissue — nests, cords and
+# branching strands of tens of cells. The rest as before: small groups 30%, single cells.
+#
+# Why: the combined models flagged only the edges and loose cells of strongly stained
+# clusters of tens of cells in lymph nodes, though they find TMA tumour sheets: in lymph
+# node tissue their only positives were pasted cells and groups of up to ~40 um.
+data:
+  train:
+    cell_pasting:
+      fragment_p: 0.2
+      fragment_um: [30.0, 80.0]

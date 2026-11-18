@@ -172,6 +172,26 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
 
     def _pasting_pools(self, cell_pasting: CellPasting) -> None:
         """Positions (global indices) of the donors, recipients and brown donors."""
+        (
+            self._donors,
+            self._recipients,
+            self._brown_donors,
+            self._paste_in_node,
+        ) = self._pools(cell_pasting)
+        self._donor_p = self._donor_probabilities(cell_pasting, self._donors)
+        print(
+            f"cell pasting: {len(self._donors)} donor tiles, "
+            f"{int(self._recipients.sum())} recipients, "
+            f"{len(self._brown_donors)} brown donors"
+        )
+        if len(self._donors) == 0:
+            print("cell pasting left out: no donor tiles")
+            self.cell_pasting = None
+
+    def _pools(
+        self, cell_pasting: CellPasting
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, bool]:
+        """Donor positions, the recipient mask, brown donor positions, placement in the node."""
         index = self._get_batch_index()
         partitions = np.concatenate(
             [dataset.partition_labels() for dataset in self.datasets]  # type: ignore[attr-defined]
@@ -181,29 +201,57 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         ]
         # Not the mined hard negatives: they stay as they are, the confusers on their own.
         negative = np.isin(partitions, [HEALTHY, HEALTHY_BROWNISH, HEALTHY_EXTERNAL])
-        self._donors = np.flatnonzero(donor_cohort & (partitions == CANCER))
-        self._recipients = ~donor_cohort & negative
-        self._brown_donors = np.flatnonzero(
-            ~donor_cohort & (partitions == HEALTHY_BROWNISH)
-        )
+        donors = np.flatnonzero(donor_cohort & (partitions == CANCER))
+        recipients = ~donor_cohort & negative
+        brown_donors = np.flatnonzero(~donor_cohort & (partitions == HEALTHY_BROWNISH))
         # Within the lymph node: recipients with node coverage, placement on node_grid.
         columns = self.tiles.column_names
-        self._paste_in_node = cell_pasting.within_node and "node_grid" in columns
+        in_node = bool(cell_pasting.within_node and "node_grid" in columns)
         if cell_pasting.within_node and "node_coverage" in columns:
             node = self.tiles.data.column("node_coverage").to_numpy(
                 zero_copy_only=False
             )
-            self._recipients &= np.nan_to_num(node[index.rows].astype(float)) > 0
+            recipients &= np.nan_to_num(node[index.rows].astype(float)) > 0
         elif cell_pasting.within_node:
             print("cell pasting on all tissue: the tiles have no node_coverage")
+        return donors, recipients, brown_donors, in_node
+
+    def _donor_probabilities(
+        self, cell_pasting: CellPasting, donors: np.ndarray
+    ) -> np.ndarray | None:
+        """Each donor's chance by ``cell_pasting.donor_weights`` (None: all alike).
+
+        A group is the donors whose slide name starts with its key (the first key
+        matching), its share of the draws its weight's; donors of no group are never
+        drawn.
+        """
+        weights = cell_pasting.donor_weights
+        if not weights or not len(donors):
+            return None
+        index = self._get_batch_index()
+        names = np.asarray(index.names, dtype=str)[index.slide_of[donors]]
+        probabilities = np.zeros(len(donors))
+        claimed = np.zeros(len(donors), dtype=bool)
+        sizes = {}
+        for prefix, weight in weights.items():
+            members = ~claimed & np.char.startswith(names, prefix)
+            claimed |= members
+            sizes[prefix] = int(members.sum())
+            if members.any():
+                probabilities[members] = float(weight) / members.sum()
         print(
-            f"cell pasting: {len(self._donors)} donor tiles, "
-            f"{int(self._recipients.sum())} recipients, "
-            f"{len(self._brown_donors)} brown donors"
+            f"cell pasting donors by group: {sizes}; "
+            f"{int((~claimed).sum())} in none, never drawn"
         )
-        if len(self._donors) == 0:
-            print("cell pasting left out: no donor tiles")
-            self.cell_pasting = None
+        if probabilities.sum() <= 0:
+            raise ValueError(f"donor_weights {weights}: no donor tile in any group")
+        return probabilities / probabilities.sum()
+
+    def _draw_donor(self, rng: np.random.Generator) -> int:
+        """A donor position: by donor_weights' groups, or every donor alike."""
+        if self._donor_p is None:
+            return int(rng.choice(self._donors))
+        return int(rng.choice(self._donors, p=self._donor_p))
 
     def __getstate__(self) -> dict[str, Any]:
         # Open slide handles stay in the process that opened them (DataLoader workers
@@ -281,7 +329,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             if tissue is not None and tissue[1][i]:
                 pixels = self._cell_pixels(tissue[0][i], tile.shape[0])
             if self.cell_pasting is not None and self._recipients[position]:
-                where = pixels
+                where, inside = pixels, None
                 if node is not None:  # within the node only (none if no node grid)
                     inside = (
                         self._cell_pixels(node[0][i], tile.shape[0])
@@ -289,7 +337,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
                         else np.zeros(tile.shape[:2], dtype=bool)
                     )
                     where = inside if where is None else where & inside
-                tile, grid = self._paste(tile, grid, slide, where)
+                tile, grid = self._paste(tile, grid, slide, where, inside)
                 if grid.max() > 0:  # cells pasted
                     meta["label"] = 1.0
             if self.augmentation is not None:
@@ -312,13 +360,18 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         grid: np.ndarray,
         slide: int,
         tissue: np.ndarray | None,
+        node: np.ndarray | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
-        """``cell_pasting`` on a recipient tile, reading the donor tiles it needs."""
+        """``cell_pasting`` on a recipient tile, reading the donor tiles it needs.
+
+        One donor tile, or with ``cell_pasting.pastes`` other than (1, 1) one per paste.
+        """
         assert self.cell_pasting is not None
         rng = self._rng()
-        donor = brown = None
+        donor: np.ndarray | list[np.ndarray] | None = None
+        brown = None
         if rng.random() < self.cell_pasting.p:
-            donor = self._read_position(int(rng.choice(self._donors)))
+            donor = self._read_donors(self.cell_pasting, rng)
         if len(self._brown_donors) and rng.random() < self.cell_pasting.negative_p:
             brown = self._read_position(int(rng.choice(self._brown_donors)))
         if donor is None and brown is None:
@@ -331,7 +384,95 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             donor=donor,
             brown=brown,
             tissue=tissue,
+            node=node,
         )
+
+    def _read_donors(
+        self, cell_pasting: CellPasting, rng: np.random.Generator
+    ) -> np.ndarray | list[np.ndarray]:
+        """The donor tile, or one per paste (as many as ``cell_pasting.pastes`` draws)."""
+        low, high = cell_pasting.pastes
+        if (low, high) == (1, 1):  # the random stream of the scenarios before pastes
+            return self._read_position(self._draw_donor(rng))
+        count = int(rng.integers(low, high + 1))
+        return [self._read_position(self._draw_donor(rng)) for _ in range(count)]
+
+    def synthetic_lesions(
+        self, cell_pasting: CellPasting, count: int, seed: int = 0
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """``count`` tiles with pasted cells, the same ones for a ``seed``.
+
+        Returns the tiles (n, H, W, 3) uint8 and their target grids (n, g, g): for a
+        measure of detection without positive lymph nodes
+        (callbacks.SyntheticLesionMetrics). ``cell_pasting`` pastes into every tile (its
+        ``p`` and the brown spots aside) this dataset's donor tiles into its recipient
+        tiles — in the validation during fit, the held-out fold's TMA tumour tiles into
+        its negative lymph node tiles, within the node as ``cell_pasting.within_node``
+        says. No augmentation. Read in this process, by a copy of the dataset whose
+        slides are closed after (the DataLoader workers keep their own).
+        """
+        donors, recipients, _, in_node = self._pools(cell_pasting)
+        if not len(donors) or not recipients.any():
+            raise ValueError(
+                f"synthetic lesions: {len(donors)} donor tiles, "
+                f"{int(recipients.sum())} recipient tiles"
+            )
+        donor_p = self._donor_probabilities(cell_pasting, donors)
+        reader = object.__new__(type(self))
+        reader.__dict__.update(self.__getstate__())
+        rng = np.random.default_rng(seed)
+        index = self._get_batch_index()
+        columns = self.tiles.column_names
+        tiles: list[np.ndarray] = []
+        grids: list[np.ndarray] = []
+        try:
+            for position in rng.permutation(np.flatnonzero(recipients)):
+                if len(tiles) >= count:
+                    break
+                slide = int(index.slide_of[position])
+                rows = index.rows[[position]]
+                tile = reader._read_position(int(position))
+                where = inside = None
+                if "tissue_grid" in columns:
+                    tissue = self._take_grid("tissue_grid", rows)
+                    if tissue[1][0]:
+                        where = self._cell_pixels(tissue[0][0], tile.shape[0])
+                if in_node:
+                    node = self._take_grid("node_grid", rows)
+                    inside = (
+                        self._cell_pixels(node[0][0], tile.shape[0])
+                        if node[1][0]
+                        else np.zeros(tile.shape[:2], dtype=bool)
+                    )
+                    where = inside if where is None else where & inside
+                low, high = cell_pasting.pastes
+                pastes = int(rng.integers(low, high + 1))
+                donor = [
+                    reader._read_position(
+                        int(rng.choice(donors, p=donor_p))
+                        if donor_p is not None
+                        else int(rng.choice(donors))
+                    )
+                    for _ in range(pastes)
+                ]
+                tile, grid = cell_pasting(
+                    tile,
+                    np.zeros((self.grid, self.grid), dtype=np.float32),
+                    float(self._mpp[slide]),
+                    rng,
+                    donor=donor,
+                    tissue=where,
+                    node=inside,
+                )
+                if grid.max() > 0:  # something pasted
+                    tiles.append(tile)
+                    grids.append(grid)
+        finally:
+            for handle in reader._open_slides.values():
+                handle.close()
+        if len(tiles) < count:
+            print(f"synthetic lesions: {len(tiles)} of {count} (recipients ran out)")
+        return np.stack(tiles), np.stack(grids)
 
     def _read_position(self, position: int) -> np.ndarray:
         """The tile at a global index."""
