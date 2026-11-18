@@ -1,0 +1,75 @@
+# @package _global_
+
+# Does a model flag the pasting rather than the cell? A diagnostic of a checkpoint, added
+# to its scenario for mode=validate (a fragment):
+#
+#   python scripts/training/segmentation_scenario.py segmentation_cross_tissue_combined \
+#       virchow2 --folds 0 --validate <checkpoint> --memory 32Gi \
+#       --override +experiment/training/diagnostics=paste_decoys --name <name>-paste-decoys
+#
+# Validates on the validation during fit (data.validate_on: val — fold 0's 8 whole
+# negative lymph node slides and TMA cores), with callbacks.SyntheticLesionMetrics in
+# validate: 1,000 of its negative tiles each with, pasted inside the node, a faint
+# single TMA tumour cell (the lesions of early_stopping/synthetic_froc.yaml), a strongly
+# stained one (strong/), and decoys — a nucleated cell without stain from the TMA cores
+# (decoys/tma_unstained/: the same scanner, blending and edges as the tumour cells) or
+# from other lymph node tiles (decoys/ln_unstained/: the blending alone) — each against
+# its baseline, the same regions before the pasting. Compared between a model trained
+# with pasting and one without (fit ba821d68): a decoy rate above its baseline, and
+# above the unpasted model's, is the pasting learnt.
+data:
+  validate_on: val
+
+trainer:
+  callbacks:
+    synthetic_lesions:
+      _target_: lymph_nodes.callbacks.SyntheticLesionMetrics
+      during_validate: true
+      count: 1000
+      seed: 0
+      cohorts: [mmci_ihc_2023]
+      region_budgets: [0.5, 1, 2, 4, 8]
+      cell_pasting:
+        _target_: lymph_nodes.data.augmentations.CellPasting
+        p: 1.0
+        negative_p: 0.0
+        max_cells: 1
+        cluster_p: 0.0
+        fragment_p: 0.0
+        cell_radius_um: [4.0, 7.0]
+        placement_density: 0.005
+        within_node: true
+        cell_fade_p: 1.0
+        cell_fade_to: [0.03, 0.05]
+      extra_lesions:
+        strong:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cluster_p: 0.0
+          fragment_p: 0.0
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
+      decoys:
+        tma_unstained:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          cut: unstained
+          donor_cohorts: [mmci_tmas]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
+        ln_unstained:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          cut: unstained
+          donor_cohorts: [mmci_ihc_2023]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true

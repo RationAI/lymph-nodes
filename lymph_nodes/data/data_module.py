@@ -15,6 +15,7 @@ class DataModule(LightningDataModule):
         num_workers: int = 0,
         train_sampler: DictConfig | None = None,
         eval_batch_size: int | None = None,
+        validate_on: str = "eval",
         **datasets: DictConfig,
     ) -> None:
         super().__init__()
@@ -24,6 +25,9 @@ class DataModule(LightningDataModule):
         # per-batch work between forward passes (metrics, masks). batch_size if None.
         self.eval_batch_size = eval_batch_size or batch_size
         self.num_workers = num_workers
+        # The dataset of mode=validate: the evaluation (``eval``), or e.g. ``val``, the
+        # validation during fit, for diagnostics on it (callbacks.SyntheticLesionMetrics).
+        self.validate_on = validate_on
         self.datasets = datasets
         self._train_sampler_cfg = train_sampler
         self.train_sampler = None
@@ -37,9 +41,11 @@ class DataModule(LightningDataModule):
                 # per-slide sub-datasets), so it can only be built after self.train —
                 # unlike train/val/test, which only need their own static config.
                 if self._train_sampler_cfg is not None:
-                    self.train_sampler = instantiate(self._train_sampler_cfg, dataset=self.train)
+                    self.train_sampler = instantiate(
+                        self._train_sampler_cfg, dataset=self.train
+                    )
             case "validate":
-                self.val = instantiate(self.datasets["eval"])
+                self.val = instantiate(self.datasets[self.validate_on])
             case "test":
                 self.test = instantiate(self.datasets["test"])
 

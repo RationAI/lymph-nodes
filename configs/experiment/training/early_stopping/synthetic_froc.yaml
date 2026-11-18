@@ -8,12 +8,28 @@
 # training: lymph node annotations are for the evaluations only), its TMA patch AUROC
 # is ~0.999 from the first epoch on, and its negative slides' false positives alone
 # favour a model that flags nothing — the fits so far ran 8 epochs and took the last.
-# Here 1,000 tiles of the held-out fold's negative lymph node slides get the held-out
-# fold's TMA tumour cells pasted inside the node, the same ones every epoch and every
-# run (seed 0): single cells, small groups and a few fragments, a third faded to the
-# missed ITCs' faint DAB. froc: their mean sensitivity at 0.5, 1, 2, 4 and 8
-# false-positive regions per negative slide of the validation (its 8 whole fold-0
-# slides). The best epoch's checkpoint is kept; training stops 3 epochs without a gain.
+# Here 1,000 tiles of the held-out fold's negative lymph node slides get one held-out
+# fold's TMA tumour cell each, pasted inside the node, the same ones every epoch and
+# every run (seed 0): what the models miss most, a faint single cell (DAB faded to
+# 0.03-0.05; single cells' recall 0.41 faint vs 0.81 strong, 2026-10-30), 4-7 um in
+# radius, placed in sparse stroma too. froc: their mean sensitivity at 0.5, 1, 2, 4 and
+# 8 false-positive regions per negative slide of the validation (its 8 whole fold-0
+# slides).
+#
+# Decoys: a model may learn the pasting itself — blended edges, or a cell of another
+# scanner and tissue (every pasted positive comes from a TMA core) — and pasted
+# positives would then reward it. So 1,000 tiles each get a decoy pasted the same way:
+# a nucleated cell with no stain around it, from the held-out TMA cores (same scanner,
+# blending and edges, no tumour) or from other lymph node tiles (the blending alone).
+# Their flag rates count against the model: net_froc, the mean over the budgets of
+# the sensitivity less the higher decoy rate, picks the checkpoint and stops the
+# training (3 epochs without a gain). The decoys' baselines (the same regions before
+# the pasting) are logged with them.
+#
+# Harder than the first version (2026-11-18: 1-3 cells, groups 30%, fragments 10%, a
+# third faded), which ASL mild "all" found at 0.946-0.988 after one epoch (froc 0.971),
+# against ~0.4-0.5 of the real lesions at 0.5 false-positive regions per negative slide:
+# no room left to tell epochs apart.
 #
 # The cosine learning rate runs over max_epochs (16): a run stopped early stops before
 # its rate is down, the moving average of the head evaluating.
@@ -30,21 +46,40 @@ trainer:
         _target_: lymph_nodes.data.augmentations.CellPasting
         p: 1.0
         negative_p: 0.0
-        max_cells: 3
-        cluster_p: 0.3
-        cell_radius_um: [5.0, 8.0]
-        fragment_p: 0.1
-        fragment_um: [30.0, 80.0]
-        placement_density: 0.01
+        max_cells: 1
+        cluster_p: 0.0
+        fragment_p: 0.0
+        cell_radius_um: [4.0, 7.0]
+        placement_density: 0.005
         within_node: true
-        min_gap_um: 2.0
-        cell_fade_p: 0.3
+        cell_fade_p: 1.0
         cell_fade_to: [0.03, 0.05]
+      decoys:
+        tma_unstained:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          cut: unstained
+          donor_cohorts: [mmci_tmas]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
+        ln_unstained:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          cut: unstained
+          donor_cohorts: [mmci_ihc_2023]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
     checkpoint:
-      monitor: validation/synthetic/froc
+      monitor: validation/synthetic/net_froc
       mode: max
       save_top_k: 1
     early_stopping:
-      monitor: validation/synthetic/froc
+      monitor: validation/synthetic/net_froc
       mode: max
       patience: 3

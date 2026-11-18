@@ -351,6 +351,13 @@ class CellPasting:
       of no group never drawn) — TileSegmentationDataset draws them. By default every
       donor tile alike, so the kinds with the most tumour tiles dominate.
 
+    Decoys, to tell whether a model flags the pasting rather than the cell: with ``cut``
+    ``"unstained"``, single nucleated cells without any stain around them (DAB below the
+    stained-cell level), cut from any tile of the donor cohorts (TileSegmentationDataset:
+    every partition, not only the tumour tiles) — the same scanner, blending and edges
+    as the tumour cells of those cohorts, no tumour; with ``mark`` false, pastes leave
+    the target grid as it was (negatives).
+
     Called (after a donor tile is read) with the tile (H, W, 3) uint8, its target grid
     (g, g), the slide's resolution, a numpy Generator, the donor tile (or one per
     paste), optionally a brown donor, the tiling's tissue (H, W) bool, narrowed to
@@ -380,7 +387,11 @@ class CellPasting:
         edge_p: float = 0.0,
         edge_um: float = 50.0,
         donor_weights: Mapping[str, float] | None = None,
+        cut: str = "stained",
+        mark: bool = True,
     ) -> None:
+        if cut not in ("stained", "unstained"):
+            raise ValueError(f"cut: 'stained' or 'unstained', not {cut!r}")
         self.p = p
         self.negative_p = negative_p
         self.max_cells = max_cells
@@ -404,6 +415,8 @@ class CellPasting:
         self.edge_p = edge_p
         self.edge_um = edge_um
         self.donor_weights = None if donor_weights is None else dict(donor_weights)
+        self.cut = cut
+        self.mark = mark
 
     def __call__(
         self,
@@ -452,8 +465,13 @@ class CellPasting:
                     tissue_mask(donor_tile),
                 )
                 kind = rng.random()
-                fragment = kind < self.fragment_p
-                cluster = not fragment and kind < self.fragment_p + self.cluster_p
+                unstained = self.cut == "unstained"
+                fragment = not unstained and kind < self.fragment_p
+                cluster = (
+                    not unstained
+                    and not fragment
+                    and kind < self.fragment_p + self.cluster_p
+                )
                 count = (
                     1
                     if cluster or fragment
@@ -467,7 +485,9 @@ class CellPasting:
                     cut = (
                         self._cut_fragment(donor_hed, donor_tissue, mpp, rng)
                         if fragment
-                        else self._cut_cell(donor_hed, donor_tissue, mpp, rng, cluster)
+                        else self._cut_cell(
+                            donor_hed, donor_tissue, mpp, rng, cluster, unstained
+                        )
                     )
                     if cut is None:
                         break
@@ -491,7 +511,7 @@ class CellPasting:
                         pasted |= placed
                         if occupied is not None:
                             occupied |= placed
-            if pasted.any():
+            if pasted.any() and self.mark:
                 coverage = pixels_to_cells(pasted, grid.shape[0])
                 grid = np.maximum(grid, coverage.astype(np.float32))
         return hed_to_rgb(hed), grid
@@ -521,8 +541,12 @@ class CellPasting:
         mpp: float,
         rng: np.random.Generator,
         cluster: bool,
+        unstained: bool = False,
     ) -> tuple[np.ndarray, np.ndarray] | None:
-        """A cell (or group) of the donor: its densities and blending weights, or None."""
+        """A cell (or group) of the donor: its densities and blending weights, or None.
+
+        ``unstained``: a nucleated cell with no stain around it (a decoy).
+        """
         radius = (
             rng.uniform(*(self.cluster_radius_um if cluster else self.cell_radius_um))
             / mpp
@@ -539,7 +563,11 @@ class CellPasting:
                 nuclei > np.percentile(nuclei, 75)
             )
             around = ndimage.uniform_filter(dab, size=round(2 * radius) | 1)
-            candidates = peaks & (around > self.donor_dab)
+            if unstained:
+                stain = ndimage.maximum_filter(dab, size=round(2 * radius) | 1)
+                candidates = peaks & (stain < _STAINED)
+            else:
+                candidates = peaks & (around > self.donor_dab)
         return _cut(hed, tissue, candidates, radius, rng)
 
     def _cut_fragment(

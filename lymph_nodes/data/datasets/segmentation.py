@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any
 
@@ -200,9 +201,16 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
             index.slide_of
         ]
         # Not the mined hard negatives: they stay as they are, the confusers on their own.
+        # Lymph node tiles only: TMA tiles are never in these partitions.
         negative = np.isin(partitions, [HEALTHY, HEALTHY_BROWNISH, HEALTHY_EXTERNAL])
-        donors = np.flatnonzero(donor_cohort & (partitions == CANCER))
-        recipients = ~donor_cohort & negative
+        # Tumour cells from the donor cohorts' tumour tiles; unstained decoy cells from
+        # any of their tiles.
+        donors = np.flatnonzero(
+            donor_cohort
+            if cell_pasting.cut == "unstained"
+            else donor_cohort & (partitions == CANCER)
+        )
+        recipients = negative
         brown_donors = np.flatnonzero(~donor_cohort & (partitions == HEALTHY_BROWNISH))
         # Within the lymph node: recipients with node coverage, placement on node_grid.
         columns = self.tiles.column_names
@@ -398,11 +406,17 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         return [self._read_position(self._draw_donor(rng)) for _ in range(count)]
 
     def synthetic_lesions(
-        self, cell_pasting: CellPasting, count: int, seed: int = 0
-    ) -> tuple[np.ndarray, np.ndarray]:
+        self,
+        cell_pasting: CellPasting,
+        count: int,
+        seed: int = 0,
+        keep_originals: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
         """``count`` tiles with pasted cells, the same ones for a ``seed``.
 
-        Returns the tiles (n, H, W, 3) uint8 and their target grids (n, g, g): for a
+        Returns the tiles (n, H, W, 3) uint8, their grids (n, g, g) — what was pasted,
+        per patch, marked whatever ``cell_pasting.mark`` says (decoys too) — and, with
+        ``keep_originals``, the tiles as they were before the pasting (else None): for a
         measure of detection without positive lymph nodes
         (callbacks.SyntheticLesionMetrics). ``cell_pasting`` pastes into every tile (its
         ``p`` and the brown spots aside) this dataset's donor tiles into its recipient
@@ -418,6 +432,9 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
                 f"{int(recipients.sum())} recipient tiles"
             )
         donor_p = self._donor_probabilities(cell_pasting, donors)
+        if not cell_pasting.mark:  # the grids say where the pastes are
+            cell_pasting = copy.copy(cell_pasting)
+            cell_pasting.mark = True
         reader = object.__new__(type(self))
         reader.__dict__.update(self.__getstate__())
         rng = np.random.default_rng(seed)
@@ -425,13 +442,14 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         columns = self.tiles.column_names
         tiles: list[np.ndarray] = []
         grids: list[np.ndarray] = []
+        originals: list[np.ndarray] = []
         try:
             for position in rng.permutation(np.flatnonzero(recipients)):
                 if len(tiles) >= count:
                     break
                 slide = int(index.slide_of[position])
                 rows = index.rows[[position]]
-                tile = reader._read_position(int(position))
+                tile = original = reader._read_position(int(position))
                 where = inside = None
                 if "tissue_grid" in columns:
                     tissue = self._take_grid("tissue_grid", rows)
@@ -467,12 +485,18 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
                 if grid.max() > 0:  # something pasted
                     tiles.append(tile)
                     grids.append(grid)
+                    if keep_originals:
+                        originals.append(original)
         finally:
             for handle in reader._open_slides.values():
                 handle.close()
         if len(tiles) < count:
             print(f"synthetic lesions: {len(tiles)} of {count} (recipients ran out)")
-        return np.stack(tiles), np.stack(grids)
+        return (
+            np.stack(tiles),
+            np.stack(grids),
+            np.stack(originals) if keep_originals else None,
+        )
 
     def _read_position(self, position: int) -> np.ndarray:
         """The tile at a global index."""
