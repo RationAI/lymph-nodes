@@ -24,13 +24,16 @@ share; everything compared on grids in the IHC frame, um of level 0):
    local fit (rotation +-0.5 degrees), then nuclei (haematoxylin peaks) in both: `share` =
    IHC nuclei with an H&E nucleus within MATCH_UM; `chance` = the same with the IHC nuclei
    shifted by CHANCE_UM in 8 directions (nuclei are dense in a node, so chance is high);
-   kappa = (share - chance) / (1 - chance).
+   kappa = (share - chance) / (1 - chance). `*_searched`: the best share over offsets
+   within +-SEARCH_UM (and chance searched alike), so that a few um of misalignment
+   cannot hide a restain.
 4. Global: a robust similarity fit (RANSAC) of all the fine patch correspondences. Its
    residuals (um) say whether one transform carries the whole slide (the same glass) or
    not (sections mounted apart).
 
 A restain should show a high kappa and residuals of ~1-2 um across the slide; the thresholds
-are to be set on the data (mirrored pairs cannot be restains: negative controls).
+are to be set on the data (mirrored pairs cannot be restains: negative controls; --self
+scores IHC slides against themselves: a positive control of the whole path).
 
 Writes to --out: pairs.csv (one row per pair), patches.csv (one row per patch), and
 qc/<ihc>__<he>.jpg (the global overlay, and three fine patches: IHC, the H&E warped onto it,
@@ -87,6 +90,9 @@ FINE_UM, FINE_PATCH_UM, FINE_MARGIN_UM = 0.486, 160.0, 20.0
 FINE_ANGLES = np.arange(-0.5, 0.51, 0.25)
 NUCLEUS_SMOOTH_UM, NUCLEUS_MIN_DIST_UM, MIN_NUCLEI = 1.0, 2.5, 20
 MATCH_UM, CHANCE_UM = 2.0, 10.0
+SEARCH_UM, SEARCH_STEP_UM = 6.0, 0.5  # nuclei matched over offsets within this
+MIN_WINDOW_STD = 0.2  # template-matching windows below this x the patch std: blank
+CONTEXT_UM, CONTEXT_PX_UM = 480.0, 0.97  # QC: a wider view around the best patch
 # 4. Global.
 INLIER_UM, RANSAC_ITERS = 5.0, 2000
 
@@ -404,6 +410,10 @@ def locate(
             smooth_um / um,
         )
         m = match_template(b, a)
+        # Windows of (almost) blank glass have ~no variance and unbounded scores
+        # (pilot 7ec93f31: up to 5945): drop them.
+        m[window_std(b, a.shape) < MIN_WINDOW_STD * a.std()] = -1.0
+        m = np.clip(m, -1.0, 1.0)
         k = tuple(int(i) for i in np.unravel_index(int(np.argmax(m)), m.shape))
         if best is None or m[k] > best[0]:
             oi, oj = subpixel(m, k)
@@ -431,32 +441,63 @@ def nuclei(rgb: np.ndarray, um: float) -> np.ndarray:
     return (peaks[:, ::-1] + 0.5) * um
 
 
+def window_std(b: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
+    """Standard deviation of b over every window of the shape (match_template's 'valid' grid)."""
+    h, w = shape
+    sums = []
+    for x in (b.astype(np.float64), b.astype(np.float64) ** 2):
+        c = np.pad(x, ((1, 0), (1, 0))).cumsum(0).cumsum(1)
+        sums.append(c[h:, w:] - c[:-h, w:] - c[h:, :-w] + c[:-h, :-w])
+    mean = sums[0] / (h * w)
+    return np.sqrt(np.maximum(sums[1] / (h * w) - mean**2, 0.0))
+
+
 def agreement(fixed: np.ndarray, moving: np.ndarray, size_um: float) -> dict[str, Any]:
-    """Share of fixed nuclei with a moving nucleus within MATCH_UM, its chance level and kappa."""
-    nan = {"share": np.nan, "chance": np.nan, "kappa": np.nan}
+    """Share of fixed nuclei with a moving nucleus within MATCH_UM, its chance level, kappa.
+
+    `share`/`chance`/`kappa` at the patch's alignment; `*_searched`: the best share over
+    offsets within +-SEARCH_UM (a few um of misalignment must not hide a restain), and
+    chance with the same search around each of the 8 shifts of CHANCE_UM.
+    """
+    keys = ("share", "chance", "kappa", "share_searched", "chance_searched")
+    nan = dict.fromkeys((*keys, "kappa_searched"), np.nan)
     if len(fixed) < MIN_NUCLEI or len(moving) < MIN_NUCLEI:
         return nan
     tree = cKDTree(moving)
-    lo, hi = CHANCE_UM + MATCH_UM, size_um - CHANCE_UM - MATCH_UM
+    lo = CHANCE_UM + SEARCH_UM + MATCH_UM
+    hi = size_um - lo
+    grid = np.arange(-SEARCH_UM, SEARCH_UM + 1e-9, SEARCH_STEP_UM)
+    offsets = np.array([(x, y) for x in grid for y in grid])
 
-    def share(points: np.ndarray) -> float:
+    def shares(points: np.ndarray) -> tuple[float, float]:
+        """The share at the position, and the best over the search."""
         inside = np.all((points >= lo) & (points <= hi), axis=1)
         if inside.sum() < MIN_NUCLEI:
-            return np.nan
-        d, _ = tree.query(points[inside])
-        return float(np.mean(d <= MATCH_UM))
+            return np.nan, np.nan
+        p = points[inside]
+        direct = float(np.mean(tree.query(p)[0] <= MATCH_UM))
+        q = (p[None] + offsets[:, None]).reshape(-1, 2)
+        d = tree.query(q, distance_upper_bound=MATCH_UM + 1e-6)[0]
+        searched = float((d.reshape(len(offsets), len(p)) <= MATCH_UM).mean(1).max())
+        return direct, searched
 
     turns = np.deg2rad(np.arange(0, 360, 45))
     shifts = CHANCE_UM * np.c_[np.cos(turns), np.sin(turns)]
-    actual = share(fixed)
-    chance = float(np.nanmean([share(fixed + s) for s in shifts]))
-    if not np.isfinite(actual) or not np.isfinite(chance) or chance >= 1:
+    share, share_searched = shares(fixed)
+    chances = np.array([shares(fixed + s) for s in shifts])
+    if not np.isfinite(share) or not np.isfinite(chances).any():
         return nan
-    return {
-        "share": actual,
-        "chance": chance,
-        "kappa": (actual - chance) / (1 - chance),
-    }
+    chance, chance_searched = (float(x) for x in np.nanmean(chances, axis=0))
+    out = dict(
+        zip(keys, (share, chance, np.nan, share_searched, chance_searched), strict=True)
+    )
+    out["kappa"] = (share - chance) / (1 - chance) if chance < 1 else np.nan
+    out["kappa_searched"] = (
+        (share_searched - chance_searched) / (1 - chance_searched)
+        if chance_searched < 1
+        else np.nan
+    )
+    return out
 
 
 def similarity(src: np.ndarray, dst: np.ndarray) -> np.ndarray:
@@ -581,11 +622,15 @@ def score(
             "share",
             "chance",
             "kappa",
+            "share_searched",
+            "chance_searched",
+            "kappa_searched",
             "nuclei_ihc",
             "nuclei_he",
         ):
             row[f"{k}_median"] = float(table[k].median())
         row["kappa_p25"] = float(table["kappa"].quantile(0.25))
+        row["kappa_searched_p25"] = float(table["kappa_searched"].quantile(0.25))
         row["kappa_valid"] = int(table["kappa"].notna().sum())
         row["angle_spread"] = float(table["fine_angle"].std())
     fit = (
@@ -611,14 +656,25 @@ def score(
             "scale": float(np.sqrt(abs(np.linalg.det(lin)))),
             "global_angle": float(np.degrees(np.arctan2(lin[1, 0], lin[0, 0]))),
         }
-    images = {"ihc": ihc_mem, "he": he_mem, "t": global_t, "fine": fine}
+    images = {
+        "ihc": ihc_mem,
+        "he": he_mem,
+        "t": global_t,
+        "fine": fine,
+        "ihc_slide": ihc,
+        "he_slide": he,
+    }
     return row, table.to_dict("records"), images
 
 
 def qc_sheet(
     images: dict[str, Any], patches: list[dict[str, Any]], title: str, file: Path
 ) -> None:
-    """Global overlay (IHC magenta, H&E green) and three fine patches (best, median, worst kappa)."""
+    """Write the QC sheet of a pair.
+
+    The global overlay (IHC magenta, H&E green), a wider view (IHC | H&E) around the best
+    patch, and three fine patches (best, median, worst searched kappa).
+    """
     tile = round(FINE_PATCH_UM / FINE_UM)
     ihc, he = images["ihc"], images["he"]
     x0, y0, w, h = ihc.extent
@@ -639,11 +695,30 @@ def qc_sheet(
         (
             p
             for p in range(len(patches))
-            if np.isfinite(patches[p].get("kappa", np.nan))
+            if np.isfinite(patches[p].get("kappa_searched", np.nan))
         ),
-        key=lambda p: -patches[p]["kappa"],
+        key=lambda p: -patches[p]["kappa_searched"],
     )
     picks = [order[0], order[len(order) // 2], order[-1]] if order else []
+    if order:  # the same structures should sit at the same places
+        best = patches[order[0]]
+        n = round(CONTEXT_UM / CONTEXT_PX_UM)
+        corner = np.array([best["x_um"], best["y_um"]]) - n * CONTEXT_PX_UM / 2
+        context = Image.new("RGB", (3 * tile, n + 14), "white")
+        for k, (slide, t) in enumerate(
+            (
+                (images["ihc_slide"], np.eye(3)),
+                (images["he_slide"], images["fine"][order[0]].t),
+            )
+        ):
+            view = warp(slide, t, corner[0], corner[1], (n, n), CONTEXT_PX_UM)
+            context.paste(Image.fromarray(view), (k * (n + 4), 14))
+        ImageDraw.Draw(context).text(
+            (2, 1),
+            f"patch {best['patch']}, {CONTEXT_UM:.0f} um: IHC | H&E (local fit)",
+            fill="black",
+        )
+        rows.append(context)
     for p in picks:
         f = images["fine"][p]
         ha, hb = haematoxylin(f.fixed_rgb), haematoxylin(f.moving_rgb)
@@ -662,8 +737,9 @@ def qc_sheet(
         q = patches[p]
         ImageDraw.Draw(strip).text(
             (2, 1),
-            f"patch {q['patch']}: kappa {q['kappa']:.2f} share {q['share']:.2f} "
-            f"chance {q['chance']:.2f} ncc {q['fine_ncc']:.2f}",
+            f"patch {q['patch']}: kappa {q['kappa']:.2f} (searched "
+            f"{q['kappa_searched']:.2f}: share {q['share_searched']:.2f} chance "
+            f"{q['chance_searched']:.2f}) ncc {q['fine_ncc']:.2f}",
             fill="black",
         )
         rows.append(strip)
@@ -684,13 +760,17 @@ def run_pair(
     base: dict[str, Any] = {"ihc": ihc_name, "he": he_name}
     try:
         ihc = Slide(f"{IHC_DIR}/{ihc_name}.mrxs")
-        he = Slide(f"{HE_DIR}/{he_name}.mrxs")
+        # An IHC name as the partner: a control (the slide against itself).
+        he = Slide(
+            f"{IHC_DIR if he_name.startswith('SNB_IHC_') else HE_DIR}/{he_name}.mrxs"
+        )
         row, patches, images = score(ihc, he)
         qc_sheet(
             images,
             patches,
             f"{ihc_name} -> {he_name}: {row['orientation']} {row['angle']:+.1f} deg, "
-            f"kappa {row.get('kappa_median', np.nan):.2f}, "
+            f"kappa {row.get('kappa_median', np.nan):.2f} "
+            f"(searched {row.get('kappa_searched_median', np.nan):.2f}), "
             f"residual {row.get('residual_median_um', np.nan):.1f} um",
             out / "qc" / f"{ihc_name}__{he_name}.jpg",
         )
@@ -713,6 +793,12 @@ def main() -> None:
         "--only", nargs="*", help="IHC slide names to score (default all)"
     )
     parser.add_argument(
+        "--self",
+        nargs="*",
+        default=[],
+        help="IHC slides to score against themselves too (a positive control)",
+    )
+    parser.add_argument(
         "--mlflow", action="store_true", help="log --out into experiment 4"
     )
     args = parser.parse_args()
@@ -720,6 +806,8 @@ def main() -> None:
     pairs = pd.read_csv(args.pairs)
     if args.only:
         pairs = pairs[pairs["ihc"].isin(args.only)]
+    controls = pd.DataFrame({"ihc": args.self, "he": args.self, "verdict": "self"})
+    pairs = pd.concat([controls, pairs], ignore_index=True)
     args.out.mkdir(parents=True, exist_ok=True)
     rows, patches = [], []
     with ProcessPoolExecutor(args.workers) as pool:
@@ -737,6 +825,7 @@ def main() -> None:
                     "ERROR"
                     if "error" in row
                     else f"kappa {row.get('kappa_median', np.nan):.2f} "
+                    f"(searched {row.get('kappa_searched_median', np.nan):.2f}) "
                     f"residual {row.get('residual_median_um', np.nan):.1f} um"
                 )
                 + f" ({row['seconds']} s)",

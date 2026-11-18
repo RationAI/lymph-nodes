@@ -62,6 +62,21 @@ registration and, first, finds out how many such pairs exist.
   (turned, 181.3 deg); neighbour (45% shared nuclei + smooth 12 um deformation) kappa 0.16 /
   14.6 um / 0.25; mirrored neighbour 0.15 / 12.8 um. ~5 s per pair. Real thresholds still
   to be set on the pilot.
+- **Pilot v1** (MLflow run 7ec93f31, commit b4d6fe1, job `ln-he-restain-score-pilot-pekar`,
+  10 pairs, ~55 s each): kappa median 0.01-0.03 for **every** pair, incl. the coarse
+  same-section ones (19_1, 80_1, 123_2: outline Dice 0.89-0.96) and 134_1/134_2/2_1;
+  residuals 38-766 um. The best patch per pair reaches only kappa 0.07-0.11. QC sheets
+  (19_1, 134_2): structures 20-50 um across (vessels, fat, fibrin, pale stroma) sit at the
+  same place within ~5-10 um, but the nuclei don't correspond.
+  Bug found: `match_template` gave NCC up to 5945 in near-blank windows (glass), so some
+  patches locked onto background (inflates residuals; doesn't explain the dense
+  lymphoid patches). Fixed (commit pending): blank windows dropped (`window_std`), nuclei
+  also matched over a +-6 um search (`*_searched`, chance searched alike), `--self`
+  positive controls (IHC vs itself), a 480 um context view in the QC sheets. Synthetic:
+  self kappa 1.00, restain searched 0.92, neighbour 0.14.
+  Reading so far (to confirm with pilot v2): the "same-section" pairs look like
+  **neighbouring sections** of a ribbon (same structures, other nuclei), not the same glass
+  restained.
 
 ## 5. Decisions & rationale
 - Cell-level transfer only for **the same section restained**; neighbouring sections give
@@ -107,4 +122,5 @@ registration and, first, finds out how many such pairs exist.
 - 2026-11-18: branch and worktree created; facts on the pairs collected from
   `analysis/reports/he_ihc_pairs/blocks.csv`.
 - 2026-11-18 evening: restain scorer + pair list + launcher written, synthetic check passed;
-  not committed; pilot job awaiting the user's go (needs the branch pushed first).
+  committed b4d6fe1 and pushed (user's go); pilot v1 7ec93f31: no pair restained at cell
+  level, a blank-window NCC bug; fixes + self controls written (uncommitted).
