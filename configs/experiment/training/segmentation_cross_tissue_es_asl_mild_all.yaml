@@ -10,6 +10,7 @@ defaults:
   - /experiment/training/sampling/tma_context
   - /experiment/training/pasting/diverse
   - /experiment/training/pasting/fragments
+  - /experiment/training/pasting/clean_blend
   - /experiment/training/early_stopping/synthetic_froc
   - _self_
 

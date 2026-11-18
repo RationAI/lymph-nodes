@@ -362,6 +362,21 @@ class CellPasting:
     and benign cells); ``"default"``: the tumour tiles for tumour cells, every tile for
     unstained ones.
 
+    How a paste is blended in (2026-11-18: a model trained with the defaults flagged
+    pasted cells with no stain at all, by their artefacts: run d04e5875, HANDOFF.md):
+
+    - ``match``: the paste's haematoxylin brought to the recipient's level (its 90th
+      percentile, factor clipped to 0.6-1.5): ``"h"`` scales the H density alone, along
+      Ruifrok's fixed H vector, which is off these scanners' blue — scaled down, blue
+      cells turn cyan; ``"od"`` scales each pixel's densities alike, by the factor
+      weighted by its H share, so that the pixel keeps its hue (as fade_dab);
+    - ``harmonise``: the paste's counterstain (its optical density less the DAB part)
+      turned from its own mean hue, over its darkest pixels, to the recipient's — a
+      TMA cell's grey-purple to the lymph node's blue — its DAB left as it is;
+    - ``halo`` false: only the cell is blended in — the cut's pixels weighted by their
+      density between its 30th and 70th percentile — not the paler tissue around it,
+      which in denser recipient tissue left a light ring around the paste.
+
     Called (after a donor tile is read) with the tile (H, W, 3) uint8, its target grid
     (g, g), the slide's resolution, a numpy Generator, the donor tile (or one per
     paste), optionally a brown donor, the tiling's tissue (H, W) bool, narrowed to
@@ -394,9 +409,14 @@ class CellPasting:
         cut: str = "stained",
         mark: bool = True,
         donor_pool: str = "default",
+        match: str = "h",
+        harmonise: bool = False,
+        halo: bool = True,
     ) -> None:
         if cut not in ("stained", "unstained"):
             raise ValueError(f"cut: 'stained' or 'unstained', not {cut!r}")
+        if match not in ("h", "od"):
+            raise ValueError(f"match: 'h' or 'od', not {match!r}")
         if donor_pool not in ("default", "cancer", "no_cytokeratin"):
             raise ValueError(
                 f"donor_pool: 'default', 'cancer' or 'no_cytokeratin', not {donor_pool!r}"
@@ -427,6 +447,9 @@ class CellPasting:
         self.cut = cut
         self.mark = mark
         self.donor_pool = donor_pool
+        self.match = match
+        self.harmonise = harmonise
+        self.halo = halo
 
     def __call__(
         self,
@@ -449,6 +472,7 @@ class CellPasting:
         if brown is not None:
             cut = self._cut_brown(rgb_to_hed(brown), tissue_mask(brown), mpp, rng)
             if cut is not None:
+                cut = self._blend(*cut, hed, tissue)
                 placed = _paste(
                     hed, *cut, tissue, rng, forbidden=self._apart(occupied, mpp)
                 )
@@ -504,9 +528,12 @@ class CellPasting:
                     window, alpha = cut
                     if reference is not None:
                         level = np.percentile(window[..., H][alpha > 0.5], 90)
-                        window[..., H] *= np.clip(
-                            reference / max(level, 1e-6), 0.6, 1.5
-                        )
+                        factor = float(np.clip(reference / max(level, 1e-6), 0.6, 1.5))
+                        if self.match == "od":
+                            window = _scale_counterstain(window, factor)
+                        else:
+                            window[..., H] *= factor
+                    window, alpha = self._blend(window, alpha, hed, tissue)
                     if self.cell_fade_p and rng.random() < self.cell_fade_p:
                         window = self._fade_window(window, alpha, rng)
                     placed = _paste(
@@ -525,6 +552,23 @@ class CellPasting:
                 coverage = pixels_to_cells(pasted, grid.shape[0])
                 grid = np.maximum(grid, coverage.astype(np.float32))
         return hed_to_rgb(hed), grid
+
+    def _blend(
+        self,
+        window: np.ndarray,
+        alpha: np.ndarray,
+        hed: np.ndarray,
+        tissue: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """A cut as blended in: its counterstain harmonised, its pale surroundings out."""
+        if self.harmonise and tissue.any():
+            target = _counterstain_hue(hed, tissue)
+            own = _counterstain_hue(window, alpha > 0.5)
+            if target is not None and own is not None:
+                window = _turn_counterstain(window, own, target)
+        if not self.halo:
+            alpha = _cell_alpha(window, alpha)
+        return window, alpha
 
     def _apart(self, occupied: np.ndarray | None, mpp: float) -> np.ndarray | None:
         """Where a paste may not go: within ``min_gap_um`` of the pasted (None: anywhere)."""
@@ -698,6 +742,67 @@ def _cut(
         return None
     window = hed[cy - r : cy + r + 1, cx - r : cx + r + 1].copy()
     return window, alpha
+
+
+def _scale_counterstain(hed: np.ndarray, factor: float) -> np.ndarray:
+    """Densities with each pixel's scaled alike by ``1 + (factor - 1) * s`` (hue kept).
+
+    ``s`` the pixel's H share of its H and DAB densities: nuclei take the factor, stained
+    cytoplasm keeps its DAB.
+    """
+    densities = np.clip(hed, 0, None)
+    share = densities[..., H] / np.maximum(
+        densities[..., H] + densities[..., DAB], 1e-6
+    )
+    return hed * (1 + (factor - 1) * share)[..., np.newaxis]
+
+
+def _counterstain(hed: np.ndarray) -> np.ndarray:
+    """Optical densities (RGB) less their DAB part: the counterstain's colour."""
+    od = hed @ _RGB_FROM_HED
+    return od - np.clip(hed[..., DAB], 0, None)[..., np.newaxis] * _RGB_FROM_HED[DAB]
+
+
+def _counterstain_hue(hed: np.ndarray, where: np.ndarray) -> np.ndarray | None:
+    """The mean direction (unit RGB optical density) of the darkest counterstain pixels.
+
+    Over the ``where`` pixels in the top fifth of haematoxylin: the nuclei.
+    """
+    if not where.any():
+        return None
+    nuclei = where & (hed[..., H] >= np.percentile(hed[..., H][where], 80))
+    mean = _counterstain(hed)[nuclei].mean(axis=0)
+    norm = float(np.linalg.norm(mean))
+    return mean / norm if norm > 1e-6 else None
+
+
+def _turn_counterstain(
+    hed: np.ndarray, own: np.ndarray, target: np.ndarray
+) -> np.ndarray:
+    """Densities with the counterstain's component along ``own`` moved onto ``target``."""
+    counterstain = _counterstain(hed)
+    along = counterstain @ own
+    turned = counterstain + along[..., np.newaxis] * (target - own)
+    dab = np.clip(hed[..., DAB], 0, None)[..., np.newaxis] * _RGB_FROM_HED[DAB]
+    # The stain's own DAB part kept; the counterstain's (negative DAB too) turned.
+    result = (turned + dab) @ _HED_FROM_RGB
+    return result.astype(np.float32)
+
+
+def _cell_alpha(window: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+    """Blending weights of the cut's cell alone: by density, its paler surroundings out.
+
+    Each pixel weighted by its total optical density between the cut's 30th (0) and
+    70th (1) percentile, softened over ~1 px.
+    """
+    inside = alpha > 0.5
+    if inside.sum() < 10:
+        return alpha
+    density = (window @ _RGB_FROM_HED).sum(axis=-1)
+    low, high = np.percentile(density[inside], [30, 70])
+    weight = np.clip((density - low) / max(high - low, 1e-6), 0, 1)
+    weight = ndimage.gaussian_filter(weight.astype(np.float32), 0.8)
+    return np.clip(alpha * weight, 0, 1).astype(np.float32)
 
 
 def _edge_band(node: np.ndarray, width: float) -> np.ndarray | None:

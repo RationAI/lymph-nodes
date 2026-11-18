@@ -1,0 +1,20 @@
+# @package _global_
+
+# Pastes blended in without their artefacts, added after a scenario with CellPasting in
+# its defaults (a fragment; lymph_nodes.data.augmentations.CellPasting match, harmonise,
+# halo).
+#
+# Why (2026-11-18, HANDOFF.md): D+F trained with the old blending (fit 0abbc8ca) flagged
+# pasted cells with no stain at all — TMA stroma cells 59%, lymph node cells 20%, the
+# same regions unpasted 0% (diagnostic run d04e5875) — by their artefacts: the
+# haematoxylin rescaled along Ruifrok's H vector turned blue cells cyan, TMA cells kept
+# their grey-purple, and the disk cut around a cell left a light halo in denser tissue.
+# Here the rescaling keeps each pixel's hue, the counterstain takes the recipient's hue,
+# and only the cell is blended in (analysis/paste_decoys.py --cast: hue angle to the
+# recipient's nuclei 7.6 -> 0.7 deg, no light ring).
+data:
+  train:
+    cell_pasting:
+      match: od
+      harmonise: true
+      halo: false

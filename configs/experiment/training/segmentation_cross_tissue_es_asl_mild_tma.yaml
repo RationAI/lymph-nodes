@@ -7,6 +7,7 @@
 defaults:
   - /experiment/training/segmentation_cross_tissue_combined_asl_mild
   - /experiment/training/sampling/tma_context
+  - /experiment/training/pasting/clean_blend
   - /experiment/training/early_stopping/synthetic_froc
   - _self_
 

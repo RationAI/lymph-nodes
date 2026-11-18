@@ -1,0 +1,22 @@
+# @package _global_
+
+# diagnostics/paste_decoys.yaml with every paste blended in without artefacts (match od,
+# harmonise, no halo: pasting/clean_blend.yaml). Run on a checkpoint trained with the
+# old blending (e.g. fit 0abbc8ca), it tells whether the decoys it flagged (d04e5875:
+# TMA stroma 59%, lymph node 20%) were flagged for the artefacts: their rates should
+# fall towards the baselines; and whether it still finds clean tumour pastes.
+defaults:
+  - /experiment/training/diagnostics/paste_decoys
+  - _self_
+
+trainer:
+  callbacks:
+    synthetic_lesions:
+      cell_pasting: {match: od, harmonise: true, halo: false}
+      extra_lesions:
+        strong: {match: od, harmonise: true, halo: false}
+      decoys:
+        tma_unstained: {match: od, harmonise: true, halo: false}
+        tma_unstained_cancer: {match: od, harmonise: true, halo: false}
+        tma_unstained_stroma: {match: od, harmonise: true, halo: false}
+        ln_unstained: {match: od, harmonise: true, halo: false}
