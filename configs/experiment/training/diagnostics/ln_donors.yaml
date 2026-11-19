@@ -1,0 +1,112 @@
+# @package _global_
+
+# Pasted TMA tumour cells vs pasted lymph node tumour cells vs real lymph node lesions,
+# scored by one checkpoint at the same thresholds (2026-11-19).
+#
+# Why: the early-stopping series' "all" fits (2026-11-18) reached the best synthetic
+# scores (faint TMA pastes found at 0.84 at 2 false-positive regions per negative slide)
+# yet found real single tumour cells worst (evals c0c3919a, 115cd41c, 3df61d44: 0.03-0.05
+# at 2, 0.11-0.19 at 8, vs 0.24 / 0.49 for D+F 85135e41). Either the model learnt what
+# the TMA donors look like (their DAB tone, focus, morphology: every pasted positive is
+# a TMA cell, and the unstained decoys can't show a cue of stained TMA cells), or it
+# learnt something about being pasted that real lesions lack. Here the same recipients
+# (the 8 fold-0 negative slides' node tiles, as the stopping metric) get, blended the
+# same clean way (match od, harmonise, no halo):
+#
+# - lesions / strong: TMA tumour cells, faded and as they are (paste_decoys_clean);
+# - ln_faint / ln_strong: tumour cells cut from the annotated lesions of the IHC 2023
+#   val slides (CK-positive cells in the lymph node's own staining), faded and as they
+#   are;
+# - the decoys of paste_decoys_clean.
+#
+# And the validation itself scores the val slides' lesion tiles in place: LesionMetrics'
+# validation/lesions/... at the thresholds of the same 8 negative slides (the only
+# negative slides here). TMA pastes found, LN pastes not: a donor cue. Both pastes found,
+# real lesions not: a pasting cue. Evaluation-only use of the lymph node annotations
+# (nothing here trains or selects a model).
+#
+# The val slides' tiles are added as a third run of the validation set: only their
+# lesion tiles (annotation_brown_coverage > 0), only positive slides; the fold-0 runs
+# keep their filters, so the recipients and TMA donors are drawn as in the fits.
+defaults:
+  - /experiment/training/diagnostics/paste_decoys_clean
+  - _self_
+
+# The lesion tiles are CANCER (the donor pool) by their refined-label column; the
+# fold-0 tiles have none, so their partitions don't change.
+train_labels:
+  positive:
+    annotation_brown_coverage: 0.0
+
+data:
+  val:
+    uris:
+      - ${ihc_run_uri}/fold_${fold}
+      - ${tma_run_uri}/fold_${fold}
+      - ${ihc_run_uri}/val
+    tile_filters:
+      - ${filters.tissue}
+      - ${filters.no_patho_ignore}
+      - ${filters.no_cytokeratin_ignore}
+      - ${tma_ambiguous_band}
+      - ${ln_validation_subset}
+      - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+        column: annotation_brown_coverage
+        op: ">"
+        value: 0.0
+        source: 2
+    slide_filters:
+      - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+        column: tumor
+        op: "=="
+        value: false
+        source: 0
+      - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+        column: tumor
+        op: "=="
+        value: false
+        source: 1
+      - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+        column: tumor
+        op: "=="
+        value: true
+        source: 2
+      - ${filters.no_unflagged_little_tissue}
+      - ${filters.no_tma_control}
+      - ${filters.no_unflagged_tma_control}
+      - ${filters.no_duplicate_slides}
+
+trainer:
+  callbacks:
+    synthetic_lesions:
+      extra_lesions:
+        ln_faint:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          donor_cohorts: [mmci_ihc_2023]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cluster_p: 0.0
+          fragment_p: 0.0
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
+          cell_fade_p: 1.0
+          cell_fade_to: [0.03, 0.05]
+          match: od
+          harmonise: true
+          halo: false
+        ln_strong:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          donor_cohorts: [mmci_ihc_2023]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cluster_p: 0.0
+          fragment_p: 0.0
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
+          match: od
+          harmonise: true
+          halo: false

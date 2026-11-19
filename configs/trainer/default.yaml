@@ -42,3 +42,8 @@ callbacks:
   slide_metrics:
     _target_: lymph_nodes.callbacks.SlideMetrics
     cohorts: [mmci_ihc_2023, mmci_ihc_test, fnb_ae]
+  # The job's own CPU, memory (cgroup) and GPU memory (torch), under system/ in the
+  # MLflow run every 30 s, every mode (lymph_nodes/callbacks/system_metrics.py).
+  system_metrics:
+    _target_: lymph_nodes.callbacks.SystemMetrics
+    interval_s: 30
