@@ -375,7 +375,13 @@ class CellPasting:
       TMA cell's grey-purple to the lymph node's blue — its DAB left as it is;
     - ``halo`` false: only the cell is blended in — the cut's pixels weighted by their
       density between its 30th and 70th percentile — not the paler tissue around it,
-      which in denser recipient tissue left a light ring around the paste.
+      which in denser recipient tissue left a light ring around the paste;
+    - ``keep_stain`` (with ``halo`` false): every DAB-stained pixel of the cut blended in
+      and labelled too, however pale, and only the unstained surroundings left out.
+      Total density is mostly haematoxylin, so the density weights alone may drop a
+      cell's paler stained cytoplasm and halve its label (2026-11-21: the halo-on fit
+      7f76bbc1 found real single cells twice as often as the clean one, 444f1214).
+      Decoys (no stain) are cut as without it.
 
     Called (after a donor tile is read) with the tile (H, W, 3) uint8, its target grid
     (g, g), the slide's resolution, a numpy Generator, the donor tile (or one per
@@ -412,6 +418,7 @@ class CellPasting:
         match: str = "h",
         harmonise: bool = False,
         halo: bool = True,
+        keep_stain: bool = False,
     ) -> None:
         if cut not in ("stained", "unstained"):
             raise ValueError(f"cut: 'stained' or 'unstained', not {cut!r}")
@@ -450,6 +457,7 @@ class CellPasting:
         self.match = match
         self.harmonise = harmonise
         self.halo = halo
+        self.keep_stain = keep_stain
 
     def __call__(
         self,
@@ -567,7 +575,7 @@ class CellPasting:
             if target is not None and own is not None:
                 window = _turn_counterstain(window, own, target)
         if not self.halo:
-            alpha = _cell_alpha(window, alpha)
+            alpha = _cell_alpha(window, alpha, self.keep_stain)
         return window, alpha
 
     def _apart(self, occupied: np.ndarray | None, mpp: float) -> np.ndarray | None:
@@ -789,11 +797,14 @@ def _turn_counterstain(
     return result.astype(np.float32)
 
 
-def _cell_alpha(window: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+def _cell_alpha(
+    window: np.ndarray, alpha: np.ndarray, keep_stain: bool = False
+) -> np.ndarray:
     """Blending weights of the cut's cell alone: by density, its paler surroundings out.
 
     Each pixel weighted by its total optical density between the cut's 30th (0) and
-    70th (1) percentile, softened over ~1 px.
+    70th (1) percentile, softened over ~1 px. ``keep_stain``: DAB-stained pixels (above
+    ``_STAINED``, after ~1 px smoothing) weighted 1 whatever their density.
     """
     inside = alpha > 0.5
     if inside.sum() < 10:
@@ -801,6 +812,9 @@ def _cell_alpha(window: np.ndarray, alpha: np.ndarray) -> np.ndarray:
     density = (window @ _RGB_FROM_HED).sum(axis=-1)
     low, high = np.percentile(density[inside], [30, 70])
     weight = np.clip((density - low) / max(high - low, 1e-6), 0, 1)
+    if keep_stain:
+        stained = ndimage.gaussian_filter(window[..., DAB], 0.8) > _STAINED
+        weight = np.maximum(weight, stained)
     weight = ndimage.gaussian_filter(weight.astype(np.float32), 0.8)
     return np.clip(alpha * weight, 0, 1).astype(np.float32)
 

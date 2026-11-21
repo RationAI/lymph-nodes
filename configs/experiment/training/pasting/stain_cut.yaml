@@ -1,0 +1,17 @@
+# @package _global_
+
+# The clean cut (pasting/clean_blend.yaml) keeping each cell's whole stained extent: a
+# fragment after clean_blend (lymph_nodes.data.augmentations.CellPasting keep_stain).
+#
+# Why (2026-11-21, HANDOFF.md step 5e): the halo-on fit 7f76bbc1 found 15 of 37 real
+# single tumour cells @8 (full eval d34206bd), the clean one 444f1214 7 of 37 (82d1937b).
+# Without the halo, a cut's pixels are weighted by their total optical density, mostly
+# haematoxylin, so a cell's paler stained cytoplasm may be dropped and its label
+# halved. Here every DAB-stained pixel of the cut stays, blended and labelled. Only the
+# unstained surroundings (the halo, which carried the TMA donor's tissue and taught a
+# TMA-donor cue) are still left out.
+data:
+  train:
+    cell_pasting:
+      halo: false
+      keep_stain: true
