@@ -25,9 +25,10 @@ data is, as a job (prints the tables, logs them to MLflow, experiment of the con
 
     uv run --group run python scripts/analysis/cut_coverage.py --submit [--cells 2000]
 
-In the job (or anywhere the data is):
+In the job (or anywhere the data is), from the repository root (the project isn't an
+installed package: ``lymph_nodes`` imports from the root):
 
-    uv run python scripts/analysis/cut_coverage.py [--cells 2000] [HYDRA OVERRIDES...]
+    PYTHONPATH=. uv run python scripts/analysis/cut_coverage.py [--cells 2000] [HYDRA OVERRIDES...]
 """
 
 from __future__ import annotations
@@ -66,7 +67,7 @@ def submit(args: argparse.Namespace) -> None:
         ]
     )  # fmt: skip
     submit_job(
-        job_name="lymph-nodes-cut-coverage",
+        job_name=args.name,
         image=DEFAULT_DOCKER_IMAGE,
         # Reads ~2 tiles per cell from the slides; the dataset's index as a fit's.
         cpu=4,
@@ -78,6 +79,8 @@ def submit(args: argparse.Namespace) -> None:
             "cd workdir",
             "uv sync --frozen",
             "export MLFLOW_TRACKING_URI=http://mlflow-s3.rationai-mlflow",
+            # lymph_nodes imports from the repository root (not an installed package).
+            "export PYTHONPATH=$PWD",
             command,
         ],
         storage=[storage.secure.DATA, storage.secure.PROJECTS],
@@ -158,7 +161,10 @@ def run(args: argparse.Namespace) -> None:
         rgb_to_hed,
         tissue_mask,
     )
+    from lymph_nodes.resolvers import register_resolvers
 
+    # The configs use custom resolvers (other_fold_uris, ...); __main__ registers them.
+    register_resolvers()
     with initialize_config_dir(str(REPO / "configs"), version_base=None):
         config = compose("lymph_nodes", overrides=args.overrides)
     dataset = instantiate(config.data.train)
@@ -248,6 +254,11 @@ def main() -> None:
     parser.add_argument("--cells", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--submit", action="store_true", help="run it as a job")
+    parser.add_argument(
+        "--name",
+        default="lymph-nodes-cut-coverage",
+        help="the job's name (a new one for a rerun: a job's name stays taken until deleted)",
+    )
     args = parser.parse_args()
     args.overrides = args.overrides or DEFAULT_OVERRIDES
     if args.submit:
