@@ -1,0 +1,15 @@
+# @package _global_
+
+# 2x input magnification (research-notes/ideas/lymph-nodes-foundation-magnification-lora.md,
+# 2026-11-23): the 224 px tiles resized to 448 px before the frozen foundation model, its
+# position embeddings resampled (FrozenFoundationModel input_scale), so a ~10 um tumour cell
+# spans ~4x the patch tokens. 14 px patches then give 32 x 32 tokens, the upsampled
+# tilings' target grid itself: the head's learned 2x upsampling goes (UpsamplingHead
+# scale 1). Closest work: PFM-DenseBench (arXiv 2602.03887; resolution mattered more than
+# LoRA rank), CellVTA (arXiv 2504.00784). ~4-5x the backbone compute per tile: profile
+# first (lymph_nodes/gpu_plan.py) and size batch / CPUs from that.
+model:
+  backbone:
+    input_scale: 2.0
+  decode_head:
+    scale: 1

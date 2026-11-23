@@ -1,0 +1,13 @@
+# @package _global_
+
+# LoRA on the foundation model (research-notes/ideas/lymph-nodes-foundation-magnification-lora.md,
+# 2026-11-23): rank-16 updates of the attention's qkv and output projections in the last 8
+# blocks (FrozenFoundationModel lora_rank / lora_blocks), trained with the head at its
+# learning rate and checkpointed with it; the rest stays frozen. With Virchow2's blocks
+# [7, 15, 23, 31] as features, the last 8 blocks adapt only the last of them
+# (lora_blocks: 16 would reach block 23 too). Backpropagation through those blocks costs
+# memory and time: profile first (lymph_nodes/gpu_plan.py).
+model:
+  backbone:
+    lora_rank: 16
+    lora_blocks: 8

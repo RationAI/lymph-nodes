@@ -90,7 +90,9 @@ class SegmentationMetaArch(MetaArch):
     head's weights (``ema_head``) is kept after every step and evaluates (validation,
     test, checkpoints' use): it smooths the epoch-to-epoch swings of the head itself.
 
-    The frozen backbone is left out of checkpoints (it is reloaded from the hub).
+    The frozen backbone is left out of checkpoints (it is reloaded from the hub); a
+    backbone with trainable weights (FrozenFoundationModel's LoRA) has them trained with
+    the head and kept in checkpoints.
     """
 
     def __init__(
@@ -147,8 +149,15 @@ class SegmentationMetaArch(MetaArch):
         return head(features).squeeze(1)
 
     def configure_optimizers(self) -> OptimizerLRScheduler:  # type: ignore[override]
+        # The head, and the backbone's trainable weights if it has any (LoRA:
+        # FrozenFoundationModel.trainable_parameters), at the same learning rate.
+        trainable = getattr(self.backbone, "trainable_parameters", None)
+        groups: list[dict[str, Any]] = [{"params": list(self.decode_head.parameters())}]
+        backbone = list(trainable()) if trainable is not None else []
+        if backbone:
+            groups.append({"params": backbone})
         optimizer = torch.optim.AdamW(
-            self.decode_head.parameters(), lr=self.lr, weight_decay=self.weight_decay
+            groups, lr=self.lr, weight_decay=self.weight_decay
         )
         if self.lr_schedule == "constant":
             return optimizer
@@ -172,8 +181,11 @@ class SegmentationMetaArch(MetaArch):
             self.ema_head.update_parameters(self.decode_head)
 
     def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        # The frozen backbone comes from the hub; only its trained LoRA weights stay.
         state = checkpoint["state_dict"]
-        for key in [key for key in state if key.startswith("backbone.")]:
+        for key in [
+            k for k in state if k.startswith("backbone.") and ".lora_" not in k
+        ]:
             del state[key]
 
     def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
