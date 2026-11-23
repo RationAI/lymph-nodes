@@ -306,6 +306,7 @@ def corrected_mask(
     dark: int = 80,
     dark_chroma: int = 20,
     edge_um: float = 15.0,
+    rim_um: float = 0.0,
 ) -> np.ndarray:
     """A reference cytokeratin mask, kept where the staining supports it.
 
@@ -325,6 +326,14 @@ def corrected_mask(
       background); positives within ``edge_um`` of the core's edge; black or
       colourless stained pixels.
     - NEGATIVE: the rest of the core and everything outside it.
+
+    ``rim_um`` > 0 (off by default): stained cells the reference leaves out that come
+    within ``rim_um`` of a positive (8-connected pieces, whole) are positive too, except
+    in the edge band. The reference's outlines stop inside the cells and leave their
+    faint cytoplasmic rim ignored: in a census of 72 cores (MLflow run f7796183,
+    2026-11-23) nearly all the ignored stained cells lay < 5 um from a positive, 10-25%
+    of the positive area, while separate faint cells were rare (0.3-1.1%). The idea:
+    research-notes/ideas/lymph-nodes-faint-tma-soft-targets.md.
     """
     stains = hed_densities(rgb)
     purity = stains[..., 2] / np.maximum(stains.sum(-1), 1e-6)
@@ -358,4 +367,13 @@ def corrected_mask(
     out[(cells & ~reference) | (reference & ~near) | invalid] = IGNORE
     out[positive] = POSITIVE
     out[positive & edge] = IGNORE
+    inner = positive & ~edge
+    if rim_um > 0 and inner.any():
+        left_out = cells & ~reference
+        pieces, count = ndimage.label(left_out, structure=np.ones((3, 3), bool))
+        close = ndimage.distance_transform_edt(~inner) <= rim_um / mpp
+        promote = np.zeros(count + 1, bool)
+        promote[pieces[left_out & close]] = True
+        promote[0] = False
+        out[promote[pieces] & ~edge] = POSITIVE
     return out

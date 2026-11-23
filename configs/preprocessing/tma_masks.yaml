@@ -31,6 +31,9 @@ rule:
   dark: 80  # black (ink, debris): every channel below, and colourless
   dark_chroma: 20
   edge_um: 15.0  # the core's edge band: ignore
+  # Stained cells the reference leaves out within this of a positive: positive too
+  # (their cut-off rims, census f7796183; corrected_mask). 0: off, as run 0bdf3752.
+  rim_um: 0.0
 artifact_path: tma_cytokeratin_masks
 cores_artifact_path: tma_cores
 
@@ -43,3 +46,4 @@ metadata:
     support_um: ${rule.support_um}
     min_purity: ${rule.min_purity}
     edge_um: ${rule.edge_um}
+    rim_um: ${rule.rim_um}

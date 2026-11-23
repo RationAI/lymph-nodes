@@ -223,7 +223,11 @@ def segmentation_step(
             "gpu_plan probes segmentation models (SegmentationMetaArch)"
         )
     model.to(device).train()
-    optimizer = model.configure_optimizers()  # type: ignore[operator]
+    # The run's optimizer state: AdamW over every trainable weight (the head, LoRA's),
+    # as configure_optimizers builds it — not that method itself, whose learning-rate
+    # schedule needs an attached Trainer (estimated_stepping_batches), which the probe
+    # before fitting doesn't have.
+    optimizer = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad])
     dtype = {"bf16-mixed": torch.bfloat16, "16-mixed": torch.float16}.get(
         str(precision)
     )
