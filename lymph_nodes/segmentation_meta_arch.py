@@ -87,7 +87,7 @@ class SegmentationMetaArch(MetaArch):
     Training: AdamW at ``lr``, constant or (``lr_schedule="cosine"``) after
     ``warmup_steps`` of linear warm-up down a cosine to ``min_lr_ratio`` x ``lr`` at the
     last step (max_epochs). With ``ema_decay``, an exponential moving average of the
-    head's weights (``ema_head``) is kept after every step and evaluates (validation,
+    head's weights (``ema_head``) is kept after every optimizer step and evaluates (validation,
     test, checkpoints' use): it smooths the epoch-to-epoch swings of the head itself.
 
     The frozen backbone is left out of checkpoints (it is reloaded from the hub); a
@@ -126,6 +126,21 @@ class SegmentationMetaArch(MetaArch):
             if ema_decay
             else None
         )
+        self._ema_step = 0  # the trainer's global_step at the last average update
+        # With LoRA the average covers its weights too: the head alone, averaged over
+        # features the trained backbone no longer gives, would be evaluated on the newest
+        # ones. Kept as buffers (ema_lora.<name with __ for .>) and swapped into the
+        # backbone for evaluation (on_*_model_eval); checkpoints keep both.
+        self.ema_decay = ema_decay
+        self.ema_lora: nn.Module | None = None
+        self._lora_swapped = False
+        lora = self._lora_parameters()
+        if ema_decay and lora:
+            self.ema_lora = nn.Module()
+            for name, parameter in lora:
+                self.ema_lora.register_buffer(
+                    name.replace(".", "__"), parameter.detach().clone()
+                )
         # Checkpoints hold the head only (on_save_checkpoint).
         self.strict_loading = False
 
@@ -177,8 +192,75 @@ class SegmentationMetaArch(MetaArch):
         }
 
     def on_train_batch_end(self, outputs: Any, batch: Any, batch_idx: int) -> None:
-        if self.ema_head is not None:
+        # Once per optimizer step, right after it: with gradient accumulation the
+        # weights change only every accumulate_grad_batches batches, and averaging the
+        # same weights again would shorten the average's memory by that factor
+        # (2026-11-24: the LoRA fits, 8 x 32, updated 8 times per step).
+        step = self.trainer.global_step
+        if self.ema_head is not None and step != self._ema_step:
+            self._ema_step = step
+            if self.ema_lora is not None:
+                pairs = self._lora_pairs()
+                with torch.no_grad():
+                    if (
+                        int(self.ema_head.n_averaged) == 0
+                    ):  # as AveragedModel: copy first
+                        for parameter, average in pairs:
+                            average.copy_(parameter)
+                    else:
+                        torch._foreach_lerp_(
+                            [average for _, average in pairs],
+                            [parameter.detach() for parameter, _ in pairs],
+                            1 - cast("float", self.ema_decay),
+                        )
             self.ema_head.update_parameters(self.decode_head)
+
+    def _lora_parameters(self) -> list[tuple[str, nn.Parameter]]:
+        """The backbone's LoRA weights by name (FrozenFoundationModel), none without."""
+        return [
+            (name, parameter)
+            for name, parameter in self.backbone.named_parameters()
+            if ".lora_" in f".{name}"
+        ]
+
+    def _lora_pairs(self) -> list[tuple[nn.Parameter, Tensor]]:
+        """Each LoRA weight with its average (``ema_lora``)."""
+        assert self.ema_lora is not None
+        return [
+            (parameter, getattr(self.ema_lora, name.replace(".", "__")))
+            for name, parameter in self._lora_parameters()
+        ]
+
+    def _swap_lora(self, averaged: bool) -> None:
+        """The LoRA weights' average into the backbone (``averaged``), or back out."""
+        if self.ema_lora is None or self._lora_swapped == averaged:
+            return
+        with torch.no_grad():
+            for parameter, average in self._lora_pairs():
+                trained = parameter.detach().clone()
+                parameter.copy_(average)
+                average.copy_(trained)
+        self._lora_swapped = averaged
+
+    def on_validation_model_eval(self) -> None:
+        super().on_validation_model_eval()
+        self._swap_lora(True)
+
+    def on_validation_model_train(self) -> None:
+        self._swap_lora(False)
+        super().on_validation_model_train()
+
+    def on_test_model_eval(self) -> None:
+        super().on_test_model_eval()
+        self._swap_lora(True)
+
+    def on_test_model_train(self) -> None:
+        self._swap_lora(False)
+        super().on_test_model_train()
+
+    def on_predict_model_eval(self) -> None:
+        super().on_predict_model_eval()
+        self._swap_lora(True)
 
     def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
         # The frozen backbone comes from the hub; only its trained LoRA weights stay.
@@ -187,11 +269,25 @@ class SegmentationMetaArch(MetaArch):
             k for k in state if k.startswith("backbone.") and ".lora_" not in k
         ]:
             del state[key]
+        # Saved during validation (ModelCheckpoint), the averages are in the backbone:
+        # each name keeps its own values.
+        if self._lora_swapped:
+            for name, _ in self._lora_parameters():
+                own, average = f"backbone.{name}", "ema_lora." + name.replace(".", "__")
+                state[own], state[average] = state[average], state[own]
 
     def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
         # A checkpoint without a weight average (trained without one) evaluates with
-        # its head's own weights.
+        # its own weights: the head's, and LoRA's if it has any.
         state = checkpoint["state_dict"]
+        if self.ema_lora is not None and not any(
+            k.startswith("ema_lora.") for k in state
+        ):
+            for name, _ in self._lora_parameters():
+                if f"backbone.{name}" in state:
+                    state["ema_lora." + name.replace(".", "__")] = state[
+                        f"backbone.{name}"
+                    ]
         if self.ema_head is None or any(k.startswith("ema_head.") for k in state):
             return
         for key in [k for k in state if k.startswith("decode_head.")]:

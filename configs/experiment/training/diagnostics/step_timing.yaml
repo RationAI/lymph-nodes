@@ -1,0 +1,9 @@
+# @package _global_
+
+# Per-epoch time of each phase of a training batch (lymph_nodes.callbacks.StepTiming:
+# timing/{wait,forward,backward,step}_ms), added for the LoRA fits that slowed 4.6-fold
+# over five epochs (2026-11-24, HANDOFF.md step 5f). A fragment: add after a scenario.
+trainer:
+  callbacks:
+    step_timing:
+      _target_: lymph_nodes.callbacks.StepTiming
