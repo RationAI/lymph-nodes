@@ -20,8 +20,11 @@ if TYPE_CHECKING:
 
 # Partition ids used both for the per-tile target (0/1/2 collapsed to healthy/cancer in
 # TileLabels.targets) and for lymph_nodes.data.samplers.stratified_sampler's rebalancing.
-# Keep in sync with that module's PARTITION_NAMES.
+# Keep in sync with that module's PARTITION_NAMES. CANCER_EXTRA is cancer too (targets,
+# donors), only drawn in its own ratio (TileLabels.extra_cancer_cohort).
 HEALTHY, HEALTHY_BROWNISH, CANCER, HEALTHY_TMA, HEALTHY_EXTERNAL, HEALTHY_HARD = 0, 1, 2, 3, 4, 5
+CANCER_EXTRA = 6
+CANCER_CODES = (CANCER, CANCER_EXTRA)
 
 
 def _coverage(tiles: HFDataset, column: str) -> np.ndarray | None:
@@ -48,6 +51,15 @@ class TileLabels:
     another site, split out so the sampler can draw it in its own ratio rather than let
     it flood the partitions of the main cohort — e.g. FN Brno, where most of the
     negative tissue is brownish (~70% of its tiles, against ~2% at MMCI).
+
+    Tiles of the slides of ``extra_cancer_cohort`` that are positive by ``extra_positive``
+    (same form as ``positive``; only these slides' tiles are tested against it) or by
+    ``positive`` are "cancer extra": cancer in every respect (target, paste donor), but a
+    partition of their own, so the sampler can draw them in a fixed share of the positives
+    rather than by their number — e.g. the on-slide control TMAs of the IHC 2023 lymph node
+    slides (cohort mmci_ihc_2023_controls, positive by ``annotation_brown_coverage``: the
+    stained cells in the user's rectangles), a few thousand tiles next to ~180,000 TMA
+    cancer tiles. The cohort's other tiles follow the usual rules.
 
     ``hard_negatives`` names a table (a run's artifact directory, read like the tilings'
     tables) of ``slide_name``, ``tile_x``, ``tile_y``: tiles a model flagged on negative
@@ -90,8 +102,12 @@ class TileLabels:
         external_cohort: str | None = None,
         ambiguous_on_positive_slides: bool = False,
         hard_negatives: str | None = None,
+        extra_cancer_cohort: str | None = None,
+        extra_positive: Mapping[str, float] | None = None,
     ) -> None:
         self.positive = dict(positive)
+        self.extra_cancer_cohort = extra_cancer_cohort
+        self.extra_positive = dict(extra_positive or {})
         self.hard_negatives = hard_negatives
         self.ambiguous_on_positive_slides = ambiguous_on_positive_slides
         self.external_cohort = external_cohort
@@ -102,12 +118,21 @@ class TileLabels:
         self.ambiguous = {column: (float(low), float(high)) for column, (low, high) in (ambiguous or {}).items()}
 
     def partition(self, tiles: HFDataset, slides: HFDataset | None = None) -> np.ndarray:
-        """Per-tile partition id: HEALTHY, HEALTHY_BROWNISH, HEALTHY_HARD, HEALTHY_TMA, HEALTHY_EXTERNAL or CANCER.
+        """Per-tile partition id: HEALTHY, HEALTHY_BROWNISH, HEALTHY_HARD, HEALTHY_TMA, HEALTHY_EXTERNAL, CANCER or CANCER_EXTRA.
 
         ``slides`` (with ``id`` and ``cohort_id``, and ``slide_name``) is needed for
-        ``external_cohort`` (and ``hard_negatives``).
+        ``external_cohort`` and ``extra_cancer_cohort`` (and ``hard_negatives``).
         """
         cancer = self._cancer(tiles)
+
+        extra = np.zeros(len(tiles), dtype=bool)
+        if self.extra_cancer_cohort is not None:
+            if slides is None or "cohort_id" not in slides.column_names:
+                raise ValueError("extra_cancer_cohort needs slides with a cohort_id column")
+            ids = column_values(slides, "id")[column_values(slides, "cohort_id") == self.extra_cancer_cohort]
+            in_cohort = np.isin(column_values(tiles, "slide_id"), ids)
+            extra = in_cohort & (cancer | self._cancer(tiles, self.extra_positive))
+            cancer = cancer | extra
 
         brownish = np.zeros(len(tiles), dtype=bool)
         if self.brownish_column is not None:
@@ -140,6 +165,7 @@ class TileLabels:
         labels[tma & ~cancer] = HEALTHY_TMA
         labels[external & ~cancer] = HEALTHY_EXTERNAL
         labels[cancer] = CANCER
+        labels[extra] = CANCER_EXTRA
         return labels
 
     def _hard(self, tiles: HFDataset, slides: HFDataset) -> np.ndarray:
@@ -163,10 +189,10 @@ class TileLabels:
         merged = own.merge(listed, how="left", on=["slide_name", "tile_x", "tile_y"], indicator=True)
         return (merged["_merge"] == "both").to_numpy()
 
-    def _cancer(self, tiles: HFDataset) -> np.ndarray:
-        """Per-tile flag: positive by any column of ``positive``."""
+    def _cancer(self, tiles: HFDataset, positive: Mapping[str, float] | None = None) -> np.ndarray:
+        """Per-tile flag: positive by any column of ``positive`` (by default the labels')."""
         cancer = np.zeros(len(tiles), dtype=bool)
-        for column, threshold in self.positive.items():
+        for column, threshold in (self.positive if positive is None else positive).items():
             values = _coverage(tiles, column)
             if values is not None:
                 cancer |= values > threshold
@@ -196,7 +222,7 @@ class TileLabels:
 
     def targets(self, tiles: HFDataset, partitions: np.ndarray) -> np.ndarray:
         """Per-tile training target in [0, 1], given the tiles' ``partition``."""
-        targets = (partitions == CANCER).astype(np.float32)
+        targets = np.isin(partitions, CANCER_CODES).astype(np.float32)
         if self.soft_target is not None:
             values = _coverage(tiles, self.soft_target)
             if values is not None:

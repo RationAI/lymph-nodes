@@ -10,7 +10,7 @@ import pyarrow.compute as pc
 
 from lymph_nodes.data.augmentations import DAB, cells_to_pixels, rgb_to_hed
 from lymph_nodes.data.datasets.embedding import (
-    CANCER,
+    CANCER_CODES,
     HEALTHY,
     HEALTHY_BROWNISH,
     HEALTHY_EXTERNAL,
@@ -209,7 +209,7 @@ class TileSegmentationDataset(EmbeddingClassificationDataset):
         if pool == "default":
             pool = "all" if cell_pasting.cut == "unstained" else "cancer"
         if pool == "cancer":
-            donors = np.flatnonzero(donor_cohort & (partitions == CANCER))
+            donors = np.flatnonzero(donor_cohort & np.isin(partitions, CANCER_CODES))
         elif pool == "no_cytokeratin":
             coverage = self.tiles.data.column("cytokeratin_coverage").to_numpy(
                 zero_copy_only=False

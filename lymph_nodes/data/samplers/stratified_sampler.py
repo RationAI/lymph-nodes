@@ -8,6 +8,7 @@ from torch.utils.data import Sampler
 
 from lymph_nodes.data.datasets.embedding import (
     CANCER,
+    CANCER_EXTRA,
     HEALTHY,
     HEALTHY_BROWNISH,
     HEALTHY_EXTERNAL,
@@ -32,6 +33,9 @@ PARTITION_NAMES: dict[str, int] = {
     "healthy_tma": HEALTHY_TMA,
     "healthy_external": HEALTHY_EXTERNAL,
     "cancer": CANCER,
+    # TileLabels.extra_cancer_cohort's positives, e.g. the on-slide control TMAs. Without a
+    # ratio for it, those tiles are never drawn.
+    "cancer_extra": CANCER_EXTRA,
 }
 
 

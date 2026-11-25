@@ -30,6 +30,15 @@ def other_fold_uris(bases: str | Iterable[str], n_folds: int | str, fold: int | 
     ]
 
 
+def concat(*parts: str | Iterable[str]) -> list[str]:
+    """The URIs (or lists of them) in order, as one list.
+
+    E.g. the other folds' runs plus a run every fold trains on
+    (``${concat:${other_fold_uris:...},${extra}}``).
+    """
+    return [uri for part in parts for uri in _as_list(part)]
+
+
 def multiply(a: float, b: float) -> float:
     """``a * b``: OmegaConf interpolation has no arithmetic (e.g. layers x token width)."""
     return a * b
@@ -43,5 +52,6 @@ def token_channels(n_layers: int, layers: Sequence[int] | None, dim: int) -> int
 def register_resolvers() -> None:
     OmegaConf.register_new_resolver("random_seed", lambda: randint(0, 2**31), use_cache=True)
     OmegaConf.register_new_resolver("other_fold_uris", other_fold_uris)
+    OmegaConf.register_new_resolver("concat", concat)
     OmegaConf.register_new_resolver("multiply", multiply)
     OmegaConf.register_new_resolver("token_channels", token_channels)

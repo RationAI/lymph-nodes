@@ -1,0 +1,75 @@
+# @package _global_
+
+# The on-slide control TMAs as in-place positive training tiles (2026-11-25; research-notes
+# idea lymph-nodes-on-slide-control-tma, step 2, the user's idea: "primarily positive class
+# samples"). Add to the stain-cut baseline (es_dfp_table_control + pasting/stain_cut,
+# trainer.max_epochs=8, seeds 42 / 43 / 44: fits 6f5e21f4 / d980d9eb / 433f4450).
+#
+# Why: pasted faint control cells are found like the lymph node cells the model misses, not like
+# the TMA cells it finds (ln_donors_control, evals a90499f6 / 16862427 / 1c94d913: faint @2
+# 0.471 vs LN 0.547 vs TMA 0.891): stained in the lymph node's run, on its glass, they show what
+# training never does. Kill criterion (fixed before the run, in the idea): annotations covered @2
+# on the 7 slides must beat the baseline (0.610, sd 0.031) by more than its seed spread.
+#
+# What changes, and nothing else:
+# - data.train takes the controls tiling (a318d895: the user's rectangles on the 18 option-B
+#   control slides, all of their tiles; configs/data/tiling/mmci_ihc_2023_controls.yaml) next to
+#   the other folds' lymph node and TMA tiles;
+# - its tiles with stained cells (annotation_brown_coverage > 0, the refined masks ab1dd0dd:
+#   DAB > 0.03 within the rectangles) are positive, in their own partition (cancer_extra,
+#   TileLabels.extra_cancer_cohort), targets from annotation_brown_grid; its tiles without stain
+#   are negatives by the usual rules (healthy / brownish);
+# - the sampler draws them as 10% of the positive draws (cancer 3 -> 2.7 + cancer_extra 0.3: the
+#   positive share and the epoch length, 200,000, as the baseline's; ~9,800 control tiles per
+#   epoch from ~8,000, with replacement) instead of their ~4% by number (~8,000 next to 182,728
+#   TMA cancer tiles);
+# - fold hygiene: the controls of fold k's cases stay out of fold k's training (same case, glass
+#   and staining run as fold k's validation slides). Only fold 0 is filled in (cases 27 and 80;
+#   split run 095b1692); any other fold fails at resolution rather than leak.
+# Validation, the synthetic sets, the TMA donors of the pasting (mmci_tmas) and the labels of
+# every other tile are the baseline's: train_labels is untouched (data.val uses it).
+# A guard drops lymph node tiles (mmci_ihc_2023) with annotation_brown_coverage > 0 from training
+# (negative slides only: none expected), so the added target grid can never mark lymph node
+# tissue positive.
+controls_run_uri: mlflow-artifacts:/4/a318d8956051444886503938e2e690d4/artifacts
+control_fold_key: fold_${fold}  # a whole key for the lookup below (OmegaConf: no partial-key interpolation)
+control_fold_exclusions:
+  fold_0: [SNB_IHC_CASE_27_SLIDE_3-0, SNB_IHC_CASE_80_SLIDE_5-0]
+
+data:
+  train:
+    uris: ${concat:${other_fold_uris:${fold_run_uris},5,${fold}},${controls_run_uri}/controls}
+    labels:
+      _target_: lymph_nodes.data.datasets.embedding.TileLabels
+      positive: ${train_labels.positive}
+      brownish_column: ${train_labels.brownish_column}
+      brownish_threshold: ${train_labels.brownish_threshold}
+      tma_column: ${train_labels.tma_column}
+      soft_target: ${train_labels.soft_target}
+      hard_negatives: ${train_labels.hard_negatives}
+      extra_cancer_cohort: mmci_ihc_2023_controls
+      extra_positive:
+        annotation_brown_coverage: 0.0
+    target_grids: [cytokeratin_grid, annotation_brown_grid]
+    tile_filters:
+      - ${filters.tissue}
+      - ${filters.no_patho_ignore}
+      - ${filters.no_cytokeratin_ignore}
+      - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+        column: annotation_brown_coverage
+        op: ">"
+        value: 0.0
+        negate: true
+        cohort: mmci_ihc_2023
+    slide_filters:
+      - ${filters.negative_slides}
+      - ${filters.no_unflagged_little_tissue}
+      - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+        column: slide_name
+        op: in
+        value: ${control_fold_exclusions.${control_fold_key}}
+        negate: true
+  train_sampler:
+    ratio:
+      cancer: 2.7
+      cancer_extra: 0.3
