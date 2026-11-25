@@ -345,7 +345,10 @@ class CellPasting:
       look (TileAugmentation's fade takes the whole tile);
     - ``edge_p``: where a tile holds the lymph node's outline, each paste placed with this
       probability within ``edge_um`` inside it — the subcapsular sinus, where metastatic
-      cells arrive with the afferent lymph;
+      cells arrive with the afferent lymph; ``edge_mode`` ``"far"`` instead deeper than
+      ``edge_um`` inside it (the same tiles' parenchyma), and ``edge_only`` pastes nothing
+      where the tile holds no outline or the chosen zone no tissue (diagnostics: the
+      same cells near the outline vs deeper in it, ln_donors_context.yaml, 2026-11-25);
     - ``donor_weights``: the donor tiles drawn by group, a group's share by its weight,
       the groups slide-name prefixes (e.g. TMA kinds ``FIN``, ``TNBC``, ``KOS``; donors
       of no group never drawn) — TileSegmentationDataset draws them. By default every
@@ -411,6 +414,8 @@ class CellPasting:
         min_fade: float = 0.25,
         edge_p: float = 0.0,
         edge_um: float = 50.0,
+        edge_mode: str = "near",
+        edge_only: bool = False,
         donor_weights: Mapping[str, float] | None = None,
         cut: str = "stained",
         mark: bool = True,
@@ -422,6 +427,8 @@ class CellPasting:
     ) -> None:
         if cut not in ("stained", "unstained"):
             raise ValueError(f"cut: 'stained' or 'unstained', not {cut!r}")
+        if edge_mode not in ("near", "far"):
+            raise ValueError(f"edge_mode: 'near' or 'far', not {edge_mode!r}")
         if match not in ("h", "od"):
             raise ValueError(f"match: 'h' or 'od', not {match!r}")
         if donor_pool not in ("default", "cancer", "no_cytokeratin"):
@@ -450,6 +457,8 @@ class CellPasting:
         self.min_fade = min_fade
         self.edge_p = edge_p
         self.edge_um = edge_um
+        self.edge_mode = edge_mode
+        self.edge_only = edge_only
         self.donor_weights = None if donor_weights is None else dict(donor_weights)
         self.cut = cut
         self.mark = mark
@@ -497,10 +506,12 @@ class CellPasting:
             pasted = np.zeros(tile.shape[:2], dtype=bool)
             reference = np.percentile(hed[..., H][tissue], 90) if tissue.any() else None
             edge = (
-                _edge_band(node, self.edge_um / mpp)
+                _edge_band(node, self.edge_um / mpp, far=self.edge_mode == "far")
                 if self.edge_p and node is not None
                 else None
             )
+            if self.edge_only and edge is None:
+                donors = []  # no outline in the tile: nothing pasted
             for donor_tile in donors:
                 donor_hed, donor_tissue = (
                     rgb_to_hed(donor_tile),
@@ -522,6 +533,8 @@ class CellPasting:
                 where = tissue
                 if edge is not None and rng.random() < self.edge_p:
                     near = tissue & edge
+                    if not near.any() and self.edge_only:
+                        continue  # no tissue in the zone: no paste
                     where = near if near.any() else tissue
                 for _ in range(count):
                     cut = (
@@ -819,15 +832,16 @@ def _cell_alpha(
     return np.clip(alpha * weight, 0, 1).astype(np.float32)
 
 
-def _edge_band(node: np.ndarray, width: float) -> np.ndarray | None:
+def _edge_band(node: np.ndarray, width: float, far: bool = False) -> np.ndarray | None:
     """The lymph node's pixels within ``width`` px of its outline in the tile, or None.
 
-    None where the tile holds no outline (all node or none): the tile's own edges are
-    no outline.
+    ``far``: those deeper than ``width`` instead. None where the tile holds no outline
+    (all node or none): the tile's own edges are no outline.
     """
     if node.all() or not node.any():
         return None
-    return node & (ndimage.distance_transform_edt(node) <= width)
+    distance = ndimage.distance_transform_edt(node)
+    return node & (distance > width if far else distance <= width)
 
 
 def _paste(

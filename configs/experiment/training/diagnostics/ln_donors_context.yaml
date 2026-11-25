@@ -1,0 +1,99 @@
+# @package _global_
+
+# Does the lymph node context explain the pasted-vs-in-place gap? (2026-11-25, the user's
+# concern that random pasting keeps no morphological structure.) In the ln_donors
+# diagnostics the same kind of cells — tumour cells cut from the annotated IHC 2023 val
+# lesions — are found at 0.49-0.55 (faint) when pasted at random into negative node
+# tiles, but real single cells in place only at 0.14-0.31 (@2, 6 models; HANDOFF.md).
+# Here, besides ln_faint / ln_strong (random places in the node), the same cells pasted
+# only into tiles holding the node's outline (CellPasting edge_only), either within
+# 50 um inside it — the subcapsular sinus, where metastatic cells arrive (edge_mode
+# near) — or deeper than 50 um in the same kind of tiles (far). Near found much less
+# than far (towards the in-place rate): the sinus context makes them harder. Near ~ far
+# ~ random: the context of where they land does not explain the gap (the real lesions'
+# size / faintness or the pasting itself does). Evaluation-only use of the lymph node
+# annotations, as ln_donors; scored at the same thresholds (8 fold-0 negative slides).
+defaults:
+  - /experiment/training/diagnostics/ln_donors
+  - _self_
+
+trainer:
+  callbacks:
+    synthetic_lesions:
+      extra_lesions:
+        ln_faint_near:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          donor_cohorts: [mmci_ihc_2023]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cluster_p: 0.0
+          fragment_p: 0.0
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
+          match: od
+          harmonise: true
+          halo: false
+          edge_p: 1.0
+          edge_um: 50.0
+          edge_only: true
+          edge_mode: near
+          cell_fade_p: 1.0
+          cell_fade_to: [0.03, 0.05]
+        ln_faint_far:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          donor_cohorts: [mmci_ihc_2023]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cluster_p: 0.0
+          fragment_p: 0.0
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
+          match: od
+          harmonise: true
+          halo: false
+          edge_p: 1.0
+          edge_um: 50.0
+          edge_only: true
+          edge_mode: far
+          cell_fade_p: 1.0
+          cell_fade_to: [0.03, 0.05]
+        ln_strong_near:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          donor_cohorts: [mmci_ihc_2023]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cluster_p: 0.0
+          fragment_p: 0.0
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
+          match: od
+          harmonise: true
+          halo: false
+          edge_p: 1.0
+          edge_um: 50.0
+          edge_only: true
+          edge_mode: near
+        ln_strong_far:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          donor_cohorts: [mmci_ihc_2023]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cluster_p: 0.0
+          fragment_p: 0.0
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
+          match: od
+          harmonise: true
+          halo: false
+          edge_p: 1.0
+          edge_um: 50.0
+          edge_only: true
+          edge_mode: far
