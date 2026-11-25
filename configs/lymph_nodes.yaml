@@ -79,6 +79,19 @@ filters:
     op: in
     value: [SNB_IHC_CASE_3_SLIDE_3-0]
     negate: true
+  # The 6 negative-only IHC 2023 test cases whose control TMAs give training donors
+  # (2026-11-25, option B of research-notes idea lymph-nodes-on-slide-control-tma; MLflow
+  # e7a880ce): every slide of them leaves the test set, so that no evaluated slide shares
+  # a glass with a training cell. Decided before any evaluation on this test split.
+  no_control_donor_cases:
+    _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+    column: slide_name
+    op: in
+    value: [SNB_IHC_CASE_12_SLIDE_1-0, SNB_IHC_CASE_12_SLIDE_2-0, SNB_IHC_CASE_22_SLIDE_1-0,
+            SNB_IHC_CASE_22_SLIDE_2-0, SNB_IHC_CASE_31_SLIDE_1-0, SNB_IHC_CASE_35_SLIDE_1-0,
+            SNB_IHC_CASE_35_SLIDE_2-0, SNB_IHC_CASE_35_SLIDE_3-0, SNB_IHC_CASE_51_SLIDE_1-0,
+            SNB_IHC_CASE_51_SLIDE_2-0, SNB_IHC_CASE_73_SLIDE_1-0, SNB_IHC_CASE_73_SLIDE_2-0]
+    negate: true
   # Inside the lymph node (node_coverage; preprocessing/node_masks.py): drops a tile only
   # if its slide has a node mask and the tile lies wholly outside it, so TMAs and slides
   # without node masks keep every tile. Not used by default. In data.eval / data.test
@@ -194,6 +207,7 @@ data:
       - ${filters.no_tma_control}
       - ${filters.no_unflagged_tma_control}
       - ${filters.no_duplicate_slides}
+      - ${filters.no_control_donor_cases}
     ignore_unannotated_positive_slides: true
 
 mode_emojis:

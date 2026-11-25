@@ -343,10 +343,12 @@ class CellPasting:
       DAB density in ``cell_fade_to`` (as TileAugmentation's fade, hue-preserving): faint
       cells in a tile otherwise as stained as it was, the missed isolated tumour cells'
       look (TileAugmentation's fade takes the whole tile);
-    - ``edge_p``: where a tile holds the lymph node's outline, each paste placed with this
-      probability within ``edge_um`` inside it — the subcapsular sinus, where metastatic
-      cells arrive with the afferent lymph; ``edge_mode`` ``"far"`` instead deeper than
-      ``edge_um`` inside it (the same tiles' parenchyma), and ``edge_only`` pastes nothing
+    - ``edge_p``: where a tile holds the outline of ``node`` (the tiling's node_grid: the
+      node mask, i.e. the dense node grown by its ``margin_um``, 200 um — so the outline
+      lies in the perinodal tissue, not at the subcapsular sinus), each paste placed with
+      this probability within ``edge_um`` inside that outline; ``edge_mode`` ``"far"``
+      instead deeper than ``edge_um`` inside it (in the same tiles: still mostly within
+      the margin), and ``edge_only`` pastes nothing
       where the tile holds no outline or the chosen zone no tissue (diagnostics: the
       same cells near the outline vs deeper in it, ln_donors_context.yaml, 2026-11-25);
     - ``donor_weights``: the donor tiles drawn by group, a group's share by its weight,

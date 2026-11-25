@@ -1,0 +1,21 @@
+# @package _global_
+
+# The control-TMA donor cohort (2026-11-25; research-notes idea lymph-nodes-on-slide-control-tma,
+# option B): the 18 IHC 2023 control slides usable for training — 12 of training-side cases,
+# 6 of the negative-only test cases 12, 22, 31, 35, 51, 73, which left the test set
+# (configs/lymph_nodes.yaml, filters.no_control_donor_cases). Slides table from MLflow
+# e7a880ce (the patient dataset's rows, cohort_id mmci_ihc_2023_controls, has_tma_control
+# dropped). Tiled with experiment/tiling/mmci_hdab_segmentation_controls.yaml.
+
+dataset_name: IHC 2023 controls
+
+slides_run_uri: mlflow-artifacts:/4/e7a880ce6762436aa099be57fb5a398b/artifacts
+# Lymph node masks: preprocessing/node_masks.py run a4fc20c3 (as mmci_ihc_2023).
+node_mask_dir: mlflow-artifacts:/4/a4fc20c310144badb4ab0d8d4263e908/artifacts/node_masks
+
+datasets:
+  - name: controls
+    stride: ${eval_stride}
+    slides:
+      _target_: preprocessing.data_source.MLFlowDataSource
+      uri: ${slides_run_uri}/controls/slides.csv

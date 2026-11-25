@@ -6,12 +6,13 @@
 # lesions — are found at 0.49-0.55 (faint) when pasted at random into negative node
 # tiles, but real single cells in place only at 0.14-0.31 (@2, 6 models; HANDOFF.md).
 # Here, besides ln_faint / ln_strong (random places in the node), the same cells pasted
-# only into tiles holding the node's outline (CellPasting edge_only), either within
-# 50 um inside it — the subcapsular sinus, where metastatic cells arrive (edge_mode
-# near) — or deeper than 50 um in the same kind of tiles (far). Near found much less
-# than far (towards the in-place rate): the sinus context makes them harder. Near ~ far
-# ~ random: the context of where they land does not explain the gap (the real lesions'
-# size / faintness or the pasting itself does). Evaluation-only use of the lymph node
+# only into tiles holding the node mask's outline (CellPasting edge_only), either within
+# 50 um inside it (edge_mode near) or deeper than 50 um in the same kind of tiles (far).
+# Correction 2026-11-25: the node mask (node_grid) is the dense node grown by 200 um
+# (preprocessing/node_masks.py margin_um), so both zones lie mostly in the perinodal
+# margin, not at the subcapsular sinus, which this does not test. Result (evals 58e4f9a6
+# / d9df2296 / 85718834): near = far, both below random node tiles (faint @2 0.40 / 0.41
+# vs 0.53): pastes in the perinodal margin are found less. Evaluation-only use of the lymph node
 # annotations, as ln_donors; scored at the same thresholds (8 fold-0 negative slides).
 defaults:
   - /experiment/training/diagnostics/ln_donors

@@ -1,0 +1,124 @@
+# @package _global_
+
+# Control-TMA donor cohort tiling (2026-11-25; research-notes idea lymph-nodes-on-slide-control-tma,
+# option B): mmci_hdab_segmentation.yaml's blocks on the 18 control slides of
+# configs/data/tiling/mmci_ihc_2023_controls.yaml, kept to the user's control rectangles
+# (annotation_coverage > 0, filtered before any tile is read). Set on the command line:
+# - annotation_mask_dir: the rectangles' masks (preprocessing/annotation_masks.py on
+#   /mnt/projects/lymph_nodes/annotations/control_tma_2026-11-25/by_slide);
+# - refined_annotation_mask_dir: the stained cells in them (preprocessing/
+#   refined_annotation_masks.py) -> annotation_brown_coverage / _grid, the donor tiles.
+# Half-tile stride (the data config's eval_stride), as the lymph node lesion donors (val).
+defaults:
+  - /experiment/tiling/mmci_hdab_segmentation
+  - _self_
+
+annotation_mask_dir: ???
+refined_annotation_mask_dir: ???
+
+tiling_blocks:
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: tissue_coverage
+    uri: ${tissue_mask_dir}
+    roi: ${rois.tissue}
+    min_label: 1 # keep everything that is not background (label 0)
+    mandatory: true
+
+  # drop tiles with < 10% tissue coverage
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: filter
+    expr: "tissue_coverage >= 0.1"
+
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: repartition
+    target_num_rows_per_block: 512
+
+  - _target_: preprocessing.tiling_blocks.OverlayGrid
+    name: tissue_grid
+    uri: ${tissue_mask_dir}
+    roi: ${rois.full}
+    grid: ${grid}
+    min_label: 1
+    mandatory: true
+
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: blur_coverage
+    uri: ${blur_mask_dir}
+    roi: ${rois.full}
+    min_label: 127
+    mandatory: false
+
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: annotation_coverage
+    uri: ${annotation_mask_dir}
+    roi: ${rois.full}
+    min_label: 255
+    mandatory: false
+
+  # Only the tiles touching the control rectangle, before any tile is read.
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: filter
+    expr: "annotation_coverage > 0"
+
+  # The share of the tile inside the lymph node (null without node masks); used only
+  # where a config asks for it, e.g. filters.in_node (configs/lymph_nodes.yaml).
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: node_coverage
+    uri: ${node_mask_dir}
+    roi: ${rois.full}
+    min_label: 128
+    mandatory: false
+
+  - _target_: preprocessing.tiling_blocks.ReadTiles
+    name: tile
+
+  # brownish_coverage: the share of the tile in DAB-stained cells by colour
+  # deconvolution (preprocessing/staining.py), the cells of the refined labels; the
+  # name is the one the training configs read.
+  - _target_: preprocessing.tiling_blocks.DabCoverage
+    name: brownish_coverage
+    image_col: tile
+
+  # After DabCoverage: its numpy batches can't carry a grid column mixing values
+  # and nulls (slides with and without an annotation mask) back into Arrow.
+  - _target_: preprocessing.tiling_blocks.OverlayGrid
+    name: annotation_grid
+    uri: ${annotation_mask_dir}
+    roi: ${rois.full}
+    grid: ${grid}
+    min_label: 255
+    mandatory: false
+
+  # Refined labels: the masks hold each ~1 um pixel's covered fraction (* 255).
+  - _target_: preprocessing.tiling_blocks.OverlayCoverage
+    name: annotation_brown_coverage
+    uri: ${refined_annotation_mask_dir}
+    roi: ${rois.full}
+    min_label: 128
+    mandatory: false
+
+  - _target_: preprocessing.tiling_blocks.OverlayGrid
+    name: annotation_brown_grid
+    uri: ${refined_annotation_mask_dir}
+    roi: ${rois.full}
+    grid: ${grid}
+    min_label: 128
+    mandatory: false
+
+  - _target_: preprocessing.tiling_blocks.OverlayGrid
+    name: node_grid
+    uri: ${node_mask_dir}
+    roi: ${rois.full}
+    grid: ${grid}
+    min_label: 128
+    mandatory: false
+
+  - _target_: preprocessing.tiling_blocks.Operator
+    operator: drop_columns
+    cols: ["level", "tile", "path", "mpp_x", "mpp_y", "tile_extent_x", "tile_extent_y"]
+
+metadata:
+  run_name: "🧩 Segmentation tiling · ${dataset_name}"
+  description: >-
+    Control-TMA rectangles of ${dataset_name}, tiled with per-patch coverage grids (no
+    embeddings): the donor cohort of the on-slide control idea.

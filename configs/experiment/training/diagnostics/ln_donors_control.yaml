@@ -1,0 +1,90 @@
+# @package _global_
+
+# Do on-slide control-TMA cells look to the model like lymph node cells or like TMA cells?
+# (2026-11-25; research-notes idea lymph-nodes-on-slide-control-tma, step 1.)
+#
+# Why: in ln_donors, the same faint pasting into the same recipients finds TMA donor cells
+# at 0.88 but lymph node lesion cells at 0.53 (@2; evals 58e4f9a6 / d9df2296 / 85718834,
+# stain-cut seeds): half of the pasted-TMA-to-real gap is the donor. 27 IHC 2023 slides carry
+# a CK control TMA, stained in the lymph node's run on the same glass; the user finds its
+# positive cells closer to the lymph node's. Here, besides ln_donors' sets, the same single
+# cells cut from the controls (ctrl_faint / ctrl_strong, ln_faint / ln_strong's settings):
+# found like the LN cells (<= ~0.6 faint @2): the staining run / cohort is the donor cue, and
+# a training pilot with control donors is worth it. Found like the TMA cells (>= ~0.8): the
+# gap is TMA-vs-LN biology or the cut; drop (thresholds fixed before the run, in the idea).
+#
+# The controls (configs/data/tiling/mmci_ihc_2023_controls.yaml, option B: the 12 control
+# slides of training-side cases and the 6 of the negative-only test cases 12, 22, 31, 35, 51,
+# 73, which left the test set): a fourth validation source, its tiles inside the user's
+# rectangles with stained cells (annotation_brown_coverage > 0) only. Their cohort
+# (mmci_ihc_2023_controls) is in neither LesionMetrics' nor SyntheticLesionMetrics' cohorts:
+# no lesions, no false positives, no thresholds from them — ln_faint / ln_strong and the
+# in-place lesions must reproduce the ln_donors runs exactly (a check). The pooled tile metrics
+# (validation/auroc, ...) take the control tiles in: not comparable.
+#
+# controls_run_uri: the controls tiling run (mlflow-artifacts:/4/<run>/artifacts), on the
+# command line.
+defaults:
+  - /experiment/training/diagnostics/ln_donors
+  - _self_
+
+controls_run_uri: ???
+
+data:
+  val:
+    uris:
+      - ${ihc_run_uri}/fold_${fold}
+      - ${tma_run_uri}/fold_${fold}
+      - ${ihc_run_uri}/val
+      - ${controls_run_uri}/controls
+    tile_filters:
+      - ${filters.tissue}
+      - ${filters.no_patho_ignore}
+      - ${filters.no_cytokeratin_ignore}
+      - ${tma_ambiguous_band}
+      - ${ln_validation_subset}
+      - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+        column: annotation_brown_coverage
+        op: ">"
+        value: 0.0
+        source: 2
+      - _target_: lymph_nodes.data.datasets.meta_dataset.FilterCondition
+        column: annotation_brown_coverage
+        op: ">"
+        value: 0.0
+        source: 3
+
+trainer:
+  callbacks:
+    synthetic_lesions:
+      extra_lesions:
+        ctrl_faint:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          donor_cohorts: [mmci_ihc_2023_controls]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cluster_p: 0.0
+          fragment_p: 0.0
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
+          cell_fade_p: 1.0
+          cell_fade_to: [0.03, 0.05]
+          match: od
+          harmonise: true
+          halo: false
+        ctrl_strong:
+          _target_: lymph_nodes.data.augmentations.CellPasting
+          donor_cohorts: [mmci_ihc_2023_controls]
+          p: 1.0
+          negative_p: 0.0
+          max_cells: 1
+          cluster_p: 0.0
+          fragment_p: 0.0
+          cell_radius_um: [4.0, 7.0]
+          placement_density: 0.005
+          within_node: true
+          match: od
+          harmonise: true
+          halo: false
